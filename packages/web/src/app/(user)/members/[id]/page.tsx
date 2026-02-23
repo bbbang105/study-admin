@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { getPartStyle, getPartLabel } from '@/lib/part-config';
 
 interface MemberInfo {
   id: string;
@@ -151,7 +152,9 @@ export default function MemberProfilePage() {
                 <p className="text-2xl font-semibold">{member.name}</p>
                 <p className="text-muted-foreground">@{member.discordUsername}</p>
               </div>
-              <Badge variant="outline">{member.part}</Badge>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPartStyle(member.part).bg} ${getPartStyle(member.part).text}`}>
+                {getPartLabel(member.part)}
+              </span>
             </div>
           </div>
 
@@ -159,7 +162,7 @@ export default function MemberProfilePage() {
             <>
               <Separator />
               <div>
-                <p className="text-sm text-muted-foreground mb-1">한줄 소개</p>
+                <p className="text-sm text-muted-foreground mb-1">자기소개</p>
                 <p>{member.bio}</p>
               </div>
             </>

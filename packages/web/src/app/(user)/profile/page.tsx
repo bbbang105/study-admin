@@ -2,19 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Link2, FileText, CheckCircle, AlertCircle, Calendar, Wallet, ExternalLink } from 'lucide-react';
+import { User, Link2, FileText, CheckCircle, Calendar, Wallet, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { getPartStyle, getPartLabel } from '@/lib/part-config';
 
 interface UserInfo {
   id: string;
   email: string;
-  emailVerified: boolean;
   memberId: string | null;
 }
 
@@ -58,9 +56,6 @@ export default function ProfilePage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [discordId, setDiscordId] = useState('');
-  const [linking, setLinking] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -81,61 +76,6 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-
-  const handleLinkMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!discordId.trim()) return;
-
-    setLinking(true);
-    setLinkError(null);
-
-    try {
-      const response = await fetch('/api/profile/link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discordId: discordId.trim() }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setLinkError(result.message || '연결에 실패했습니다.');
-        return;
-      }
-
-      // Refresh profile data
-      await fetchProfile();
-      setDiscordId('');
-
-      // Check if onboarding is needed
-      if (!result.member.onboardingCompleted) {
-        router.push('/profile/onboarding');
-      }
-    } catch (err) {
-      setLinkError('서버 오류가 발생했습니다.');
-      console.error(err);
-    } finally {
-      setLinking(false);
-    }
-  };
-
-  const handleUnlinkMember = async () => {
-    if (!confirm('스터디원 계정 연결을 해제하시겠습니까?')) return;
-
-    try {
-      const response = await fetch('/api/profile/link', {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to unlink');
-      }
-
-      await fetchProfile();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -199,63 +139,21 @@ export default function ProfilePage() {
                 {data?.member?.name || data?.user?.email?.split('@')[0]}
               </p>
               <p className="text-sm text-muted-foreground">{data?.user?.email}</p>
-              {data?.user?.emailVerified ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                  <CheckCircle className="h-3 w-3" />
-                  이메일 인증됨
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                  <AlertCircle className="h-3 w-3" />
-                  이메일 미인증
-                </span>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Member Link Section */}
+      {/* Member Info or Onboarding Prompt */}
       {!data?.member ? (
         <Card className="border-border/60 shadow-none">
-          <CardHeader className="px-4 py-3 pb-0">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Link2 className="h-4 w-4" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold">스터디원 계정 연결</p>
-                <p className="text-xs text-muted-foreground">
-                  Discord ID를 입력하여 스터디원 계정을 연결하세요.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 py-4">
-            <form onSubmit={handleLinkMember} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="discordId" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Discord ID
-                </Label>
-                <Input
-                  id="discordId"
-                  placeholder="예: 123456789012345678"
-                  value={discordId}
-                  onChange={(e) => setDiscordId(e.target.value)}
-                  disabled={linking}
-                  className="border-border/60"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Discord 설정 &gt; 내 계정에서 ID를 복사할 수 있습니다.
-                </p>
-              </div>
-              {linkError && (
-                <p className="text-sm text-destructive">{linkError}</p>
-              )}
-              <Button type="submit" disabled={linking || !discordId.trim()} size="sm">
-                {linking ? '연결 중...' : '계정 연결'}
-              </Button>
-            </form>
+          <CardContent className="px-4 py-8 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">
+              온보딩을 완료하면 스터디원 정보가 표시됩니다.
+            </p>
+            <Button size="sm" onClick={() => router.push('/profile/onboarding')}>
+              온보딩 시작하기
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -270,19 +168,7 @@ export default function ProfilePage() {
                   </div>
                   <p className="text-sm font-semibold">스터디원 정보</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(data.member.status)}
-                  {!data.member.onboardingCompleted && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-border/60"
-                      onClick={() => router.push('/profile/onboarding')}
-                    >
-                      프로필 작성하기
-                    </Button>
-                  )}
-                </div>
+                {getStatusBadge(data.member.status)}
               </div>
             </CardHeader>
             <CardContent className="px-4 py-4 space-y-4">
@@ -293,7 +179,9 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">파트</p>
-                  <p className="text-sm font-medium">{data.member.part}</p>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPartStyle(data.member.part).bg} ${getPartStyle(data.member.part).text}`}>
+                    {getPartLabel(data.member.part)}
+                  </span>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">블로그</p>
@@ -319,7 +207,7 @@ export default function ProfilePage() {
                 <>
                   <Separator className="border-border/60" />
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">한줄 소개</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">자기소개</p>
                     <p className="text-sm">{data.member.bio}</p>
                   </div>
                 </>
@@ -347,18 +235,6 @@ export default function ProfilePage() {
                   <p className="text-sm italic text-muted-foreground">&ldquo;{data.member.resolution}&rdquo;</p>
                 </div>
               )}
-
-              <Separator className="border-border/60" />
-              <div className="flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUnlinkMember}
-                  className="h-7 text-xs text-muted-foreground hover:text-destructive"
-                >
-                  계정 연결 해제
-                </Button>
-              </div>
             </CardContent>
           </Card>
 

@@ -8,7 +8,6 @@ import {
   FileText,
   Trophy,
   Newspaper,
-  User,
   Users,
   CalendarCheck,
   Banknote,
@@ -42,7 +41,6 @@ const userNavItems: NavItem[] = [
   { title: '글 목록',  href: '/posts',     icon: FileText },
   { title: '랭킹',     href: '/ranking',   icon: Trophy },
   { title: '큐레이션', href: '/curation',  icon: Newspaper },
-  { title: '프로필',   href: '/profile',   icon: User },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -77,7 +75,7 @@ function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
       title={collapsed ? item.title : undefined}
       className={cn(
         // Base layout
-        'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+        'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium',
         // Collapse: hide label text but keep icon centered
         collapsed && 'justify-center px-0',
         // Transition
@@ -100,7 +98,7 @@ function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
     >
       <Icon
         className={cn(
-          'h-4 w-4 shrink-0',
+          'h-[18px] w-[18px] shrink-0',
           isActive
             ? 'text-[#0ea5e9]'
             : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300',
@@ -138,29 +136,19 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex h-full flex-col">
 
-      {/* ── Logo ─────────────────────────────────────────────────────── */}
-      <div
-        className={cn(
-          'flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800',
-          collapsed && !mobile ? 'justify-center px-4' : 'gap-2 px-5'
-        )}
-      >
-        <span
-          className={cn(
-            'font-black tracking-tight text-zinc-900 dark:text-zinc-50 select-none',
-            collapsed && !mobile ? 'text-xl' : 'text-lg'
-          )}
-        >
-          {collapsed && !mobile ? 'B' : 'BS'}
-        </span>
-        {(!collapsed || mobile) && (
-          <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 tracking-wide uppercase">
-            Blog Study
-          </span>
-        )}
-
-        {/* Mobile close button */}
-        {mobile && (
+      {/* ── Mobile header: logo + close ────────────────────────────── */}
+      {mobile && (
+        <div className="flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800 px-5">
+          <Link
+            href="/dashboard"
+            onClick={onClose}
+            className="flex items-center gap-2 select-none"
+          >
+            <span className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">BS</span>
+            <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 tracking-wide uppercase">
+              Blog Study
+            </span>
+          </Link>
           <button
             onClick={onClose}
             aria-label="사이드바 닫기"
@@ -168,8 +156,13 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
           >
             <X className="h-4 w-4" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Desktop: spacer to match header height */}
+      {!mobile && (
+        <div className="h-14 shrink-0" />
+      )}
 
       {/* ── Primary navigation ───────────────────────────────────────── */}
       <nav
@@ -179,7 +172,7 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
           collapsed && !mobile ? 'px-2' : 'px-3'
         )}
       >
-        <ul role="list" className="space-y-0.5">
+        <ul role="list" className="space-y-1">
           {navItems.map((item) => {
             // Exact match for top-level, prefix match for nested admin routes
             const isActive =
