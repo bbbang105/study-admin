@@ -48,7 +48,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profileImageUrl, bio, interests, resolution } = body;
+    const { part, profileImageUrl, bio, interests, resolution } = body;
+
+    if (part && (typeof part !== 'string' || part.length > 50)) {
+      return NextResponse.json(
+        { message: '파트는 50자 이내의 문자열이어야 합니다.' },
+        { status: 400 }
+      );
+    }
 
     if (profileImageUrl) {
       try {
@@ -67,9 +74,16 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    if (bio && bio.length > 200) {
+    if (bio && typeof bio === 'string' && bio.trim().length < 100) {
       return NextResponse.json(
-        { message: '한줄 소개는 200자 이내로 작성해주세요.' },
+        { message: '자기소개는 100자 이상 작성해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    if (bio && typeof bio === 'string' && bio.length > 200) {
+      return NextResponse.json(
+        { message: '자기소개는 200자 이내로 작성해주세요.' },
         { status: 400 }
       );
     }
@@ -99,6 +113,7 @@ export async function PUT(request: NextRequest) {
     await database
       .update(members)
       .set({
+        ...(part ? { part } : {}),
         profileImageUrl: profileImageUrl || null,
         bio: bio || null,
         interests: interests || null,

@@ -2,32 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Image, FileText, Heart, Target } from 'lucide-react';
+import { ArrowLeft, Save, Image, FileText, Heart, Target, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { PART_OPTIONS } from '@/lib/part-config';
 
 const INTEREST_OPTIONS = [
-  'Frontend',
-  'Backend',
-  'DevOps',
-  'Mobile',
-  'AI/ML',
-  'Data',
-  'Security',
-  'Cloud',
-  'Design',
-  'PM',
-  'Startup',
-  'Career',
+  // 개발
+  '프론트엔드', '백엔드', '풀스택', '모바일', 'DevOps', '클라우드',
+  '데이터 엔지니어링', '보안', '시스템 설계', '데이터베이스', '테스팅',
+  // AI/트렌드
+  'AI/ML', 'LLM', '데이터 사이언스', 'Web3',
+  // 디자인/기획
+  'UX/UI', '프로덕트 매니지먼트', '서비스 기획', '브랜딩', '디자인 시스템',
+  // 커리어/성장
+  '커리어 성장', '사이드 프로젝트', '스타트업', '오픈소스', '기술 블로그',
+  // 인문/일상
+  '독서', '글쓰기', '생산성', '자기계발', '인문학', '심리학',
+  '경제/재테크', '건강/운동', '여행', '일상 기록',
 ];
 
 interface ProfileData {
+  user: {
+    id: string;
+  };
   member: {
     name: string;
+    part: string;
     profileImageUrl: string | null;
     bio: string | null;
     interests: string[] | null;
@@ -44,10 +49,12 @@ export default function ProfileEditPage() {
   const [success, setSuccess] = useState(false);
 
   // Form state
+  const [userId, setUserId] = useState('');
+  const [selectedPart, setSelectedPart] = useState('');
+  const [customPart, setCustomPart] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [bio, setBio] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
-  const [customInterest, setCustomInterest] = useState('');
   const [resolution, setResolution] = useState('');
 
   useEffect(() => {
@@ -66,6 +73,16 @@ export default function ProfileEditPage() {
         }
 
         // Pre-fill existing data
+        if (data.user?.id) setUserId(data.user.id);
+        if (data.member.part) {
+          const isPreset = PART_OPTIONS.some((o) => o.value === data.member!.part);
+          if (isPreset) {
+            setSelectedPart(data.member.part);
+          } else {
+            setSelectedPart('other');
+            setCustomPart(data.member.part);
+          }
+        }
         if (data.member.profileImageUrl) setProfileImageUrl(data.member.profileImageUrl);
         if (data.member.bio) setBio(data.member.bio);
         if (data.member.interests) setInterests(data.member.interests);
@@ -82,18 +99,13 @@ export default function ProfileEditPage() {
   }, [router]);
 
   const toggleInterest = (interest: string) => {
-    setInterests((prev) =>
-      prev.includes(interest)
-        ? prev.filter((i) => i !== interest)
-        : [...prev, interest]
-    );
-  };
-
-  const addCustomInterest = () => {
-    if (customInterest.trim() && !interests.includes(customInterest.trim())) {
-      setInterests((prev) => [...prev, customInterest.trim()]);
-      setCustomInterest('');
-    }
+    setInterests((prev) => {
+      if (prev.includes(interest)) {
+        return prev.filter((i) => i !== interest);
+      }
+      if (prev.length >= 6) return prev;
+      return [...prev, interest];
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,10 +115,12 @@ export default function ProfileEditPage() {
     setSuccess(false);
 
     try {
+      const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
       const response = await fetch('/api/profile/edit', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          part: part || null,
           profileImageUrl: profileImageUrl || null,
           bio: bio || null,
           interests: interests.length > 0 ? interests : null,
@@ -156,6 +170,43 @@ export default function ProfileEditPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Part */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              <CardTitle>파트</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="part">파트</Label>
+            <select
+              id="part"
+              value={selectedPart}
+              onChange={(e) => {
+                setSelectedPart(e.target.value);
+                if (e.target.value !== 'other') setCustomPart('');
+              }}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">파트를 선택하세요</option>
+              {PART_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {selectedPart === 'other' && (
+              <Input
+                placeholder="파트를 직접 입력하세요"
+                value={customPart}
+                onChange={(e) => setCustomPart(e.target.value)}
+                maxLength={50}
+              />
+            )}
+          </CardContent>
+        </Card>
+
         {/* Profile Image */}
         <Card>
           <CardHeader>
@@ -168,27 +219,11 @@ export default function ProfileEditPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="profileImageUrl">이미지 URL</Label>
-              <Input
-                id="profileImageUrl"
-                placeholder="https://example.com/image.jpg"
-                value={profileImageUrl}
-                onChange={(e) => setProfileImageUrl(e.target.value)}
-              />
-            </div>
-            {profileImageUrl && (
-              <div className="flex justify-center">
-                <img
-                  src={profileImageUrl}
-                  alt="Preview"
-                  className="w-24 h-24 rounded-full object-cover border"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
+            <AvatarUpload
+              currentImageUrl={profileImageUrl}
+              onUploadComplete={(url) => setProfileImageUrl(url)}
+              userId={userId}
+            />
           </CardContent>
         </Card>
 
@@ -197,20 +232,32 @@ export default function ProfileEditPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              <CardTitle>한줄 소개</CardTitle>
+              <CardTitle>자기소개</CardTitle>
             </div>
+            <CardDescription>
+              어떤 일을 하고 있는지, 스터디에서 어떤 글을 쓸 계획인지 자유롭게 소개해주세요.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Label htmlFor="bio">한줄 소개</Label>
-            <Input
+            <Label htmlFor="bio">
+              자기소개 <span className="text-destructive">*</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                (최소 100자, 최대 200자)
+              </span>
+            </Label>
+            <textarea
               id="bio"
-              placeholder="예: 프론트엔드 개발자, 새로운 기술에 관심이 많습니다."
+              placeholder="어떤 일을 하고 있는지, 스터디에서 어떤 글을 쓸 계획인지 자유롭게 소개해주세요."
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               maxLength={200}
+              rows={4}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
             />
-            <p className="text-xs text-muted-foreground text-right">
-              {bio.length}/200
+            <p className={`text-xs text-right ${
+              bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
+            }`}>
+              {bio.trim().length}/100자 이상 (최대 200자)
             </p>
           </CardContent>
         </Card>
@@ -222,57 +269,28 @@ export default function ProfileEditPage() {
               <Heart className="h-5 w-5" />
               <CardTitle>관심 분야</CardTitle>
             </div>
+            <CardDescription>
+              <span className="text-xs text-muted-foreground">
+                ({interests.length}/6 선택, 최소 3개)
+              </span>
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="flex flex-wrap gap-2">
               {INTEREST_OPTIONS.map((interest) => (
                 <Badge
                   key={interest}
                   variant={interests.includes(interest) ? 'default' : 'outline'}
-                  className="cursor-pointer"
+                  className={`cursor-pointer transition-colors ${
+                    !interests.includes(interest) && interests.length >= 6
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  }`}
                   onClick={() => toggleInterest(interest)}
                 >
                   {interest}
                 </Badge>
               ))}
-            </div>
-            
-            {/* Custom interests */}
-            {interests.filter((i) => !INTEREST_OPTIONS.includes(i)).length > 0 && (
-              <>
-                <Separator />
-                <div className="flex flex-wrap gap-2">
-                  {interests
-                    .filter((i) => !INTEREST_OPTIONS.includes(i))
-                    .map((interest) => (
-                      <Badge
-                        key={interest}
-                        variant="default"
-                        className="cursor-pointer"
-                        onClick={() => toggleInterest(interest)}
-                      >
-                        {interest} ×
-                      </Badge>
-                    ))}
-                </div>
-              </>
-            )}
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="직접 입력"
-                value={customInterest}
-                onChange={(e) => setCustomInterest(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addCustomInterest();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addCustomInterest}>
-                추가
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -313,7 +331,7 @@ export default function ProfileEditPage() {
           <Button type="button" variant="outline" onClick={() => router.back()}>
             취소
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || interests.length < 3 || bio.trim().length < 100}>
             <Save className="h-4 w-4 mr-2" />
             {saving ? '저장 중...' : '저장'}
           </Button>

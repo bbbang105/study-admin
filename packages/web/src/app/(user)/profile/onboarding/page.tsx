@@ -2,38 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Image, FileText, Heart, Target, ArrowRight, Check } from 'lucide-react';
+import { User, Heart, Target, ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { PART_OPTIONS } from '@/lib/part-config';
 
 const INTEREST_OPTIONS = [
-  'Frontend',
-  'Backend',
-  'DevOps',
-  'Mobile',
-  'AI/ML',
-  'Data',
-  'Security',
-  'Cloud',
-  'Design',
-  'PM',
-  'Startup',
-  'Career',
+  // 개발
+  '프론트엔드', '백엔드', '풀스택', '모바일', 'DevOps', '클라우드',
+  '데이터 엔지니어링', '보안', '시스템 설계', '데이터베이스', '테스팅',
+  // AI/트렌드
+  'AI/ML', 'LLM', '데이터 사이언스', 'Web3',
+  // 디자인/기획
+  'UX/UI', '프로덕트 매니지먼트', '서비스 기획', '브랜딩', '디자인 시스템',
+  // 커리어/성장
+  '커리어 성장', '사이드 프로젝트', '스타트업', '오픈소스', '기술 블로그',
+  // 인문/일상
+  '독서', '글쓰기', '생산성', '자기계발', '인문학', '심리학',
+  '경제/재테크', '건강/운동', '여행', '일상 기록',
 ];
 
-interface ProfileData {
-  member: {
-    name: string;
-    profileImageUrl: string | null;
-    bio: string | null;
-    interests: string[] | null;
-    resolution: string | null;
-    onboardingCompleted: boolean;
-  } | null;
-}
+const TOTAL_STEPS = 3;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -43,59 +36,73 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
 
   // Form state
-  const [profileImageUrl, setProfileImageUrl] = useState('');
-  const [bio, setBio] = useState('');
+  const [name, setName] = useState('');
+  const [selectedPart, setSelectedPart] = useState('');
+  const [customPart, setCustomPart] = useState('');
+  const [blogUrl, setBlogUrl] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
-  const [customInterest, setCustomInterest] = useState('');
+  const [bio, setBio] = useState('');
+  const [profileImageUrl, setProfileImageUrl] = useState('');
   const [resolution, setResolution] = useState('');
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchUserInfo = async () => {
       try {
-        const response = await fetch('/api/profile');
+        const response = await fetch('/api/auth/me');
         if (!response.ok) {
-          router.push('/profile');
+          router.push('/login');
           return;
         }
-        const data: ProfileData = await response.json();
-        
-        if (!data.member) {
-          router.push('/profile');
+        const data = await response.json();
+
+        // 이미 온보딩 완료한 유저는 대시보드로
+        if (data.hasMemberRecord && data.onboardingCompleted) {
+          router.push('/dashboard');
           return;
         }
 
-        // Pre-fill existing data
-        if (data.member.profileImageUrl) setProfileImageUrl(data.member.profileImageUrl);
-        if (data.member.bio) setBio(data.member.bio);
-        if (data.member.interests) setInterests(data.member.interests);
-        if (data.member.resolution) setResolution(data.member.resolution);
-      } catch (err) {
-        console.error(err);
-        router.push('/profile');
+        // Discord 정보로 pre-fill
+        if (data.id) setUserId(data.id);
+        if (data.discordUsername) setName(data.discordUsername);
+        if (data.avatarUrl) setProfileImageUrl(data.avatarUrl);
+      } catch {
+        router.push('/login');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchUserInfo();
   }, [router]);
 
   const toggleInterest = (interest: string) => {
-    setInterests((prev) =>
-      prev.includes(interest)
-        ? prev.filter((i) => i !== interest)
-        : [...prev, interest]
-    );
+    setInterests((prev) => {
+      if (prev.includes(interest)) {
+        return prev.filter((i) => i !== interest);
+      }
+      if (prev.length >= 6) return prev;
+      return [...prev, interest];
+    });
   };
 
-  const addCustomInterest = () => {
-    if (customInterest.trim() && !interests.includes(customInterest.trim())) {
-      setInterests((prev) => [...prev, customInterest.trim()]);
-      setCustomInterest('');
+  const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
+  const isStep1Valid = name.trim().length > 0 && part.length > 0 && blogUrl.trim().length > 0;
+  const isStep2Valid = interests.length >= 3 && interests.length <= 6 && bio.trim().length >= 100;
+  const isStep3Valid = resolution.trim().length > 0;
+
+  const canProceed = () => {
+    switch (step) {
+      case 1: return isStep1Valid;
+      case 2: return isStep2Valid;
+      case 3: return isStep3Valid;
+      default: return false;
     }
   };
 
   const handleSubmit = async () => {
+    if (!isStep3Valid) return;
+
     setSaving(true);
     setError(null);
 
@@ -104,10 +111,13 @@ export default function OnboardingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: name.trim(),
+          part,
+          blogUrl: blogUrl.trim(),
           profileImageUrl: profileImageUrl || null,
-          bio: bio || null,
-          interests: interests.length > 0 ? interests : null,
-          resolution: resolution || null,
+          bio: bio.trim(),
+          interests,
+          resolution: resolution.trim(),
         }),
       });
 
@@ -118,22 +128,21 @@ export default function OnboardingPage() {
         return;
       }
 
-      router.push('/profile');
-    } catch (err) {
+      router.push('/dashboard');
+    } catch {
       setError('서버 오류가 발생했습니다.');
-      console.error(err);
     } finally {
       setSaving(false);
     }
   };
 
-  const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
+  const nextStep = () => setStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -141,18 +150,18 @@ export default function OnboardingPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">프로필 작성</h1>
-        <p className="text-muted-foreground">
-          다른 스터디원들에게 나를 소개해보세요.
+        <h1 className="text-3xl font-bold tracking-tight">스터디 시작하기</h1>
+        <p className="text-muted-foreground mt-1">
+          프로필을 작성하고 스터디에 참가하세요.
         </p>
       </div>
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between">
-        {[1, 2, 3, 4].map((s) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
           <div key={s} className="flex items-center">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                 s < step
                   ? 'bg-primary text-primary-foreground'
                   : s === step
@@ -162,9 +171,9 @@ export default function OnboardingPage() {
             >
               {s < step ? <Check className="h-4 w-4" /> : s}
             </div>
-            {s < 4 && (
+            {s < TOTAL_STEPS && (
               <div
-                className={`w-16 md:w-24 h-1 mx-2 ${
+                className={`w-16 md:w-32 h-1 mx-2 rounded-full transition-colors ${
                   s < step ? 'bg-primary' : 'bg-muted'
                 }`}
               />
@@ -173,166 +182,182 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* Step 1: Profile Image */}
+      {/* Step 1: 기본 정보 */}
       {step === 1 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
-              <CardTitle>프로필 이미지</CardTitle>
+              <User className="h-5 w-5" />
+              <CardTitle>기본 정보</CardTitle>
             </div>
             <CardDescription>
-              프로필에 표시될 이미지 URL을 입력하세요. (선택사항)
+              스터디에서 사용할 기본 정보를 입력해주세요.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="profileImageUrl">이미지 URL</Label>
+              <Label htmlFor="name">
+                닉네임 <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="profileImageUrl"
-                placeholder="https://example.com/image.jpg"
-                value={profileImageUrl}
-                onChange={(e) => setProfileImageUrl(e.target.value)}
+                id="name"
+                placeholder="스터디에서 사용할 이름"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="part">
+                파트 <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="part"
+                value={selectedPart}
+                onChange={(e) => {
+                  setSelectedPart(e.target.value);
+                  if (e.target.value !== 'other') setCustomPart('');
+                }}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">파트를 선택하세요</option>
+                {PART_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {selectedPart === 'other' && (
+                <Input
+                  placeholder="파트를 직접 입력하세요"
+                  value={customPart}
+                  onChange={(e) => setCustomPart(e.target.value)}
+                  maxLength={50}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="blogUrl">
+                블로그 URL <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="blogUrl"
+                placeholder="https://velog.io/@username"
+                value={blogUrl}
+                onChange={(e) => setBlogUrl(e.target.value)}
+                maxLength={500}
               />
               <p className="text-xs text-muted-foreground">
-                JPG, PNG, WebP 형식의 이미지 URL을 입력하세요.
+                Velog, Tistory, Medium 등 블로그 주소를 입력하세요.
               </p>
             </div>
-            {profileImageUrl && (
-              <div className="flex justify-center">
-                <img
-                  src={profileImageUrl}
-                  alt="Preview"
-                  className="w-32 h-32 rounded-full object-cover border"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Step 2: Bio */}
+      {/* Step 2: 관심사 & 자기소개 */}
       {step === 2 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <CardTitle>한줄 소개</CardTitle>
+              <Heart className="h-5 w-5" />
+              <CardTitle>관심사 & 자기소개</CardTitle>
             </div>
             <CardDescription>
-              나를 한 문장으로 소개해보세요. (선택사항)
+              다른 스터디원들에게 나를 소개해보세요.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label>
+                관심사 <span className="text-destructive">*</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({interests.length}/6 선택, 최소 3개)
+                </span>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map((interest) => (
+                  <Badge
+                    key={interest}
+                    variant={interests.includes(interest) ? 'default' : 'outline'}
+                    className={`cursor-pointer transition-colors ${
+                      !interests.includes(interest) && interests.length >= 6
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
+                    }`}
+                    onClick={() => toggleInterest(interest)}
+                  >
+                    {interest}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="bio">한줄 소개</Label>
-              <Input
+              <Label htmlFor="bio">
+                자기소개 <span className="text-destructive">*</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  (최소 100자, 최대 200자)
+                </span>
+              </Label>
+              <textarea
                 id="bio"
-                placeholder="예: 프론트엔드 개발자, 새로운 기술에 관심이 많습니다."
+                placeholder="어떤 일을 하고 있는지, 스터디에서 어떤 글을 쓸 계획인지 자유롭게 소개해주세요."
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={200}
+                rows={4}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
               />
-              <p className="text-xs text-muted-foreground text-right">
-                {bio.length}/200
+              <p className={`text-xs text-right ${
+                bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
+              }`}>
+                {bio.trim().length}/100자 이상 (최대 200자)
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 3: Interests */}
+      {/* Step 3: 프로필 이미지 & 다짐 */}
       {step === 3 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              <CardTitle>관심 분야</CardTitle>
-            </div>
-            <CardDescription>
-              관심 있는 분야를 선택하거나 직접 입력하세요. (선택사항)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {INTEREST_OPTIONS.map((interest) => (
-                <Badge
-                  key={interest}
-                  variant={interests.includes(interest) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => toggleInterest(interest)}
-                >
-                  {interest}
-                </Badge>
-              ))}
-            </div>
-            
-            {/* Custom interests */}
-            {interests.filter((i) => !INTEREST_OPTIONS.includes(i)).length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {interests
-                  .filter((i) => !INTEREST_OPTIONS.includes(i))
-                  .map((interest) => (
-                    <Badge
-                      key={interest}
-                      variant="default"
-                      className="cursor-pointer"
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest} ×
-                    </Badge>
-                  ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="직접 입력"
-                value={customInterest}
-                onChange={(e) => setCustomInterest(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addCustomInterest();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addCustomInterest}>
-                추가
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 4: Resolution */}
-      {step === 4 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
               <Target className="h-5 w-5" />
-              <CardTitle>다짐</CardTitle>
+              <CardTitle>마무리</CardTitle>
             </div>
             <CardDescription>
-              이번 스터디에서의 다짐을 적어보세요. (선택사항)
+              프로필 이미지와 다짐을 작성해주세요.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="resolution">다짐</Label>
-              <Input
+              <Label>프로필 이미지</Label>
+              <AvatarUpload
+                currentImageUrl={profileImageUrl}
+                onUploadComplete={(url) => setProfileImageUrl(url)}
+                userId={userId}
+              />
+              <p className="text-xs text-muted-foreground">
+                Discord 프로필 이미지가 기본으로 설정됩니다. 변경을 원하면 새 이미지를 업로드하세요.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="resolution">
+                다짐 <span className="text-destructive">*</span>
+              </Label>
+              <textarea
                 id="resolution"
-                placeholder="예: 매주 꾸준히 글을 작성하고, 다른 분들의 글도 열심히 읽겠습니다!"
+                placeholder="이번 스터디에서의 다짐을 적어보세요. (예: 매주 꾸준히 글을 작성하고, 다른 분들의 글도 열심히 읽겠습니다!)"
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
-                maxLength={300}
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
               />
-              <p className="text-xs text-muted-foreground text-right">
-                {resolution.length}/300
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -350,31 +375,27 @@ export default function OnboardingPage() {
           onClick={prevStep}
           disabled={step === 1}
         >
+          <ArrowLeft className="h-4 w-4 mr-1" />
           이전
         </Button>
-        
-        {step < 4 ? (
-          <Button onClick={nextStep}>
+
+        {step < TOTAL_STEPS ? (
+          <Button onClick={nextStep} disabled={!canProceed()}>
             다음
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? '저장 중...' : '완료'}
+          <Button onClick={handleSubmit} disabled={saving || !canProceed()}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                저장 중...
+              </>
+            ) : (
+              '완료'
+            )}
           </Button>
         )}
-      </div>
-
-      {/* Skip Button */}
-      <div className="text-center">
-        <Button
-          variant="ghost"
-          onClick={handleSubmit}
-          disabled={saving}
-          className="text-muted-foreground"
-        >
-          나중에 작성하기
-        </Button>
       </div>
     </div>
   );
