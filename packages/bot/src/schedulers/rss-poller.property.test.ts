@@ -180,7 +180,7 @@ describe('RSS Poller Property Tests', () => {
           ),
           async (memberSpecs) => {
             // Create non-active members
-            const nonActiveMembers = memberSpecs.map((spec, index) =>
+            memberSpecs.map((spec, index) =>
               generateMember(
                 spec.id,
                 spec.discordId + index,
