@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1764216150637,
+      "tag": "0000_steep_amphibian",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764316150637,
+      "tag": "0001_rls_policies",
+      "breakpoints": true
+    }
+  ]
+}
