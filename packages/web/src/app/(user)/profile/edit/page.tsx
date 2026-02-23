@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Image, FileText, Heart, Target, User } from 'lucide-react';
+import { ArrowLeft, Save, Image, FileText, Heart, Target, User, Link2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,12 +32,16 @@ interface ProfileData {
   };
   member: {
     name: string;
+    nickname: string;
     part: string;
     profileImageUrl: string | null;
     bio: string | null;
     interests: string[] | null;
     resolution: string | null;
     onboardingCompleted: boolean;
+    githubUrl: string | null;
+    linkedinUrl: string | null;
+    instagramUrl: string | null;
   } | null;
 }
 
@@ -50,12 +54,17 @@ export default function ProfileEditPage() {
 
   // Form state
   const [userId, setUserId] = useState('');
+  const [name, setName] = useState('');
+  const [nickname, setNickname] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [customPart, setCustomPart] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [bio, setBio] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [resolution, setResolution] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -74,6 +83,8 @@ export default function ProfileEditPage() {
 
         // Pre-fill existing data
         if (data.user?.id) setUserId(data.user.id);
+        if (data.member.name) setName(data.member.name);
+        if (data.member.nickname) setNickname(data.member.nickname);
         if (data.member.part) {
           const isPreset = PART_OPTIONS.some((o) => o.value === data.member!.part);
           if (isPreset) {
@@ -87,6 +98,9 @@ export default function ProfileEditPage() {
         if (data.member.bio) setBio(data.member.bio);
         if (data.member.interests) setInterests(data.member.interests);
         if (data.member.resolution) setResolution(data.member.resolution);
+        if (data.member.githubUrl) setGithubUrl(data.member.githubUrl);
+        if (data.member.linkedinUrl) setLinkedinUrl(data.member.linkedinUrl);
+        if (data.member.instagramUrl) setInstagramUrl(data.member.instagramUrl);
       } catch (err) {
         console.error(err);
         router.push('/profile');
@@ -120,11 +134,16 @@ export default function ProfileEditPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: name.trim() || null,
+          nickname: nickname.trim() || null,
           part: part || null,
           profileImageUrl: profileImageUrl || null,
           bio: bio || null,
           interests: interests.length > 0 ? interests : null,
           resolution: resolution || null,
+          githubUrl: githubUrl || null,
+          linkedinUrl: linkedinUrl || null,
+          instagramUrl: instagramUrl || null,
         }),
       });
 
@@ -170,6 +189,42 @@ export default function ProfileEditPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Name & Nickname */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              <CardTitle>이름 & 닉네임</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                이름 (실명) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="name"
+                placeholder="실명을 입력하세요"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={50}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nickname">
+                닉네임 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="nickname"
+                placeholder="스터디에서 사용할 닉네임"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Part */}
         <Card>
           <CardHeader>
@@ -318,6 +373,51 @@ export default function ProfileEditPage() {
           </CardContent>
         </Card>
 
+        {/* Social Links */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              <CardTitle>소셜 링크</CardTitle>
+            </div>
+            <CardDescription>
+              다른 스터디원들이 볼 수 있는 소셜 링크를 입력하세요. (선택)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="githubUrl">GitHub</Label>
+              <Input
+                id="githubUrl"
+                placeholder="https://github.com/username"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkedinUrl">LinkedIn</Label>
+              <Input
+                id="linkedinUrl"
+                placeholder="https://linkedin.com/in/username"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instagramUrl">Instagram</Label>
+              <Input
+                id="instagramUrl"
+                placeholder="https://instagram.com/username"
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Messages */}
         {error && (
           <p className="text-sm text-destructive text-center">{error}</p>
@@ -331,7 +431,7 @@ export default function ProfileEditPage() {
           <Button type="button" variant="outline" onClick={() => router.back()}>
             취소
           </Button>
-          <Button type="submit" disabled={saving || interests.length < 3 || bio.trim().length < 100}>
+          <Button type="submit" disabled={saving || !name.trim() || !nickname.trim() || interests.length < 3 || bio.trim().length < 100}>
             <Save className="h-4 w-4 mr-2" />
             {saving ? '저장 중...' : '저장'}
           </Button>

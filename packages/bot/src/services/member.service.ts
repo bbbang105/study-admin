@@ -91,6 +91,7 @@ export class MemberService {
       discordId: input.discordId,
       discordUsername: input.discordUsername,
       name: input.name,
+      nickname: input.name,
       part: input.part,
       blogUrl: urlValidation.normalizedUrl || input.blogUrl,
       rssUrl: input.rssUrl || null,

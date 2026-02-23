@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, User, FileText, CheckCircle, Calendar, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, FileText, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { getPartStyle, getPartLabel } from '@/lib/part-config';
+import { getDefaultAvatar } from '@/lib/utils';
 
 interface MemberInfo {
   id: string;
   discordUsername: string;
   name: string;
+  nickname: string;
   part: string;
   blogUrl: string;
   profileImageUrl: string | null;
@@ -22,15 +24,9 @@ interface MemberInfo {
   resolution: string | null;
   status: string;
   joinedAt: string;
-}
-
-interface Stats {
-  postCount: number;
-  totalRounds: number;
-  submittedRounds: number;
-  lateRounds: number;
-  absentRounds: number;
-  attendanceRate: number;
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  instagramUrl: string | null;
 }
 
 interface Post {
@@ -42,7 +38,6 @@ interface Post {
 
 interface MemberProfileData {
   member: MemberInfo;
-  stats: Stats;
   recentPosts: Post[];
 }
 
@@ -114,7 +109,14 @@ export default function MemberProfilePage() {
     );
   }
 
-  const { member, stats, recentPosts } = data;
+  const { member, recentPosts } = data;
+
+  const socialLinks = [
+    { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
+    { url: member.githubUrl, icon: Github, label: 'GitHub' },
+    { url: member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
+    { url: member.instagramUrl, icon: Instagram, label: 'Instagram' },
+  ].filter((link) => link.url);
 
   return (
     <div className="space-y-6">
@@ -123,7 +125,7 @@ export default function MemberProfilePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{member.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{member.nickname}</h1>
           <p className="text-muted-foreground">스터디원 프로필</p>
         </div>
       </div>
@@ -142,15 +144,16 @@ export default function MemberProfilePage() {
         <CardContent className="space-y-6">
           <div className="flex items-start gap-6">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={member.profileImageUrl || undefined} />
+              <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
               <AvatarFallback className="text-2xl">
-                {member.name.slice(0, 2).toUpperCase()}
+                {member.nickname.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
               <div>
-                <p className="text-2xl font-semibold">{member.name}</p>
-                <p className="text-muted-foreground">@{member.discordUsername}</p>
+                <p className="text-2xl font-semibold">{member.nickname}</p>
+                <p className="text-sm text-muted-foreground">{member.name}</p>
+                <p className="text-muted-foreground">@{member.discordUsername.replace(/#0$/, '')}</p>
               </div>
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPartStyle(member.part).bg} ${getPartStyle(member.part).text}`}>
                 {getPartLabel(member.part)}
@@ -190,67 +193,35 @@ export default function MemberProfilePage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm text-muted-foreground">블로그</p>
-              <a
-                href={member.blogUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary hover:underline flex items-center gap-1"
-              >
-                {member.blogUrl}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-            <div>
               <p className="text-sm text-muted-foreground">가입일</p>
               <p className="font-medium">
                 {new Date(member.joinedAt).toLocaleDateString('ko-KR')}
               </p>
             </div>
           </div>
+
+          {/* Social Links */}
+          {socialLinks.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {socialLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <a
+                    key={link.label}
+                    href={link.url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {link.label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">작성 글</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.postCount}개</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">출석률</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.submittedRounds}/{stats.totalRounds}회
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">지각/결석</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.lateRounds + stats.absentRounds}회
-            </div>
-            <p className="text-xs text-muted-foreground">
-              지각 {stats.lateRounds}회 / 결석 {stats.absentRounds}회
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Recent Posts */}
       <Card>

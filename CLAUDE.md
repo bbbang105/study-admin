@@ -87,6 +87,8 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **아이콘**: lucide-react
 - **다크모드**: next-themes (시스템 연동)
 - **폰트**: Pretendard Variable
+- **기본 아바타**: DiceBear `fun-emoji` 스타일 (`getDefaultAvatar()` in `utils.ts`)
+- **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
 - **상세 스펙**: `docs/UI-DESIGN-SYSTEM.md` 참조
 
 ## 에이전트 활용 가이드

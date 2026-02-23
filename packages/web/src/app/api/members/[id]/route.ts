@@ -77,6 +77,7 @@ export async function GET(
         id: member.id,
         discordUsername: member.discordUsername,
         name: member.name,
+        nickname: member.nickname,
         part: member.part,
         blogUrl: member.blogUrl,
         profileImageUrl: member.profileImageUrl,
@@ -85,6 +86,9 @@ export async function GET(
         resolution: member.resolution,
         status: member.status,
         joinedAt: member.joinedAt,
+        githubUrl: member.githubUrl,
+        linkedinUrl: member.linkedinUrl,
+        instagramUrl: member.instagramUrl,
       },
       stats: {
         postCount: postCount?.count ?? 0,

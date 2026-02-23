@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { Separator } from '@/components/ui/separator';
 import { PART_OPTIONS } from '@/lib/part-config';
 
 const INTEREST_OPTIONS = [
@@ -37,6 +38,7 @@ export default function OnboardingPage() {
 
   // Form state
   const [name, setName] = useState('');
+  const [nickname, setNickname] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [customPart, setCustomPart] = useState('');
   const [blogUrl, setBlogUrl] = useState('');
@@ -45,6 +47,9 @@ export default function OnboardingPage() {
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [resolution, setResolution] = useState('');
   const [userId, setUserId] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -64,7 +69,8 @@ export default function OnboardingPage() {
 
         // Discord 정보로 pre-fill
         if (data.id) setUserId(data.id);
-        if (data.discordUsername) setName(data.discordUsername);
+        if (data.nickname) setNickname(data.nickname);
+        else if (data.discordUsername) setNickname(data.discordUsername);
         if (data.avatarUrl) setProfileImageUrl(data.avatarUrl);
       } catch {
         router.push('/login');
@@ -87,7 +93,7 @@ export default function OnboardingPage() {
   };
 
   const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
-  const isStep1Valid = name.trim().length > 0 && part.length > 0 && blogUrl.trim().length > 0;
+  const isStep1Valid = name.trim().length > 0 && nickname.trim().length > 0 && part.length > 0 && blogUrl.trim().length > 0;
   const isStep2Valid = interests.length >= 3 && interests.length <= 6 && bio.trim().length >= 100;
   const isStep3Valid = resolution.trim().length > 0;
 
@@ -112,12 +118,16 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          nickname: nickname.trim(),
           part,
           blogUrl: blogUrl.trim(),
           profileImageUrl: profileImageUrl || null,
           bio: bio.trim(),
           interests,
           resolution: resolution.trim(),
+          githubUrl: githubUrl.trim() || null,
+          linkedinUrl: linkedinUrl.trim() || null,
+          instagramUrl: instagramUrl.trim() || null,
         }),
       });
 
@@ -197,13 +207,26 @@ export default function OnboardingPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">
-                닉네임 <span className="text-destructive">*</span>
+                이름 (실명) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
-                placeholder="스터디에서 사용할 이름"
+                placeholder="실명을 입력하세요"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                maxLength={50}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nickname">
+                닉네임 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="nickname"
+                placeholder="스터디에서 사용할 닉네임"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
                 maxLength={100}
               />
             </div>
@@ -252,6 +275,46 @@ export default function OnboardingPage() {
               <p className="text-xs text-muted-foreground">
                 Velog, Tistory, Medium 등 블로그 주소를 입력하세요.
               </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">소셜 링크 (선택)</p>
+              <p className="text-xs text-muted-foreground">다른 스터디원들이 볼 수 있는 소셜 링크를 입력하세요.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="githubUrl">GitHub</Label>
+              <Input
+                id="githubUrl"
+                placeholder="https://github.com/username"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="linkedinUrl">LinkedIn</Label>
+              <Input
+                id="linkedinUrl"
+                placeholder="https://linkedin.com/in/username"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="instagramUrl">Instagram</Label>
+              <Input
+                id="instagramUrl"
+                placeholder="https://instagram.com/username"
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                maxLength={500}
+              />
             </div>
           </CardContent>
         </Card>

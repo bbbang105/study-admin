@@ -8,6 +8,7 @@ import {
   FileText,
   Trophy,
   Newspaper,
+  UsersRound,
   Users,
   CalendarCheck,
   Banknote,
@@ -37,10 +38,11 @@ interface NavItem {
 // ─── Navigation data ──────────────────────────────────────────────────────────
 
 const userNavItems: NavItem[] = [
-  { title: '대시보드', href: '/dashboard', icon: LayoutDashboard },
-  { title: '글 목록',  href: '/posts',     icon: FileText },
-  { title: '랭킹',     href: '/ranking',   icon: Trophy },
-  { title: '큐레이션', href: '/curation',  icon: Newspaper },
+  { title: '대시보드',     href: '/dashboard', icon: LayoutDashboard },
+  { title: '글 목록',      href: '/posts',     icon: FileText },
+  { title: '랭킹',         href: '/ranking',   icon: Trophy },
+  { title: '큐레이션',     href: '/curation',  icon: Newspaper },
+  { title: '스터디원 목록', href: '/members',   icon: UsersRound },
 ];
 
 const adminNavItems: NavItem[] = [

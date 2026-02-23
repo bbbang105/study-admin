@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Link2, FileText, CheckCircle, Calendar, Wallet, ExternalLink } from 'lucide-react';
+import { User, Link2, FileText, CheckCircle, Calendar, Wallet, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ interface MemberInfo {
   discordId: string;
   discordUsername: string;
   name: string;
+  nickname: string;
   part: string;
   blogUrl: string;
   rssUrl: string | null;
@@ -32,6 +33,9 @@ interface MemberInfo {
   status: string;
   dormantUsed: boolean;
   joinedAt: string;
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  instagramUrl: string | null;
 }
 
 interface Stats {
@@ -131,13 +135,16 @@ export default function ProfilePage() {
             <Avatar className="h-14 w-14 ring-2 ring-border ring-offset-2 ring-offset-background">
               <AvatarImage src={data?.member?.profileImageUrl || undefined} />
               <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                {(data?.member?.name || data?.user?.email || 'U').slice(0, 2).toUpperCase()}
+                {(data?.member?.nickname || data?.user?.email || 'U').slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-0.5">
               <p className="font-semibold">
-                {data?.member?.name || data?.user?.email?.split('@')[0]}
+                {data?.member?.nickname || data?.user?.email?.split('@')[0]}
               </p>
+              {data?.member?.name && (
+                <p className="text-sm text-muted-foreground">{data.member.name}</p>
+              )}
               <p className="text-sm text-muted-foreground">{data?.user?.email}</p>
             </div>
           </div>
@@ -175,7 +182,7 @@ export default function ProfilePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Discord</p>
-                  <p className="text-sm font-medium">{data.member.discordUsername}</p>
+                  <p className="text-sm font-medium">{data.member.discordUsername.replace(/#0$/, '')}</p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">파트</p>
@@ -233,6 +240,37 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">다짐</p>
                   <p className="text-sm italic text-muted-foreground">&ldquo;{data.member.resolution}&rdquo;</p>
+                </div>
+              )}
+
+              {/* Social Links */}
+              {(data.member.githubUrl || data.member.linkedinUrl || data.member.instagramUrl) && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">소셜 링크</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { url: data.member.blogUrl, icon: ExternalLink, label: '블로그' },
+                      { url: data.member.githubUrl, icon: Github, label: 'GitHub' },
+                      { url: data.member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
+                      { url: data.member.instagramUrl, icon: Instagram, label: 'Instagram' },
+                    ]
+                      .filter((link) => link.url)
+                      .map((link) => {
+                        const Icon = link.icon;
+                        return (
+                          <a
+                            key={link.label}
+                            href={link.url!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            {link.label}
+                          </a>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
             </CardContent>

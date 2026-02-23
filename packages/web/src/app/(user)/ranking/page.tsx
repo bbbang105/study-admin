@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getDefaultAvatar } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import {
 interface RankingMember {
   id: string;
   name: string;
+  nickname: string;
   discordUsername: string;
   profileImageUrl: string | null;
   postCount: number;
@@ -150,14 +152,14 @@ export default function RankingPage() {
                     className="flex items-center gap-3 hover:opacity-75 transition-opacity"
                   >
                     <Avatar className="h-10 w-10 ring-2 ring-border">
-                      <AvatarImage src={member.profileImageUrl || undefined} />
+                      <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
                       <AvatarFallback className="text-xs font-medium">
-                        {(member.name || member.discordUsername).slice(0, 2).toUpperCase()}
+                        {(member.nickname || member.discordUsername).slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {member.name || member.discordUsername}
+                        {member.nickname || member.discordUsername}
                       </p>
                       <div className="flex items-center gap-2.5 mt-0.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -247,13 +249,13 @@ export default function RankingPage() {
                         className="flex items-center gap-2.5 hover:opacity-75 transition-opacity"
                       >
                         <Avatar className="h-7 w-7 ring-1 ring-border">
-                          <AvatarImage src={member.profileImageUrl || undefined} />
+                          <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
                           <AvatarFallback className="text-[10px] font-medium">
-                            {(member.name || member.discordUsername).slice(0, 2).toUpperCase()}
+                            {(member.nickname || member.discordUsername).slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium hover:underline underline-offset-4">
-                          {member.name || member.discordUsername}
+                          {member.nickname || member.discordUsername}
                         </span>
                       </Link>
                     </TableCell>
