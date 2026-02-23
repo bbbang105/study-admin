@@ -27,7 +27,6 @@ export async function GET() {
     return NextResponse.json({
       isAdmin: adminAuth.isAdmin,
       userId: adminAuth.userId,
-      memberId: adminAuth.memberId,
       discordId: adminAuth.discordId,
       message: adminAuth.isAdmin ? '관리자 권한이 확인되었습니다.' : '관리자 권한이 없습니다.',
     });

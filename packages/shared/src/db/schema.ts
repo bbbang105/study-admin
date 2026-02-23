@@ -94,35 +94,7 @@ export const members = pgTable(
   })
 );
 
-/**
- * 웹 사용자 (Users)
- * 이메일로 웹사이트에 가입한 사용자
- */
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-  emailVerified: boolean('email_verified').default(false),
-  emailVerifyToken: varchar('email_verify_token', { length: 255 }),
-  emailVerifyExpires: timestamp('email_verify_expires', { withTimezone: true }),
-  memberId: uuid('member_id').references(() => members.id),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
-
-/**
- * 세션 토큰 (Sessions)
- * 웹 로그인 세션 관리
- */
-export const sessions = pgTable('sessions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  token: varchar('token', { length: 255 }).notNull().unique(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+// users, sessions 테이블 제거됨 — Supabase Auth가 대체
 
 /**
  * 스터디 회차 (Rounds)
@@ -276,29 +248,10 @@ export const config = pgTable('config', {
 // Relations
 // ============================================
 
-export const membersRelations = relations(members, ({ many, one }) => ({
+export const membersRelations = relations(members, ({ many }) => ({
   posts: many(posts),
   attendance: many(attendance),
   fines: many(fines),
-  user: one(users, {
-    fields: [members.id],
-    references: [users.memberId],
-  }),
-}));
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-  member: one(members, {
-    fields: [users.memberId],
-    references: [members.id],
-  }),
-  sessions: many(sessions),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, {
-    fields: [sessions.userId],
-    references: [users.id],
-  }),
 }));
 
 export const roundsRelations = relations(rounds, ({ many }) => ({
@@ -358,12 +311,6 @@ export const curationItemsRelations = relations(curationItems, ({ one }) => ({
 
 export type Member = typeof members.$inferSelect;
 export type NewMember = typeof members.$inferInsert;
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-
-export type Session = typeof sessions.$inferSelect;
-export type NewSession = typeof sessions.$inferInsert;
 
 export type Round = typeof rounds.$inferSelect;
 export type NewRound = typeof rounds.$inferInsert;

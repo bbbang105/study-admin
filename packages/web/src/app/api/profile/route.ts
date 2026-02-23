@@ -1,72 +1,50 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { eq, count, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { verifyToken } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
-const { users, members, posts, attendance, fines, AttendanceStatus, FineStatus } = sharedDb;
+const { members, posts, attendance, fines, AttendanceStatus, FineStatus } = sharedDb;
 
 /**
  * GET /api/profile
- * Get current user's profile with linked member info
- * Requirement: 18.5, 18.6
+ * Supabase Auth → Discord ID → members 테이블 + 통계
  */
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const authToken = cookieStore.get('auth-token')?.value;
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (!authToken) {
+    if (error || !user) {
       return NextResponse.json(
         { message: '인증이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    const payload = verifyToken(authToken);
-    if (!payload) {
-      return NextResponse.json(
-        { message: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
-
-    const database = db();
-    const [userData] = await database
-      .select()
-      .from(users)
-      .where(eq(users.id, payload.userId))
-      .limit(1);
-
-    if (!userData) {
-      return NextResponse.json(
-        { message: '사용자를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
+    const discordIdentity = user.identities?.find(
+      (identity) => identity.provider === 'discord'
+    );
+    const discordId = discordIdentity?.id as string | undefined;
     let memberData = null;
     let stats = null;
 
-    // If user is linked to a member, get member info and stats
-    if (userData.memberId) {
+    if (discordId) {
+      const database = db();
       const [member] = await database
         .select()
         .from(members)
-        .where(eq(members.id, userData.memberId))
+        .where(eq(members.discordId, discordId))
         .limit(1);
 
       if (member) {
         memberData = member;
 
-        // Get post count
         const [postCount] = await database
           .select({ count: count() })
           .from(posts)
           .where(eq(posts.memberId, member.id));
 
-        // Get attendance stats
         const attendanceStats = await database
           .select({
             total: count(),
@@ -77,7 +55,6 @@ export async function GET() {
           .from(attendance)
           .where(eq(attendance.memberId, member.id));
 
-        // Get fine stats
         const fineStats = await database
           .select({
             totalFines: sql<number>`COALESCE(SUM(${fines.amount}), 0)`,
@@ -95,8 +72,8 @@ export async function GET() {
           submittedRounds: attStats.submitted,
           lateRounds: attStats.late,
           absentRounds: attStats.absent,
-          attendanceRate: attStats.total > 0 
-            ? Math.round((attStats.submitted / attStats.total) * 100) 
+          attendanceRate: attStats.total > 0
+            ? Math.round((attStats.submitted / attStats.total) * 100)
             : 0,
           totalFines: fStats.totalFines,
           unpaidFines: fStats.unpaidFines,
@@ -106,10 +83,11 @@ export async function GET() {
 
     return NextResponse.json({
       user: {
-        id: userData.id,
-        email: userData.email,
-        emailVerified: userData.emailVerified,
-        memberId: userData.memberId,
+        id: user.id,
+        email: user.email,
+        discordUsername: user.user_metadata?.full_name,
+        avatarUrl: user.user_metadata?.avatar_url,
+        memberId: memberData?.id ?? null,
       },
       member: memberData ? {
         id: memberData.id,
