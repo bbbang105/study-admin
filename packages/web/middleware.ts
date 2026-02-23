@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { isAdminDiscordId } from '@/lib/admin';
 
 const protectedRoutes = [
   '/dashboard',
@@ -49,12 +50,8 @@ export async function middleware(request: NextRequest) {
       (identity) => identity.provider === 'discord'
     );
     const discordId = discordIdentity?.id;
-    const adminIds = (process.env.ADMIN_DISCORD_IDS || '')
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean);
 
-    if (!discordId || !adminIds.includes(discordId)) {
+    if (!discordId || !isAdminDiscordId(discordId)) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 

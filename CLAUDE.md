@@ -6,8 +6,8 @@
 
 ```
 packages/
-├── bot/      # Discord 봇 (discord.js v14) → Railway 배포
-├── web/      # Next.js 15 대시보드 → Vercel 배포
+├── bot/      # Discord 봇 (discord.js v14) → AWS EC2 배포
+├── web/      # Next.js 14 대시보드 → Vercel 배포
 └── shared/   # 공유 코드 (DB 스키마, 타입, 유틸)
 ```
 
@@ -17,13 +17,13 @@ packages/
 
 | 영역 | 기술 |
 |------|------|
-| Runtime | Node.js 20 LTS, TypeScript 5.x |
-| Bot | discord.js v14, feedsmith (RSS), pg-boss (job queue) |
-| Web | Next.js 15 App Router, shadcn/ui, Tailwind CSS v4 |
-| DB | Supabase PostgreSQL + Drizzle ORM + pgvector |
-| Auth | Supabase Auth (Discord OAuth) |
-| AI | OpenAI GPT-4o-mini (요약/키워드), text-embedding-3-small (벡터) |
-| 배포 | Railway (bot), Vercel (web), Supabase (DB) |
+| Runtime | Node.js 22, TypeScript 5.x |
+| Bot | discord.js v14, rss-parser (→ feedsmith 예정), node-cron (→ pg-boss 예정) |
+| Web | Next.js 14 App Router, React 18, shadcn/ui, Tailwind CSS v3 |
+| DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
+| Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
+| AI | OpenAI GPT-4o-mini + text-embedding-3-small (예정) |
+| 배포 | AWS EC2 (bot), Vercel (web), Supabase (DB + Auth) |
 
 ## 개발 명령어
 
@@ -33,10 +33,13 @@ pnpm dev:bot          # 봇 로컬 실행
 pnpm dev:web          # 웹 로컬 실행 (localhost:3000)
 
 # 빌드/테스트
-pnpm build            # 전체 빌드
+pnpm build            # 전체 빌드 (shared → bot/web)
 pnpm test             # 전체 테스트
 pnpm lint             # 전체 린트
 pnpm typecheck        # 타입 체크
+
+# shared 패키지 변경 시
+pnpm --filter @blog-study/shared build   # 반드시 리빌드
 
 # 봇 전용
 pnpm --filter @blog-study/bot deploy-commands  # 슬래시 커맨드 등록
@@ -58,13 +61,24 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | 파일 | 설명 |
 |------|------|
 | `packages/shared/src/db/schema.ts` | 전체 DB 스키마 (Drizzle) |
-| `packages/shared/src/types/index.ts` | 공유 enum/타입 |
+| `packages/shared/src/db/index.ts` | DB 연결 (Transaction Pooler, `prepare: false`) |
+| `packages/web/src/lib/supabase/client.ts` | 브라우저용 Supabase 클라이언트 |
+| `packages/web/src/lib/supabase/server.ts` | 서버용 Supabase 클라이언트 (cookies) |
+| `packages/web/src/lib/supabase/middleware.ts` | 미들웨어용 세션 갱신 |
+| `packages/web/middleware.ts` | 라우트 보호 (protected/admin/auth) |
+| `packages/web/src/app/auth/callback/route.ts` | OAuth 콜백 |
+| `packages/web/src/lib/admin.ts` | 관리자 권한 체크 |
+| `packages/web/src/app/` | Next.js 페이지/라우트 |
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 |
 | `packages/bot/src/commands/index.ts` | 커맨드 레지스트리 |
-| `packages/bot/src/services/` | 비즈니스 로직 서비스 |
-| `packages/bot/src/schedulers/` | 크론 작업 (RSS, 출석, 벌금) |
-| `packages/web/src/app/` | Next.js 페이지/라우트 |
-| `packages/web/middleware.ts` | 인증 미들웨어 |
+
+## 인증 구조
+
+- **웹**: Supabase Auth → Discord OAuth → `user.identities[].id` (Discord ID) → `members.discord_id` 매칭
+- **봇**: `service_role` key로 직접 DB 접근, `interaction.user.id`로 Discord ID 획득
+- **미들웨어**: `@supabase/ssr`의 `updateSession()`으로 세션 자동 갱신
+- **관리자**: `ADMIN_DISCORD_IDS` 환경변수로 Discord ID 기반 권한 체크
+- **API Route**: `createClient()` → `getUser()` → `identities` 배열에서 Discord ID 추출
 
 ## UI 디자인 시스템
 
@@ -108,16 +122,20 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 ## 환경 변수
 
 `.env.example` 참조. 필수:
-- `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `DATABASE_URL`
-- `OPENAI_API_KEY` (AI 기능용)
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase)
+- `SUPABASE_SERVICE_KEY`, `DATABASE_URL` (DB)
+- `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_GUILD_ID`
+- `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
+- `OPENAI_API_KEY` (AI 기능용, 예정)
+
+**주의**: `packages/web/.env.local`에도 동일 환경변수 필요 (Next.js는 패키지 디렉토리 기준)
 
 ## 문서
 
 | 문서 | 설명 |
 |------|------|
-| `docs/ARCHITECTURE.md` | 시스템 아키텍처 |
-| `docs/TECH-DECISIONS.md` | 기술 선택 근거 |
+| `docs/ARCHITECTURE.md` | 시스템 아키텍처 (Mermaid 다이어그램) |
+| `docs/TECH-DECISIONS.md` | 기술 선택 근거 (ADR) |
 | `docs/UI-DESIGN-SYSTEM.md` | UI 디자인 시스템 스펙 |
 | `docs/DEVELOPMENT.md` | 개발 환경 설정 |
 | `docs/CHECKLIST.md` | 구현 체크리스트 |
