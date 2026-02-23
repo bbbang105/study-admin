@@ -8,12 +8,12 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { MemberError, MemberErrorCodes } from './member.service';
+import { MemberErrorCodes } from './member.service';
 import {
   MemberStatus,
   type Member,
 } from '@blog-study/shared/db';
-import { validateBlogUrl, isValidUrl } from '@blog-study/shared/utils';
+import { validateBlogUrl } from '@blog-study/shared/utils';
 
 /**
  * Generate valid Discord IDs (snowflake format - 17-19 digit numbers)
