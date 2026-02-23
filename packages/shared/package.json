@@ -44,16 +44,16 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
-    "postgres": "^3.4.4",
+    "postgres": "^3.4.8",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^22.0.0",
     "drizzle-kit": "^0.24.0",
     "fast-check": "^3.19.0",
-    "tsup": "^8.1.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.5.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "vitest": "^1.6.0"
   }
 }
