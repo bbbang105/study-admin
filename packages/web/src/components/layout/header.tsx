@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Menu, LogOut, Moon, Sun } from 'lucide-react';
+import { Menu, LogOut, Moon, Sun, UserPen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,32 +17,6 @@ interface HeaderProps {
   } | null;
   onMenuClick?: () => void;
   onLogout?: () => void;
-}
-
-const PATH_TITLE_MAP: Record<string, string> = {
-  '/dashboard': '대시보드',
-  '/posts': '글 목록',
-  '/ranking': '랭킹',
-  '/curation': '큐레이션',
-  '/profile': '프로필',
-  '/admin': '관리자',
-  '/admin/members': '멤버 관리',
-  '/admin/attendance': '출석 관리',
-  '/admin/fines': '벌금 관리',
-  '/admin/settings': '설정',
-  '/admin/curation': '큐레이션 소스',
-};
-
-function resolvePageTitle(pathname: string): string {
-  // Exact match first
-  if (PATH_TITLE_MAP[pathname]) {
-    return PATH_TITLE_MAP[pathname];
-  }
-  // Longest prefix match for nested routes (e.g. /admin/members/123)
-  const match = Object.keys(PATH_TITLE_MAP)
-    .filter((key) => pathname.startsWith(key + '/'))
-    .sort((a, b) => b.length - a.length)[0] as string | undefined;
-  return match ? PATH_TITLE_MAP[match]! : '';
 }
 
 function DarkModeToggle() {
@@ -87,8 +62,22 @@ function DarkModeToggle() {
 }
 
 export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
-  const pathname = usePathname();
-  const pageTitle = resolvePageTitle(pathname);
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   return (
     <header
@@ -113,60 +102,79 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
           </Button>
         </div>
 
-        {/* Left: page title (desktop only) */}
-        {pageTitle && (
-          <div className="hidden lg:flex items-center">
-            <span className="text-sm font-semibold tracking-tight text-foreground">
-              {pageTitle}
-            </span>
-          </div>
-        )}
+        {/* Logo */}
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity"
+        >
+          <span className="text-lg font-black tracking-tight text-foreground">BS</span>
+          <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase hidden sm:inline">
+            Blog Study
+          </span>
+        </Link>
+
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Right: dark mode toggle + user info + logout */}
+        {/* Right: dark mode toggle + user menu */}
         <div className="flex items-center gap-1">
 
           {/* Dark mode toggle */}
           <DarkModeToggle />
 
           {user && (
-            <>
-              {/* Thin divider */}
-              <span
-                className="hidden lg:block mx-2 h-5 w-px bg-border"
-                aria-hidden="true"
-              />
-
-              {/* Avatar + name (desktop only) */}
-              <div className="hidden lg:flex items-center gap-2.5 px-1">
-                <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-1 ring-offset-background">
+            <div className="relative flex items-center" ref={menuRef}>
+              <button
+                type="button"
+                className="ml-2 flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                aria-label="사용자 메뉴"
+              >
+                <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-1 ring-offset-background cursor-pointer">
                   <AvatarImage src={user.imageUrl} alt={user.name} />
                   <AvatarFallback className="bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-semibold">
                     {user.name.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-foreground leading-none">
-                  {user.name}
-                </span>
-              </div>
+              </button>
 
-              {/* Logout button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'h-9 gap-1.5 text-muted-foreground hover:text-foreground',
-                  'ml-1'
-                )}
-                onClick={onLogout}
-                aria-label="로그아웃"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden lg:inline text-sm">로그아웃</span>
-              </Button>
-            </>
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-md border border-border bg-popover shadow-lg py-1 z-50">
+                  {/* Email */}
+                  <div className="px-4 py-2.5 border-b border-border">
+                    <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+
+                  {/* Profile edit */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push('/profile/edit');
+                    }}
+                  >
+                    <UserPen className="h-4 w-4 text-muted-foreground" />
+                    프로필 수정
+                  </button>
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-accent transition-colors"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onLogout?.();
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

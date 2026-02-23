@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { getPartStyle, getPartLabel } from '@/lib/part-config';
 import { MemberFormDialog } from './member-form-dialog';
 import { DeleteMemberDialog } from './delete-member-dialog';
 
@@ -285,7 +286,11 @@ export default function AdminMembersPage() {
                 filteredMembers.map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>{member.part}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPartStyle(member.part).bg} ${getPartStyle(member.part).text}`}>
+                        {getPartLabel(member.part)}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {member.discordUsername}
                     </TableCell>
