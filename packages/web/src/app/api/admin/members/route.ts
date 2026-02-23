@@ -176,6 +176,7 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       .insert(members)
       .values({
         name: name.trim(),
+        nickname: name.trim(),
         part: part.trim(),
         discordId: discordId.trim(),
         discordUsername: discordUsername?.trim() || discordId.trim(),

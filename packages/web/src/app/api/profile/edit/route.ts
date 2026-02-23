@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { part, profileImageUrl, bio, interests, resolution } = body;
+    const { name, nickname, part, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl } = body;
 
     if (part && (typeof part !== 'string' || part.length > 50)) {
       return NextResponse.json(
@@ -113,11 +113,16 @@ export async function PUT(request: NextRequest) {
     await database
       .update(members)
       .set({
+        ...(name && typeof name === 'string' && name.trim().length > 0 ? { name: name.trim() } : {}),
+        ...(nickname && typeof nickname === 'string' && nickname.trim().length > 0 ? { nickname: nickname.trim() } : {}),
         ...(part ? { part } : {}),
         profileImageUrl: profileImageUrl || null,
         bio: bio || null,
         interests: interests || null,
         resolution: resolution || null,
+        githubUrl: githubUrl || null,
+        linkedinUrl: linkedinUrl || null,
+        instagramUrl: instagramUrl || null,
         updatedAt: new Date(),
       })
       .where(eq(members.id, memberData.id));

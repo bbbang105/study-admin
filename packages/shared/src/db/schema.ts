@@ -72,7 +72,8 @@ export const members = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     discordId: varchar('discord_id', { length: 20 }).notNull().unique(),
     discordUsername: varchar('discord_username', { length: 100 }).notNull(),
-    name: varchar('name', { length: 100 }).notNull(),
+    name: varchar('name', { length: 50 }).notNull(),
+    nickname: varchar('nickname', { length: 100 }).notNull(),
     part: varchar('part', { length: 50 }).notNull(),
     blogUrl: varchar('blog_url', { length: 500 }).notNull(),
     rssUrl: varchar('rss_url', { length: 500 }),
@@ -82,6 +83,10 @@ export const members = pgTable(
     interests: text('interests').array(),
     resolution: varchar('resolution', { length: 300 }),
     onboardingCompleted: boolean('onboarding_completed').default(false),
+    // 소셜 링크
+    githubUrl: varchar('github_url', { length: 500 }),
+    linkedinUrl: varchar('linkedin_url', { length: 500 }),
+    instagramUrl: varchar('instagram_url', { length: 500 }),
     // 상태 관리
     status: varchar('status', { length: 20 }).notNull().default(MemberStatus.ACTIVE),
     dormantStartRound: integer('dormant_start_round'),

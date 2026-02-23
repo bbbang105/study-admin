@@ -94,6 +94,7 @@ export async function GET() {
         discordId: memberData.discordId,
         discordUsername: memberData.discordUsername,
         name: memberData.name,
+        nickname: memberData.nickname,
         part: memberData.part,
         blogUrl: memberData.blogUrl,
         rssUrl: memberData.rssUrl,
@@ -105,6 +106,9 @@ export async function GET() {
         status: memberData.status,
         dormantUsed: memberData.dormantUsed,
         joinedAt: memberData.joinedAt,
+        githubUrl: memberData.githubUrl,
+        linkedinUrl: memberData.linkedinUrl,
+        instagramUrl: memberData.instagramUrl,
       } : null,
       stats,
     });

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Menu, LogOut, Moon, Sun, UserPen } from 'lucide-react';
+import { Menu, LogOut, Moon, Sun, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -147,17 +147,17 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
 
-                  {/* Profile edit */}
+                  {/* Profile */}
                   <button
                     type="button"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                     onClick={() => {
                       setMenuOpen(false);
-                      router.push('/profile/edit');
+                      router.push('/profile');
                     }}
                   >
-                    <UserPen className="h-4 w-4 text-muted-foreground" />
-                    프로필 수정
+                    <UserCircle className="h-4 w-4 text-muted-foreground" />
+                    프로필
                   </button>
 
                   {/* Logout */}

@@ -1,8 +1,21 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { Upload, Loader2, X } from 'lucide-react';
+import { Upload, Loader2, X, Dices, RefreshCw } from 'lucide-react';
 import { uploadAvatar } from '@/lib/storage';
+import { Button } from '@/components/ui/button';
+
+const DICEBEAR_STYLES = ['fun-emoji', 'adventurer', 'bottts', 'thumbs', 'lorelei'] as const;
+
+function generateRandomAvatars(): string[] {
+  const avatars: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    const style = DICEBEAR_STYLES[Math.floor(Math.random() * DICEBEAR_STYLES.length)];
+    const seed = Math.random().toString(36).substring(2, 10);
+    avatars.push(`https://api.dicebear.com/9.x/${style}/svg?seed=${seed}`);
+  }
+  return avatars;
+}
 
 interface AvatarUploadProps {
   currentImageUrl: string;
@@ -15,13 +28,14 @@ export function AvatarUpload({ currentImageUrl, onUploadComplete, userId }: Avat
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [randomAvatars, setRandomAvatars] = useState<string[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
     setError(null);
     setUploading(true);
+    setRandomAvatars(null);
 
-    // Local preview
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
@@ -39,7 +53,6 @@ export function AvatarUpload({ currentImageUrl, onUploadComplete, userId }: Avat
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
-    // Reset so the same file can be re-selected
     e.target.value = '';
   };
 
@@ -57,10 +70,21 @@ export function AvatarUpload({ currentImageUrl, onUploadComplete, userId }: Avat
 
   const handleDragLeave = () => setDragOver(false);
 
+  const handleRandomGenerate = () => {
+    setRandomAvatars(generateRandomAvatars());
+  };
+
+  const handleSelectRandom = (url: string) => {
+    setPreviewUrl(url);
+    onUploadComplete(url);
+    setRandomAvatars(null);
+  };
+
   const displayUrl = previewUrl || currentImageUrl;
 
   return (
     <div className="space-y-3">
+      {/* Upload area */}
       <div
         className={`relative flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
           dragOver
@@ -110,6 +134,48 @@ export function AvatarUpload({ currentImageUrl, onUploadComplete, userId }: Avat
           onChange={handleChange}
           className="hidden"
         />
+      </div>
+
+      {/* Random avatar generator */}
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full gap-2 text-xs"
+          onClick={handleRandomGenerate}
+        >
+          {randomAvatars ? (
+            <>
+              <RefreshCw className="h-3.5 w-3.5" />
+              다시 뽑기
+            </>
+          ) : (
+            <>
+              <Dices className="h-3.5 w-3.5" />
+              랜덤 아바타 뽑기
+            </>
+          )}
+        </Button>
+
+        {randomAvatars && (
+          <div className="grid grid-cols-4 gap-2 rounded-lg border border-border bg-muted/30 p-3">
+            {randomAvatars.map((url, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelectRandom(url)}
+                className="group relative aspect-square rounded-full overflow-hidden border-2 border-transparent hover:border-primary transition-all hover:scale-105"
+              >
+                <img
+                  src={url}
+                  alt={`랜덤 아바타 ${idx + 1}`}
+                  className="w-full h-full object-cover bg-background"
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (

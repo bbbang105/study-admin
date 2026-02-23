@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       .select({
         id: members.id,
         name: members.name,
+        nickname: members.nickname,
         discordUsername: members.discordUsername,
         profileImageUrl: members.profileImageUrl,
         postCount: count(posts.id),
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
       return {
         id: member.id,
         name: member.name,
+        nickname: member.nickname,
         discordUsername: member.discordUsername,
         profileImageUrl: member.profileImageUrl,
         postCount: member.postCount,

@@ -35,10 +35,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, part, blogUrl, profileImageUrl, bio, interests, resolution } = body;
+    const { name, nickname, part, blogUrl, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl } = body;
 
     // 필수 필드 검증
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return NextResponse.json(
+        { message: '이름(실명)은 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (!nickname || typeof nickname !== 'string' || nickname.trim().length === 0) {
       return NextResponse.json(
         { message: '닉네임은 필수입니다.' },
         { status: 400 }
@@ -129,7 +136,9 @@ export async function POST(request: NextRequest) {
     }
 
     const database = db();
-    const discordUsername = user.user_metadata?.name || user.user_metadata?.full_name || '';
+    const rawUsername = user.user_metadata?.name || user.user_metadata?.full_name || '';
+    // Discord 새 유저네임 시스템에서 discriminator가 0이면 #0 제거
+    const discordUsername = rawUsername.replace(/#0$/, '');
 
     // 기존 멤버 조회
     const [existingMember] = await database
@@ -144,12 +153,16 @@ export async function POST(request: NextRequest) {
         .update(members)
         .set({
           name: name.trim(),
+          nickname: nickname.trim(),
           part,
           blogUrl,
           profileImageUrl: profileImageUrl || null,
           bio: bio.trim(),
           interests,
           resolution: resolution.trim(),
+          githubUrl: githubUrl || null,
+          linkedinUrl: linkedinUrl || null,
+          instagramUrl: instagramUrl || null,
           onboardingCompleted: true,
           updatedAt: new Date(),
         })
@@ -162,12 +175,16 @@ export async function POST(request: NextRequest) {
           discordId,
           discordUsername,
           name: name.trim(),
+          nickname: nickname.trim(),
           part,
           blogUrl,
           profileImageUrl: profileImageUrl || null,
           bio: bio.trim(),
           interests,
           resolution: resolution.trim(),
+          githubUrl: githubUrl || null,
+          linkedinUrl: linkedinUrl || null,
+          instagramUrl: instagramUrl || null,
           onboardingCompleted: true,
           status: 'active',
         });
