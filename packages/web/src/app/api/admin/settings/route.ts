@@ -2,26 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { config, rounds } from '@blog-study/shared/db';
-import { verifyAdminAccess } from '@/lib/admin';
+import { withAdminAuth } from '@/lib/admin';
 
 /**
  * GET /api/admin/settings
  * Get all study settings
  * Requirements: 16.10
  */
-export async function GET() {
+export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const db = getDb();
+    const database = getDb();
 
     // Get all config values
-    const configRows = await db.select().from(config);
-    
+    const configRows = await database.select().from(config);
+
     // Convert to object
     const settings: Record<string, string> = {};
     for (const row of configRows) {
@@ -29,14 +23,14 @@ export async function GET() {
     }
 
     // Get current round info
-    const [currentRound] = await db
+    const [currentRound] = await database
       .select()
       .from(rounds)
       .where(eq(rounds.isCurrent, true))
       .limit(1);
 
     // Get total rounds count
-    const allRounds = await db.select().from(rounds);
+    const allRounds = await database.select().from(rounds);
 
     return NextResponse.json({
       settings: {
@@ -57,23 +51,17 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PATCH /api/admin/settings
  * Update study settings
  * Requirements: 16.11
  */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const body = await request.json();
-    const db = getDb();
+    const database = getDb();
     const now = new Date();
 
     // Map of frontend keys to database keys
@@ -94,7 +82,7 @@ export async function PATCH(request: NextRequest) {
       const stringValue = String(value);
 
       // Check if key exists
-      const [existing] = await db
+      const [existing] = await database
         .select()
         .from(config)
         .where(eq(config.key, dbKey))
@@ -102,13 +90,13 @@ export async function PATCH(request: NextRequest) {
 
       if (existing) {
         // Update existing
-        await db
+        await database
           .update(config)
           .set({ value: stringValue, updatedAt: now })
           .where(eq(config.key, dbKey));
       } else {
         // Insert new
-        await db.insert(config).values({
+        await database.insert(config).values({
           key: dbKey,
           value: stringValue,
           updatedAt: now,
@@ -124,4 +112,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

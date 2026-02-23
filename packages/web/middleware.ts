@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { type NextRequest, NextResponse } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
+import { isAdminDiscordId } from '@/lib/admin';
 
-// Routes that require authentication
 const protectedRoutes = [
   '/dashboard',
   '/posts',
@@ -10,111 +10,59 @@ const protectedRoutes = [
   '/profile',
 ];
 
-// Routes that require admin access
-const adminRoutes = [
-  '/admin',
-];
+const adminRoutes = ['/admin'];
 
-// Routes that should redirect to dashboard if already logged in
-const authRoutes = [
-  '/login',
-  '/register',
-];
+const authRoutes = ['/login'];
 
-/**
- * Verify JWT token using jose library (Edge runtime compatible)
- */
-async function verifyJWT(token: string): Promise<{ userId: string; email: string } | null> {
-  try {
-    const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET || 'development-secret-key-min-32-chars'
-    );
-    
-    const { payload } = await jwtVerify(token, secret);
-    
-    return {
-      userId: payload.userId as string,
-      email: payload.email as string,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Middleware for authentication and route protection
- * Requirement: 17.9
- */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Get auth token from cookie
-  const authToken = request.cookies.get('auth-token')?.value;
-  
-  // Verify token if present
-  let user: { userId: string; email: string } | null = null;
-  if (authToken) {
-    user = await verifyJWT(authToken);
-  }
-  
-  // Check if token is expired (Requirement 17.9)
+
+  const { user, supabaseResponse } = await updateSession(request);
   const isAuthenticated = !!user;
-  
-  // Handle auth routes (login, register)
-  if (authRoutes.some(route => pathname.startsWith(route))) {
+
+  // 인증 완료 시 로그인 페이지 → 대시보드 리다이렉트
+  if (authRoutes.some((route) => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      // Redirect to dashboard if already logged in
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    return NextResponse.next();
+    return supabaseResponse;
   }
-  
-  // Handle protected routes
-  if (protectedRoutes.some(route => pathname.startsWith(route))) {
+
+  // 보호된 라우트 — 미인증 시 로그인 리다이렉트
+  if (protectedRoutes.some((route) => pathname.startsWith(route))) {
     if (!isAuthenticated) {
-      // Redirect to login if not authenticated
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    
-    // Add user info to headers for downstream use
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', user!.userId);
-    response.headers.set('x-user-email', user!.email);
-    return response;
+    return supabaseResponse;
   }
-  
-  // Handle admin routes
-  if (adminRoutes.some(route => pathname.startsWith(route))) {
+
+  // 관리자 라우트 — 미인증 시 로그인, 비관리자 시 대시보드 리다이렉트
+  if (adminRoutes.some((route) => pathname.startsWith(route))) {
     if (!isAuthenticated) {
-      // Redirect to login if not authenticated
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    
-    // Note: Admin check is done at the API/page level using Discord ID
-    // The middleware just ensures the user is authenticated
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', user!.userId);
-    response.headers.set('x-user-email', user!.email);
-    return response;
+
+    const discordIdentity = user?.identities?.find(
+      (identity) => identity.provider === 'discord'
+    );
+    const discordId = discordIdentity?.id;
+
+    if (!discordId || !isAdminDiscordId(discordId)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    return supabaseResponse;
   }
-  
-  return NextResponse.next();
+
+  return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api routes (handled separately)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (images, etc.)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)',
   ],
 };

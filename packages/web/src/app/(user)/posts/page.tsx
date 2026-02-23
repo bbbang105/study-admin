@@ -52,7 +52,7 @@ function PostsContent() {
           throw new Error('Failed to fetch posts');
         }
         const result = await response.json();
-        setData(result);
+        setData(result.data);
       } catch (err) {
         setError('포스트 목록을 불러오는데 실패했습니다.');
         console.error(err);

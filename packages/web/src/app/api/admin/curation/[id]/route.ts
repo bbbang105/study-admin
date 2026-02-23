@@ -2,28 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { curationSources, curationItems } from '@blog-study/shared/db';
-import { verifyAdminAccess } from '@/lib/admin';
-
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+import { withAdminAuth } from '@/lib/admin';
 
 /**
  * GET /api/admin/curation/[id]
  * Get a single curation source
  */
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const id = new URL(request.url).pathname.split('/').pop();
+    if (!id) {
+      return NextResponse.json({ error: 'Source ID is required' }, { status: 400 });
     }
 
-    const { id } = await params;
-    const db = getDb();
+    const database = getDb();
 
-    const [source] = await db
+    const [source] = await database
       .select()
       .from(curationSources)
       .where(eq(curationSources.id, id))
@@ -41,26 +35,24 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PATCH /api/admin/curation/[id]
  * Update a curation source (toggle active status, update name, etc.)
  */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const id = new URL(request.url).pathname.split('/').pop();
+    if (!id) {
+      return NextResponse.json({ error: 'Source ID is required' }, { status: 400 });
     }
 
-    const { id } = await params;
     const body = await request.json();
-    const db = getDb();
+    const database = getDb();
 
     // Check if source exists
-    const [existing] = await db
+    const [existing] = await database
       .select()
       .from(curationSources)
       .where(eq(curationSources.id, id))
@@ -72,7 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Build update object
     const updateData: Partial<typeof curationSources.$inferInsert> = {};
-    
+
     if (body.name !== undefined) {
       updateData.name = body.name;
     }
@@ -87,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update source
-    const [updated] = await db
+    const [updated] = await database
       .update(curationSources)
       .set(updateData)
       .where(eq(curationSources.id, id))
@@ -101,26 +93,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/admin/curation/[id]
  * Delete a curation source and all its items
  * Requirements: 15.5
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export const DELETE = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const id = new URL(request.url).pathname.split('/').pop();
+    if (!id) {
+      return NextResponse.json({ error: 'Source ID is required' }, { status: 400 });
     }
 
-    const { id } = await params;
-    const db = getDb();
+    const database = getDb();
 
     // Check if source exists
-    const [existing] = await db
+    const [existing] = await database
       .select()
       .from(curationSources)
       .where(eq(curationSources.id, id))
@@ -131,12 +121,12 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete all items from this source first
-    await db
+    await database
       .delete(curationItems)
       .where(eq(curationItems.sourceId, id));
 
     // Delete the source
-    await db
+    await database
       .delete(curationSources)
       .where(eq(curationSources.id, id));
 
@@ -148,4 +138,4 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});

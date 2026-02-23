@@ -2,31 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, desc, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { curationSources, curationItems, CurationCategory } from '@blog-study/shared/db';
-import { verifyAdminAccess } from '@/lib/admin';
+import { withAdminAuth } from '@/lib/admin';
 
 /**
  * GET /api/admin/curation
  * Get all curation sources with item counts
  * Requirements: 15.5
  */
-export async function GET() {
+export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const db = getDb();
+    const database = getDb();
 
     // Get all sources
-    const sources = await db
+    const sources = await database
       .select()
       .from(curationSources)
       .orderBy(desc(curationSources.createdAt));
 
     // Get item counts per source
-    const itemCounts = await db
+    const itemCounts = await database
       .select({
         sourceId: curationItems.sourceId,
         count: sql<number>`count(*)::int`,
@@ -49,8 +43,8 @@ export async function GET() {
     }));
 
     // Get summary stats
-    const totalItems = await db.select({ count: sql<number>`count(*)::int` }).from(curationItems);
-    const sharedItems = await db
+    const totalItems = await database.select({ count: sql<number>`count(*)::int` }).from(curationItems);
+    const sharedItems = await database
       .select({ count: sql<number>`count(*)::int` })
       .from(curationItems)
       .where(eq(curationItems.isShared, true));
@@ -72,21 +66,15 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/admin/curation
  * Add a new curation source
  * Requirements: 15.5
  */
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    // Check admin access
-    const adminCheck = await verifyAdminAccess();
-    if (!adminCheck.isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const body = await request.json();
     const { url, name, category } = body;
 
@@ -107,10 +95,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getDb();
+    const database = getDb();
 
     // Check for duplicate URL
-    const [existing] = await db
+    const [existing] = await database
       .select()
       .from(curationSources)
       .where(eq(curationSources.url, url))
@@ -124,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new source
-    const [created] = await db
+    const [created] = await database
       .insert(curationSources)
       .values({
         url,
@@ -142,4 +130,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

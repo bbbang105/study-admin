@@ -40,9 +40,9 @@ export default function AdminLayout({
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUser({
-            name: userData.email.split('@')[0],
-            email: userData.email,
-            imageUrl: userData.profileImageUrl,
+            name: userData.name || userData.discordUsername || userData.email?.split('@')[0] || '',
+            email: userData.email || '',
+            imageUrl: userData.profileImageUrl || userData.avatarUrl,
           });
         }
       } catch {

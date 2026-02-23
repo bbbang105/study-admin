@@ -15,7 +15,7 @@ const { members, MemberStatus } = sharedDb;
  */
 export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    const id = request.url.split('/').pop();
+    const id = new URL(request.url).pathname.split('/').pop();
     if (!id) {
       return NextResponse.json({ message: '멤버 ID가 필요합니다.' }, { status: 400 });
     }
@@ -45,7 +45,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
  */
 export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    const id = request.url.split('/').pop();
+    const id = new URL(request.url).pathname.split('/').pop();
     if (!id) {
       return NextResponse.json({ message: '멤버 ID가 필요합니다.' }, { status: 400 });
     }
@@ -149,7 +149,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
  */
 export const DELETE = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    const id = request.url.split('/').pop();
+    const id = new URL(request.url).pathname.split('/').pop();
     if (!id) {
       return NextResponse.json({ message: '멤버 ID가 필요합니다.' }, { status: 400 });
     }

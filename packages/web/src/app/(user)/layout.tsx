@@ -26,9 +26,9 @@ export default function UserLayout({
         if (response.ok) {
           const data = await response.json();
           setUser({
-            name: data.email.split('@')[0],
-            email: data.email,
-            imageUrl: data.profileImageUrl,
+            name: data.name || data.discordUsername || data.email?.split('@')[0] || '',
+            email: data.email || '',
+            imageUrl: data.profileImageUrl || data.avatarUrl,
           });
         }
       } catch {

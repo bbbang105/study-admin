@@ -1,57 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { verifyToken } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
-const { users, members } = sharedDb;
+const { members } = sharedDb;
 
 /**
  * PUT /api/profile/edit
- * Update profile information
- * Requirement: 20.7
+ * Supabase Auth → Discord ID → members 프로필 수정
  */
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const authToken = cookieStore.get('auth-token')?.value;
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (!authToken) {
+    if (error || !user) {
       return NextResponse.json(
         { message: '인증이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    const payload = verifyToken(authToken);
-    if (!payload) {
-      return NextResponse.json(
-        { message: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
-
-    const database = db();
-
-    // Get user and check if linked to member
-    const [userData] = await database
-      .select()
-      .from(users)
-      .where(eq(users.id, payload.userId))
-      .limit(1);
-
-    if (!userData || !userData.memberId) {
+    const discordIdentity = user.identities?.find(
+      (identity) => identity.provider === 'discord'
+    );
+    const discordId = discordIdentity?.id as string | undefined;
+    if (!discordId) {
       return NextResponse.json(
         { message: '스터디원 계정이 연결되어 있지 않습니다.' },
         { status: 400 }
       );
     }
 
+    const database = db();
+    const [memberData] = await database
+      .select()
+      .from(members)
+      .where(eq(members.discordId, discordId))
+      .limit(1);
+
+    if (!memberData) {
+      return NextResponse.json(
+        { message: '스터디원 정보를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
     const body = await request.json();
     const { profileImageUrl, bio, interests, resolution } = body;
 
-    // Validate bio length
+    if (profileImageUrl) {
+      try {
+        const url = new URL(profileImageUrl);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          return NextResponse.json(
+            { message: '프로필 이미지 URL은 http 또는 https만 허용됩니다.' },
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { message: '유효하지 않은 프로필 이미지 URL입니다.' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (bio && bio.length > 200) {
       return NextResponse.json(
         { message: '한줄 소개는 200자 이내로 작성해주세요.' },
@@ -59,7 +74,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate resolution length
     if (resolution && resolution.length > 300) {
       return NextResponse.json(
         { message: '다짐은 300자 이내로 작성해주세요.' },
@@ -67,15 +81,21 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate interests
-    if (interests && !Array.isArray(interests)) {
-      return NextResponse.json(
-        { message: '관심 분야는 배열 형식이어야 합니다.' },
-        { status: 400 }
-      );
+    if (interests) {
+      if (!Array.isArray(interests) || interests.length > 20) {
+        return NextResponse.json(
+          { message: '관심 분야는 최대 20개까지 입력 가능합니다.' },
+          { status: 400 }
+        );
+      }
+      if (!interests.every((i: unknown) => typeof i === 'string' && i.length <= 50)) {
+        return NextResponse.json(
+          { message: '관심 분야는 각 50자 이내의 문자열이어야 합니다.' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Update member profile
     await database
       .update(members)
       .set({
@@ -85,7 +105,7 @@ export async function PUT(request: NextRequest) {
         resolution: resolution || null,
         updatedAt: new Date(),
       })
-      .where(eq(members.id, userData.memberId));
+      .where(eq(members.id, memberData.id));
 
     return NextResponse.json({
       message: '프로필이 수정되었습니다.',

@@ -1,73 +1,57 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { verifyToken } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
-const { users, members } = sharedDb;
+const { members } = sharedDb;
 
 /**
  * GET /api/auth/me
- * Get current authenticated user info
+ * Supabase Auth → Discord ID → members 테이블 조회
  */
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const authToken = cookieStore.get('auth-token')?.value;
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (!authToken) {
+    if (error || !user) {
       return NextResponse.json(
         { message: '인증이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    const payload = verifyToken(authToken);
-    if (!payload) {
-      return NextResponse.json(
-        { message: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
+    const discordIdentity = user.identities?.find(
+      (identity) => identity.provider === 'discord'
+    );
+    const discordId = discordIdentity?.id as string | undefined;
+
+    if (!discordId) {
+      return NextResponse.json({
+        id: user.id,
+        email: user.email,
+        discordUsername: user.user_metadata?.full_name,
+        avatarUrl: user.user_metadata?.avatar_url,
+      });
     }
 
     const database = db();
-    const [userData] = await database
+    const [memberData] = await database
       .select()
-      .from(users)
-      .where(eq(users.id, payload.userId))
+      .from(members)
+      .where(eq(members.discordId, discordId))
       .limit(1);
 
-    if (!userData) {
-      return NextResponse.json(
-        { message: '사용자를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    let memberData = null;
-
-    // If user is linked to a member, get member info
-    if (userData.memberId) {
-      const [member] = await database
-        .select()
-        .from(members)
-        .where(eq(members.id, userData.memberId))
-        .limit(1);
-      
-      if (member) {
-        memberData = member;
-      }
-    }
-
     return NextResponse.json({
-      id: userData.id,
-      email: userData.email,
-      emailVerified: userData.emailVerified,
-      memberId: userData.memberId,
-      profileImageUrl: memberData?.profileImageUrl,
-      name: memberData?.name,
-      discordUsername: memberData?.discordUsername,
+      id: user.id,
+      email: user.email,
+      discordUsername: user.user_metadata?.full_name,
+      avatarUrl: user.user_metadata?.avatar_url,
+      memberId: memberData?.id ?? null,
+      profileImageUrl: memberData?.profileImageUrl ?? user.user_metadata?.avatar_url,
+      name: memberData?.name ?? user.user_metadata?.full_name,
+      discordId,
     });
   } catch (error) {
     console.error('Get user error:', error);

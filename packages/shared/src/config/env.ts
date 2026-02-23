@@ -24,18 +24,6 @@ const supabaseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 });
 
-// Web authentication schema
-const authEnvSchema = z.object({
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  SESSION_EXPIRY: z.string().default('7d'),
-});
-
-// Email configuration schema
-const emailEnvSchema = z.object({
-  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
-  EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email'),
-});
-
 // Application configuration schema
 const appEnvSchema = z.object({
   APP_URL: z.string().url('APP_URL must be a valid URL').default('http://localhost:3000'),
@@ -55,8 +43,6 @@ const studyEnvSchema = z.object({
 const envSchema = z.object({
   ...discordEnvSchema.shape,
   ...supabaseEnvSchema.shape,
-  ...authEnvSchema.shape,
-  ...emailEnvSchema.shape,
   ...appEnvSchema.shape,
   ...studyEnvSchema.shape,
 });
@@ -72,8 +58,6 @@ const botEnvSchema = z.object({
 // Partial schema for web-only usage
 const webEnvSchema = z.object({
   ...supabaseEnvSchema.shape,
-  ...authEnvSchema.shape,
-  ...emailEnvSchema.shape,
   ...appEnvSchema.shape,
 });
 

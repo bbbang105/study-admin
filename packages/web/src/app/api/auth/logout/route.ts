@@ -1,58 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { db as sharedDb } from '@blog-study/shared';
-
-const { sessions } = sharedDb;
-
-export interface LogoutResponse {
-  success: boolean;
-  message: string;
-}
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/auth/logout
- * Logout and invalidate session
- * Requirement: 17.8
+ * Supabase Auth signOut
  */
-export async function POST(request: NextRequest): Promise<NextResponse<LogoutResponse>> {
+export async function POST() {
   try {
-    const sessionToken = request.cookies.get('session-token')?.value;
+    const supabase = await createClient();
+    await supabase.auth.signOut();
 
-    if (sessionToken) {
-      const database = db();
-
-      // Invalidate session token (Requirement 17.8)
-      await database
-        .delete(sessions)
-        .where(eq(sessions.token, sessionToken));
-    }
-
-    // Create response and clear cookies
-    const response = NextResponse.json(
+    return NextResponse.json(
       { success: true, message: '로그아웃되었습니다.' },
       { status: 200 }
     );
-
-    // Clear auth token cookie
-    response.cookies.set('auth-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 0,
-    });
-
-    // Clear session token cookie
-    response.cookies.set('session-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 0,
-    });
-
-    return response;
   } catch (error) {
     console.error('Logout error:', error);
     return NextResponse.json(
