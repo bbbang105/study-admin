@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build output (will be built in container)
+**/dist
+
+# Development files
+**/*.test.ts
+**/*.spec.ts
+**/vitest.config.ts
+**/*.tsbuildinfo
+
+# IDE
+.vscode
+.idea
+.kiro
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (use Railway/Vercel environment variables)
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Documentation
+docs/
+
+# Web package (not needed for bot deployment)
+packages/web
+
+# Drizzle migrations (handled separately)
+**/drizzle
