@@ -142,7 +142,7 @@ export class FineReminder {
             discordId,
             fine.id,
             fine.amount,
-            fine.type,
+            fine.type as 'late' | 'absent',
             roundNumber,
             daysSinceCreation
           );
@@ -231,7 +231,7 @@ export class FineReminder {
             discordId,
             fine.id,
             fine.amount,
-            fine.type,
+            fine.type as 'late' | 'absent',
             roundNumber,
             daysSinceCreation
           );

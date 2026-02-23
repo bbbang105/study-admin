@@ -84,6 +84,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @blog-study/shared build
+
       - name: Run tests
         run: pnpm --filter @blog-study/shared test && pnpm --filter @blog-study/bot test
 

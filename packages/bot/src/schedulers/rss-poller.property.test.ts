@@ -110,10 +110,10 @@ describe('RSS Poller Property Tests', () => {
             mockGetAllByStatus.mockResolvedValue(activeMembers);
 
             // Get members to poll
-            const membersToPolll = await poller.getMembersToPolll();
+            const membersToPoll = await poller.getMembersToPoll();
 
             // Verify: all returned members should be active AND have RSS URL
-            for (const member of membersToPolll) {
+            for (const member of membersToPoll) {
               expect(member.status).toBe(MemberStatus.ACTIVE);
               expect(member.rssUrl).not.toBeNull();
             }
@@ -150,17 +150,17 @@ describe('RSS Poller Property Tests', () => {
 
             mockGetAllByStatus.mockResolvedValue(activeMembers);
 
-            const membersToPolll = await poller.getMembersToPolll();
+            const membersToPoll = await poller.getMembersToPoll();
 
             // All returned members should have RSS URLs
-            for (const member of membersToPolll) {
+            for (const member of membersToPoll) {
               expect(member.rssUrl).not.toBeNull();
               expect(member.rssUrl).toBeDefined();
             }
 
             // Count should match members with RSS URLs
             const expectedCount = activeMembers.filter(m => m.rssUrl).length;
-            expect(membersToPolll.length).toBe(expectedCount);
+            expect(membersToPoll.length).toBe(expectedCount);
           }
         ),
         { numRuns: 100 }
@@ -192,10 +192,10 @@ describe('RSS Poller Property Tests', () => {
             // Service returns empty for active (since we're testing non-active)
             mockGetAllByStatus.mockResolvedValue([]);
 
-            const membersToPolll = await poller.getMembersToPolll();
+            const membersToPoll = await poller.getMembersToPoll();
 
             // Should return empty since we only query for active
-            expect(membersToPolll.length).toBe(0);
+            expect(membersToPoll.length).toBe(0);
             expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.ACTIVE);
           }
         ),
