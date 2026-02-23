@@ -33,6 +33,8 @@ export async function GET() {
         email: user.email,
         discordUsername: user.user_metadata?.full_name,
         avatarUrl: user.user_metadata?.avatar_url,
+        hasMemberRecord: false,
+        onboardingCompleted: false,
       });
     }
 
@@ -47,11 +49,14 @@ export async function GET() {
       id: user.id,
       email: user.email,
       discordUsername: user.user_metadata?.full_name,
+      discordName: user.user_metadata?.name,
       avatarUrl: user.user_metadata?.avatar_url,
       memberId: memberData?.id ?? null,
       profileImageUrl: memberData?.profileImageUrl ?? user.user_metadata?.avatar_url,
       name: memberData?.name ?? user.user_metadata?.full_name,
       discordId,
+      hasMemberRecord: !!memberData,
+      onboardingCompleted: memberData?.onboardingCompleted ?? false,
     });
   } catch (error) {
     console.error('Get user error:', error);

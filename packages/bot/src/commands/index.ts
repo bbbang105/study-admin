@@ -6,7 +6,6 @@ import type { CommandHandler } from '../bot';
 
 // Import user commands
 import { 핑Command } from './ping';
-import { 참가Command } from './join';
 import { 탈퇴Command } from './leave';
 import { 내정보Command } from './my-info';
 import { 참가자목록Command } from './member-list';
@@ -21,7 +20,6 @@ import { getAdminCommands as getAdminCommandsFromDir } from './admin';
 // User commands array
 const userCommands: CommandHandler[] = [
   핑Command,
-  참가Command,
   탈퇴Command,
   내정보Command,
   참가자목록Command,
