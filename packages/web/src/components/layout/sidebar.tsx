@@ -316,7 +316,7 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
         aria-hidden="true"
         onClick={onClose}
         className={cn(
-          'fixed inset-0 z-40 bg-black/30 backdrop-blur-sm md:hidden',
+          'fixed inset-0 z-40 bg-black/30 backdrop-blur-xs md:hidden',
           'transition-opacity duration-200',
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}

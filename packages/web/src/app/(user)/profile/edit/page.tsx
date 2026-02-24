@@ -242,7 +242,7 @@ export default function ProfileEditPage() {
                 setSelectedPart(e.target.value);
                 if (e.target.value !== 'other') setCustomPart('');
               }}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <option value="">파트를 선택하세요</option>
               {PART_OPTIONS.map((opt) => (
@@ -307,7 +307,7 @@ export default function ProfileEditPage() {
               onChange={(e) => setBio(e.target.value)}
               maxLength={200}
               rows={4}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
             />
             <p className={`text-xs text-right ${
               bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
