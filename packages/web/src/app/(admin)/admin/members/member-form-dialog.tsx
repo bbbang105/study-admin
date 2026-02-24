@@ -166,7 +166,7 @@ export function MemberFormDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+        className="fixed inset-0 bg-background/80 backdrop-blur-xs"
         onClick={onClose}
       />
 

@@ -35,7 +35,7 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-sm border-border shadow-sm">
+    <Card className="w-full max-w-sm border-border shadow-xs">
       <CardHeader className="pb-6 pt-8 px-8 space-y-5">
         <div className="flex justify-center">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -83,7 +83,7 @@ function LoginForm() {
 
 function LoginSkeleton() {
   return (
-    <Card className="w-full max-w-sm border-border shadow-sm">
+    <Card className="w-full max-w-sm border-border shadow-xs">
       <CardHeader className="pb-6 pt-8 px-8 space-y-5">
         <div className="flex justify-center">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -19,13 +19,11 @@ interface HeaderProps {
   onLogout?: () => void;
 }
 
+const emptySubscribe = () => () => {};
+
 function DarkModeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   if (!mounted) {
     // Render a placeholder with the same dimensions to prevent layout shift
@@ -84,7 +82,7 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
       className={cn(
         'sticky top-0 z-50 w-full',
         'border-b border-border/60',
-        'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'
+        'bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60'
       )}
     >
       <div className="flex h-14 items-center px-4 lg:px-6">
@@ -127,7 +125,7 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
             <div className="relative flex items-center" ref={menuRef}>
               <button
                 type="button"
-                className="ml-2 flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="ml-2 flex items-center rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 aria-label="사용자 메뉴"
               >
