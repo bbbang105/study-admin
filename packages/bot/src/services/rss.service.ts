@@ -6,7 +6,7 @@
 
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import Parser from 'rss-parser';
+import { parseFeed } from 'feedsmith';
 import { detectBlogPlatform, type BlogPlatform } from '@blog-study/shared/utils';
 
 /**
@@ -160,20 +160,63 @@ export function parseRssDate(dateStr: string | undefined): Date | null {
 }
 
 /**
+ * Normalized feed item from any feed format
+ */
+interface NormalizedFeedItem {
+  title: string | undefined;
+  link: string | undefined;
+  pubDate: string | undefined;
+  description: string | undefined;
+}
+
+/**
+ * Extract feed items from any feed format (RSS/Atom/JSON/RDF)
+ * Normalizes different item structures into a common format
+ */
+function extractFeedItems(result: ReturnType<typeof parseFeed>): NormalizedFeedItem[] {
+  const { format, feed } = result;
+
+  if (format === 'atom') {
+    return (feed.entries ?? []).map((entry) => ({
+      title: entry.title,
+      link: entry.links?.[0]?.href,
+      pubDate: entry.published ?? entry.updated,
+      description: entry.summary ?? entry.content,
+    }));
+  }
+
+  if (format === 'rss') {
+    return (feed.items ?? []).map((item) => ({
+      title: item.title,
+      link: item.link,
+      pubDate: item.pubDate ? String(item.pubDate) : undefined,
+      description: item.description,
+    }));
+  }
+
+  if (format === 'json') {
+    return (feed.items ?? []).map((item) => ({
+      title: item.title,
+      link: item.url ?? item.external_url,
+      pubDate: item.date_published ?? item.date_modified,
+      description: item.summary ?? item.content_text,
+    }));
+  }
+
+  // RDF
+  return (feed.items ?? []).map((item) => ({
+    title: item.title,
+    link: item.link,
+    pubDate: item.dc?.date,
+    description: item.description,
+  }));
+}
+
+/**
  * RSS Service class for managing RSS operations
  */
 export class RssService {
-  private parser: Parser;
   private httpTimeout = 10000; // 10 seconds
-
-  constructor() {
-    this.parser = new Parser({
-      timeout: this.httpTimeout,
-      headers: {
-        'User-Agent': 'BlogStudyBot/1.0',
-      },
-    });
-  }
 
   /**
    * Detect RSS URL from a blog URL
@@ -189,9 +232,14 @@ export class RssService {
     if (platform !== 'unknown') {
       const rssUrl = constructRssUrl(blogUrl, platform);
       if (rssUrl) {
-        // Verify the RSS URL is valid by trying to fetch it
+        // Verify the RSS URL is valid by trying to fetch and parse it
         try {
-          await this.parser.parseURL(rssUrl);
+          const res = await axios.get(rssUrl, {
+            timeout: this.httpTimeout,
+            headers: { 'User-Agent': 'BlogStudyBot/1.0' },
+            responseType: 'text',
+          });
+          parseFeed(res.data);
           return { success: true, rssUrl, platform };
         } catch {
           // Fall through to HTML discovery
@@ -203,19 +251,23 @@ export class RssService {
     try {
       const response = await axios.get(blogUrl, {
         timeout: this.httpTimeout,
-        headers: {
-          'User-Agent': 'BlogStudyBot/1.0',
-        },
+        headers: { 'User-Agent': 'BlogStudyBot/1.0' },
+        responseType: 'text',
       });
-      
+
       const rssUrl = extractRssFromHtml(response.data);
       if (rssUrl) {
         // Make absolute URL if relative
         const absoluteRssUrl = new URL(rssUrl, blogUrl).toString();
-        
+
         // Verify the RSS URL is valid
         try {
-          await this.parser.parseURL(absoluteRssUrl);
+          const res = await axios.get(absoluteRssUrl, {
+            timeout: this.httpTimeout,
+            headers: { 'User-Agent': 'BlogStudyBot/1.0' },
+            responseType: 'text',
+          });
+          parseFeed(res.data);
           return { success: true, rssUrl: absoluteRssUrl, platform };
         } catch {
           return {
@@ -248,28 +300,38 @@ export class RssService {
    */
   async fetchFeed(rssUrl: string): Promise<RssFeedItem[]> {
     try {
-      const feed = await this.parser.parseURL(rssUrl);
+      const response = await axios.get(rssUrl, {
+        timeout: this.httpTimeout,
+        headers: { 'User-Agent': 'BlogStudyBot/1.0' },
+        responseType: 'text',
+      });
+
+      const result = parseFeed(response.data);
       const items: RssFeedItem[] = [];
 
-      for (const item of feed.items) {
+      // Normalize feed items across formats (RSS/Atom/JSON/RDF)
+      const rawItems = extractFeedItems(result);
+
+      for (const raw of rawItems) {
         // Skip items missing required fields (title or link)
         // Requirements: 12.2
-        if (!item.title || !item.link) {
+        if (!raw.title || !raw.link) {
           continue;
         }
 
-        const pubDate = parseRssDate(item.pubDate || item.isoDate);
-        
+        const pubDate = parseRssDate(raw.pubDate);
+
         items.push({
-          title: item.title,
-          link: item.link,
+          title: raw.title,
+          link: raw.link,
           pubDate: pubDate || new Date(),
-          description: item.contentSnippet || item.content || null,
+          description: raw.description || null,
         });
       }
 
       return items;
     } catch (error) {
+      if (error instanceof RssError) throw error;
       throw new RssError(
         RssErrorCodes.RSS_FETCH_FAILED,
         'RSS 피드를 가져올 수 없습니다.',
