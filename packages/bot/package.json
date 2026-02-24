@@ -23,11 +23,10 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
     "feedsmith": "^2.9.0",
-    "node-cron": "^3.0.3"
+    "pg-boss": "^12.13.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/node-cron": "^3.0.11",
     "fast-check": "^3.19.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",

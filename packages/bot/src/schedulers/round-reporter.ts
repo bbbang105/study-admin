@@ -4,7 +4,6 @@
  * Requirements: 10.1, 10.2, 10.3, 10.4
  */
 
-import cron from 'node-cron';
 import { Client } from 'discord.js';
 import { eq, count } from 'drizzle-orm';
 import {
@@ -104,8 +103,6 @@ export async function buildRoundReportDataForRound(
  * Round Reporter class for scheduling round reports and announcements
  */
 export class RoundReporter {
-  private reportCronJob: cron.ScheduledTask | null = null;
-  private startCronJob: cron.ScheduledTask | null = null;
   private isRunning = false;
   private client: Client | null = null;
 
@@ -121,48 +118,6 @@ export class RoundReporter {
    */
   getClient(): Client | null {
     return this.client;
-  }
-
-  /**
-   * Start the round reporter scheduler
-   * - Round report: Every Tuesday at 00:05 (after grace period ends)
-   * - Round start: Every other Monday at 00:00 (when new round starts)
-   * Requirements: 10.1, 10.4
-   */
-  start(): void {
-    if (this.reportCronJob) {
-      console.log('[RoundReporter] Already running');
-      return;
-    }
-
-    // Run round report every Tuesday at 00:05 (after attendance checker)
-    // Tuesday is day 2 in cron (0 = Sunday, 1 = Monday, 2 = Tuesday)
-    this.reportCronJob = cron.schedule('5 0 * * 2', async () => {
-      await this.sendRoundReport();
-    });
-
-    // Run round start announcement every other Monday at 00:00
-    // We check if it's actually a new round start day in the handler
-    this.startCronJob = cron.schedule('0 0 * * 1', async () => {
-      await this.sendRoundStartAnnouncement();
-    });
-
-    console.log('[RoundReporter] Started - report every Tuesday at 00:05, start announcement every Monday at 00:00');
-  }
-
-  /**
-   * Stop the round reporter scheduler
-   */
-  stop(): void {
-    if (this.reportCronJob) {
-      this.reportCronJob.stop();
-      this.reportCronJob = null;
-    }
-    if (this.startCronJob) {
-      this.startCronJob.stop();
-      this.startCronJob = null;
-    }
-    console.log('[RoundReporter] Stopped');
   }
 
   /**
@@ -434,8 +389,5 @@ export function getRoundReporter(): RoundReporter {
  * Reset the singleton (useful for testing)
  */
 export function resetRoundReporter(): void {
-  if (roundReporterInstance) {
-    roundReporterInstance.stop();
-  }
   roundReporterInstance = null;
 }

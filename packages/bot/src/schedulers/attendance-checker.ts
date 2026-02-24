@@ -4,7 +4,6 @@
  * Requirements: 5.6
  */
 
-import cron from 'node-cron';
 import { getAttendanceService } from '../services/attendance.service';
 import { getCurrentRound, isGracePeriodEnded } from '../services/round.service';
 import { AttendanceStatus, type Attendance, type Round } from '@blog-study/shared/db';
@@ -33,7 +32,6 @@ export type OnAbsentCallback = (
  * Attendance Checker class for scheduling attendance processing
  */
 export class AttendanceChecker {
-  private cronJob: cron.ScheduledTask | null = null;
   private isRunning = false;
   private onAbsent: OnAbsentCallback | null = null;
 
@@ -43,37 +41,6 @@ export class AttendanceChecker {
    */
   setOnAbsentCallback(callback: OnAbsentCallback): void {
     this.onAbsent = callback;
-  }
-
-  /**
-   * Start the attendance checker scheduler
-   * Runs every Tuesday at 00:00 (after grace period ends)
-   * Requirements: 5.6
-   */
-  start(): void {
-    if (this.cronJob) {
-      console.log('[AttendanceChecker] Already running');
-      return;
-    }
-
-    // Run every Tuesday at 00:00: 0 0 * * 2
-    // Tuesday is day 2 in cron (0 = Sunday, 1 = Monday, 2 = Tuesday)
-    this.cronJob = cron.schedule('0 0 * * 2', async () => {
-      await this.check();
-    });
-
-    console.log('[AttendanceChecker] Started - checking every Tuesday at 00:00');
-  }
-
-  /**
-   * Stop the attendance checker scheduler
-   */
-  stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-      console.log('[AttendanceChecker] Stopped');
-    }
   }
 
   /**
@@ -250,8 +217,5 @@ export function getAttendanceChecker(): AttendanceChecker {
  * Reset the singleton (useful for testing)
  */
 export function resetAttendanceChecker(): void {
-  if (attendanceCheckerInstance) {
-    attendanceCheckerInstance.stop();
-  }
   attendanceCheckerInstance = null;
 }

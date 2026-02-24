@@ -53,6 +53,7 @@ const botEnvSchema = z.object({
   ...supabaseEnvSchema.shape,
   ...appEnvSchema.shape,
   ...studyEnvSchema.shape,
+  DATABASE_URL_DIRECT: z.string().min(1, 'DATABASE_URL_DIRECT is required'),
 });
 
 // Partial schema for web-only usage
