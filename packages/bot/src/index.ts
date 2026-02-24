@@ -11,6 +11,8 @@ import {
   setupGracefulShutdown,
 } from './bot';
 import { getAllCommands } from './commands';
+import { startJobQueue, stopJobQueue } from './job-queue';
+import { registerAllJobs } from './scheduler-registry';
 
 async function main(): Promise<void> {
   console.log('🚀 Blog Study Discord Bot starting...');
@@ -37,8 +39,14 @@ async function main(): Promise<void> {
   // Register slash commands with Discord API
   await registerCommands(commands, env);
 
-  // Setup graceful shutdown
-  setupGracefulShutdown(client);
+  // Start pg-boss job queue and register all scheduled jobs
+  const boss = await startJobQueue(env.DATABASE_URL_DIRECT);
+  await registerAllJobs(boss, client);
+
+  // Setup graceful shutdown (includes pg-boss cleanup)
+  setupGracefulShutdown(client, async () => {
+    await stopJobQueue();
+  });
 
   // Start the bot
   await startBot(client, env.DISCORD_TOKEN);
