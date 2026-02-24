@@ -114,28 +114,28 @@ function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
   );
 }
 
-// ─── Sidebar component ────────────────────────────────────────────────────────
+// ─── SidebarContent sub-component ────────────────────────────────────────────
 
-export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarProps) {
-  const pathname = usePathname();
+interface SidebarContentProps {
+  mobile?: boolean;
+  onClose?: () => void;
+  collapsed: boolean;
+  navItems: NavItem[];
+  pathname: string;
+  isAdmin: boolean;
+  toggleCollapsed: () => void;
+}
 
-  // Persist collapsed state in localStorage
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  });
-
-  // Keep localStorage in sync whenever collapsed changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(collapsed));
-  }, [collapsed]);
-
-  const toggleCollapsed = () => setCollapsed((prev) => !prev);
-
-  const navItems = isAdmin ? adminNavItems : userNavItems;
-
-  // ── Shared sidebar content (used by both desktop and mobile) ───────────────
-  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
+function SidebarContent({
+  mobile = false,
+  onClose,
+  collapsed,
+  navItems,
+  pathname,
+  isAdmin,
+  toggleCollapsed,
+}: SidebarContentProps) {
+  return (
     <div className="flex h-full flex-col">
 
       {/* ── Mobile header: logo + close ────────────────────────────── */}
@@ -286,6 +286,27 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
       </div>
     </div>
   );
+}
+
+// ─── Sidebar component ────────────────────────────────────────────────────────
+
+export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarProps) {
+  const pathname = usePathname();
+
+  // Persist collapsed state in localStorage
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  });
+
+  // Keep localStorage in sync whenever collapsed changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
+
+  const toggleCollapsed = () => setCollapsed((prev) => !prev);
+
+  const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
     <>
@@ -313,7 +334,15 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <SidebarContent mobile />
+        <SidebarContent
+          mobile
+          onClose={onClose}
+          collapsed={collapsed}
+          navItems={navItems}
+          pathname={pathname}
+          isAdmin={isAdmin}
+          toggleCollapsed={toggleCollapsed}
+        />
       </aside>
 
       {/* ── Desktop: fixed sidebar ──────────────────────────────────── */}
@@ -329,7 +358,14 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
           collapsed ? 'w-16' : 'w-60'
         )}
       >
-        <SidebarContent />
+        <SidebarContent
+          onClose={onClose}
+          collapsed={collapsed}
+          navItems={navItems}
+          pathname={pathname}
+          isAdmin={isAdmin}
+          toggleCollapsed={toggleCollapsed}
+        />
       </aside>
     </>
   );
