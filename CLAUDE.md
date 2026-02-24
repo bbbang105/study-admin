@@ -18,7 +18,7 @@ packages/
 | 영역 | 기술 |
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
-| Bot | discord.js v14, rss-parser (→ feedsmith 예정), node-cron (→ pg-boss 예정) |
+| Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
 | Web | Next.js 14 App Router, React 18, shadcn/ui, Tailwind CSS v3 |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
@@ -71,6 +71,8 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | `packages/web/src/app/` | Next.js 페이지/라우트 |
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 |
 | `packages/bot/src/commands/index.ts` | 커맨드 레지스트리 |
+| `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
+| `packages/bot/src/scheduler-registry.ts` | 7개 잡 등록 + RSS→Post→Notification 파이프라인 |
 
 ## 인증 구조
 
@@ -125,7 +127,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 
 `.env.example` 참조. 필수:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase)
-- `SUPABASE_SERVICE_KEY`, `DATABASE_URL` (DB)
+- `SUPABASE_SERVICE_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT` (DB)
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_GUILD_ID`
 - `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
 - `OPENAI_API_KEY` (AI 기능용, 예정)
