@@ -77,6 +77,12 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (body.isActive !== undefined) {
       updateData.isActive = body.isActive;
     }
+    if (body.tags !== undefined) {
+      updateData.tags = body.tags;
+    }
+    if (body.rssUrl !== undefined) {
+      updateData.rssUrl = body.rssUrl;
+    }
 
     // Update source
     const [updated] = await database

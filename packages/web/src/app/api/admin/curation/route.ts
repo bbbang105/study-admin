@@ -3,6 +3,7 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { curationSources, curationItems, CurationCategory } from '@blog-study/shared/db';
 import { withAdminAuth } from '@/lib/admin';
+import { detectRssUrl } from '@/lib/rss-detect';
 
 /**
  * GET /api/admin/curation
@@ -76,7 +77,7 @@ export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
 export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
     const body = await request.json();
-    const { url, name, category } = body;
+    const { url, name, category, tags, rssUrl } = body;
 
     // Validate required fields
     if (!url || !name || !category) {
@@ -111,6 +112,16 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       );
     }
 
+    // Auto-detect RSS URL if not provided
+    let resolvedRssUrl = rssUrl || null;
+    if (!resolvedRssUrl && url) {
+      try {
+        resolvedRssUrl = await detectRssUrl(url);
+      } catch {
+        // RSS 감지 실패는 무시 — 소스 등록은 진행
+      }
+    }
+
     // Create new source
     const [created] = await database
       .insert(curationSources)
@@ -118,6 +129,8 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         url,
         name,
         category,
+        tags: tags || [],
+        rssUrl: resolvedRssUrl,
         isActive: true,
       })
       .returning();

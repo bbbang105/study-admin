@@ -210,6 +210,8 @@ export const curationSources = pgTable('curation_sources', {
   url: varchar('url', { length: 500 }).notNull().unique(),
   name: varchar('name', { length: 200 }).notNull(),
   category: varchar('category', { length: 50 }).notNull(),
+  rssUrl: varchar('rss_url', { length: 500 }),
+  tags: text('tags').array(),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

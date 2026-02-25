@@ -11,6 +11,8 @@ import {
   ToggleRight,
   FileText,
   Calendar,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,12 +27,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { INTEREST_OPTIONS } from '@blog-study/shared/config';
 
 interface CurationSource {
   id: string;
   url: string;
   name: string;
   category: string;
+  rssUrl: string | null;
+  tags: string[] | null;
   isActive: boolean;
   createdAt: string;
   itemCount: number;
@@ -47,6 +52,24 @@ interface CurationData {
   sources: CurationSource[];
   stats: CurationStats;
   categories: string[];
+}
+
+interface CrawlResult {
+  results: {
+    sourceId: string;
+    sourceName: string;
+    success: boolean;
+    itemsFound: number;
+    newItemsAdded: number;
+    error?: string;
+  }[];
+  summary: {
+    totalSources: number;
+    totalNewItems: number;
+    successCount: number;
+    failCount: number;
+  };
+  message?: string;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -67,9 +90,15 @@ export default function AdminCurationPage() {
     url: '',
     name: '',
     category: 'article',
+    rssUrl: '',
+    tags: [] as string[],
   });
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+
+  // Crawl state
+  const [crawling, setCrawling] = useState(false);
+  const [crawlResult, setCrawlResult] = useState<CrawlResult | null>(null);
 
   const fetchSources = useCallback(async () => {
     try {
@@ -92,6 +121,15 @@ export default function AdminCurationPage() {
     fetchSources();
   }, [fetchSources]);
 
+  const toggleTag = (tag: string) => {
+    setNewSource((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter((t) => t !== tag)
+        : [...prev.tags, tag],
+    }));
+  };
+
   const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddError(null);
@@ -106,7 +144,13 @@ export default function AdminCurationPage() {
       const response = await fetch('/api/admin/curation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSource),
+        body: JSON.stringify({
+          url: newSource.url,
+          name: newSource.name,
+          category: newSource.category,
+          tags: newSource.tags.length > 0 ? newSource.tags : undefined,
+          rssUrl: newSource.rssUrl || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -115,7 +159,7 @@ export default function AdminCurationPage() {
       }
 
       // Reset form and refresh
-      setNewSource({ url: '', name: '', category: 'article' });
+      setNewSource({ url: '', name: '', category: 'article', rssUrl: '', tags: [] });
       setShowAddForm(false);
       await fetchSources();
     } catch (err) {
@@ -171,6 +215,30 @@ export default function AdminCurationPage() {
     }
   };
 
+  const handleCrawl = async () => {
+    if (crawling) return;
+
+    try {
+      setCrawling(true);
+      setCrawlResult(null);
+      const response = await fetch('/api/admin/curation/crawl', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('크롤링 실행에 실패했습니다.');
+      }
+
+      const result: CrawlResult = await response.json();
+      setCrawlResult(result);
+      await fetchSources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '크롤링 실행에 실패했습니다.');
+    } finally {
+      setCrawling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -194,7 +262,8 @@ export default function AdminCurationPage() {
     return (
       source.name.toLowerCase().includes(query) ||
       source.url.toLowerCase().includes(query) ||
-      source.category.toLowerCase().includes(query)
+      source.category.toLowerCase().includes(query) ||
+      (source.tags || []).some((t) => t.toLowerCase().includes(query))
     );
   }) || [];
 
@@ -207,11 +276,61 @@ export default function AdminCurationPage() {
             외부 컨퍼런스 및 아티클 수집 소스를 관리하세요.
           </p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
-          <Plus className="h-4 w-4 mr-2" />
-          소스 추가
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCrawl} disabled={crawling}>
+            {crawling ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {crawling ? '크롤링 중...' : '크롤링 실행'}
+          </Button>
+          <Button onClick={() => setShowAddForm(!showAddForm)}>
+            <Plus className="h-4 w-4 mr-2" />
+            소스 추가
+          </Button>
+        </div>
       </div>
+
+      {/* Crawl Result Alert */}
+      {crawlResult && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium">
+                  {crawlResult.message || (
+                    <>
+                      크롤링 완료: {crawlResult.summary.totalSources}개 소스에서{' '}
+                      <span className="text-primary font-bold">{crawlResult.summary.totalNewItems}개</span> 새 아이템 수집
+                    </>
+                  )}
+                </p>
+                {crawlResult.results.length > 0 && (
+                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {crawlResult.results.map((r) => (
+                      <div key={r.sourceId}>
+                        {r.success ? (
+                          <span>{r.sourceName}: {r.itemsFound}개 발견, {r.newItemsAdded}개 추가</span>
+                        ) : (
+                          <span className="text-destructive">{r.sourceName}: 실패 - {r.error}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCrawlResult(null)}
+              >
+                닫기
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -315,6 +434,38 @@ export default function AdminCurationPage() {
                   </select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="rssUrl">RSS URL (선택)</Label>
+                <Input
+                  id="rssUrl"
+                  type="url"
+                  value={newSource.rssUrl}
+                  onChange={(e) => setNewSource({ ...newSource, rssUrl: e.target.value })}
+                  placeholder="비워두면 자동 감지를 시도합니다"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  관심 태그 (선택)
+                  {newSource.tags.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {newSource.tags.length}개 선택
+                    </span>
+                  )}
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {INTEREST_OPTIONS.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant={newSource.tags.includes(tag) ? 'default' : 'outline'}
+                      className="cursor-pointer transition-colors text-xs"
+                      onClick={() => toggleTag(tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={adding}>
                   {adding ? '추가 중...' : '추가'}
@@ -363,6 +514,7 @@ export default function AdminCurationPage() {
                 <TableHead>이름</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead>카테고리</TableHead>
+                <TableHead>태그</TableHead>
                 <TableHead className="text-center">아이템</TableHead>
                 <TableHead className="text-center">상태</TableHead>
                 <TableHead>등록일</TableHead>
@@ -373,7 +525,16 @@ export default function AdminCurationPage() {
               {filteredSources.length > 0 ? (
                 filteredSources.map((source) => (
                   <TableRow key={source.id}>
-                    <TableCell className="font-medium">{source.name}</TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{source.name}</span>
+                        {source.rssUrl && (
+                          <span className="ml-1.5 text-xs text-muted-foreground" title={source.rssUrl}>
+                            RSS
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <a
                         href={source.url}
@@ -391,6 +552,24 @@ export default function AdminCurationPage() {
                       <Badge variant="outline">
                         {categoryLabels[source.category] || source.category}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {source.tags && source.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {source.tags.slice(0, 3).map((tag) => (
+                            <Badge key={tag} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {source.tags.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{source.tags.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">{source.itemCount}</TableCell>
                     <TableCell className="text-center">
@@ -431,7 +610,7 @@ export default function AdminCurationPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {searchQuery ? '검색 결과가 없습니다.' : '등록된 소스가 없습니다.'}
                   </TableCell>
                 </TableRow>
