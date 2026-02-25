@@ -76,8 +76,8 @@ export function constructRssUrl(blogUrl: string, platform: BlogPlatform): string
     
     switch (platform) {
       case 'velog': {
-        // Velog: https://velog.io/@username -> https://v2.velog.io/rss/@username
-        const match = url.pathname.match(/^\/@([\w-]+)\/?$/);
+        // Velog: https://velog.io/@username or https://velog.io/@username/posts
+        const match = url.pathname.match(/^\/@([\w-]+)(\/posts)?\/?$/);
         if (match) {
           return `https://v2.velog.io/rss/@${match[1]}`;
         }

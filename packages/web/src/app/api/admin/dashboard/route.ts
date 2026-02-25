@@ -106,12 +106,12 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
         title: posts.title,
         url: posts.url,
         publishedAt: posts.publishedAt,
-        memberName: members.name,
+        memberNickname: members.nickname,
         memberDiscordUsername: members.discordUsername,
       })
       .from(posts)
       .leftJoin(members, eq(posts.memberId, members.id))
-      .orderBy(desc(posts.collectedAt))
+      .orderBy(desc(posts.publishedAt))
       .limit(5);
 
     // Get recent attendance changes
@@ -150,7 +150,7 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
           title: post.title,
           url: post.url,
           publishedAt: post.publishedAt?.toISOString(),
-          memberName: post.memberName,
+          memberNickname: post.memberNickname,
           memberDiscordUsername: post.memberDiscordUsername,
         })),
         attendance: recentAttendance.map((att) => ({

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
 import { utils } from '@blog-study/shared';
+import { detectRssUrl } from '@/lib/rss-detect';
 
 const { isValidBlogUrl } = utils;
 
@@ -124,6 +125,12 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (blogUrl !== undefined) updateData.blogUrl = blogUrl.trim();
     if (rssUrl !== undefined) updateData.rssUrl = rssUrl?.trim() || null;
     if (status !== undefined) updateData.status = status;
+
+    // RSS URL 자동 감지: rssUrl이 비어있고 blogUrl이 있으면 감지 시도
+    const targetBlogUrl = updateData.blogUrl ?? existingMember.blogUrl;
+    if (!updateData.rssUrl && targetBlogUrl) {
+      updateData.rssUrl = await detectRssUrl(targetBlogUrl);
+    }
 
     // Update member
     const [updatedMember] = await database

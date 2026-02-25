@@ -54,7 +54,7 @@ interface RecentPost {
   title: string;
   url: string;
   publishedAt: string;
-  memberName: string;
+  memberNickname: string;
   memberDiscordUsername: string;
 }
 
@@ -270,7 +270,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">최근 포스트</p>
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" asChild>
-                <Link href="/admin/members">
+                <Link href="/posts">
                   전체 보기
                   <ArrowRight className="h-3 w-3 ml-1" />
                 </Link>
@@ -295,7 +295,7 @@ export default function AdminDashboardPage() {
                         {post.title}
                       </a>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                        <span>{post.memberName || post.memberDiscordUsername}</span>
+                        <span>{post.memberNickname || post.memberDiscordUsername}</span>
                         <span>·</span>
                         <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
                       </div>
