@@ -2,8 +2,12 @@ import { config } from 'dotenv';
 import { z } from 'zod';
 import { resolve } from 'path';
 
-// Load .env file from project root
-config({ path: resolve(process.cwd(), '.env') });
+// Load .env files (first match wins — dotenv doesn't overwrite existing vars)
+// Check cwd first, then monorepo root (two levels up from packages/*)
+for (const dir of [process.cwd(), resolve(process.cwd(), '../..'), resolve(process.cwd(), '..')]) {
+  config({ path: resolve(dir, '.env.local') });
+  config({ path: resolve(dir, '.env') });
+}
 
 // Discord configuration schema
 const discordEnvSchema = z.object({
