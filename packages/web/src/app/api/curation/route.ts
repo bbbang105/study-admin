@@ -1,21 +1,25 @@
 import { NextRequest } from 'next/server';
-import { desc, count, eq, and } from 'drizzle-orm';
+import { desc, count, eq, and, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { successResponse, errorResponse } from '@/lib/api-error';
 
-const { curationItems } = sharedDb;
+const { curationItems, curationSources } = sharedDb;
 
 /**
  * GET /api/curation
  * Get curated articles and conferences
- * Requirement: 18.3
+ * Supports category filter and tag AND-filter (up to 4 tags)
+ * Tags are predefined in INTEREST_OPTIONS (shared config)
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'all';
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const tagsParam = searchParams.get('tags') || '';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
+    const offset = (page - 1) * limit;
 
     const database = db();
 
@@ -25,14 +29,32 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(curationItems.category, category));
     }
 
+    // Tag AND-filter: items must contain ALL selected tags
+    const selectedTags = tagsParam
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    if (selectedTags.length > 0) {
+      conditions.push(
+        sql`${curationItems.tags} @> ARRAY[${sql.join(
+          selectedTags.map((t) => sql`${t}`),
+          sql`,`
+        )}]::text[]`
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
     // Get total count
     const totalCountResult = await database
       .select({ count: count() })
       .from(curationItems)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(whereClause);
     const totalCount = totalCountResult[0]?.count ?? 0;
 
-    // Get curation items
+    // Get curation items with source name
     const itemsResult = await database
       .select({
         id: curationItems.id,
@@ -44,11 +66,14 @@ export async function GET(request: NextRequest) {
         relevanceScore: curationItems.relevanceScore,
         isShared: curationItems.isShared,
         sharedAt: curationItems.sharedAt,
+        sourceName: curationSources.name,
       })
       .from(curationItems)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .leftJoin(curationSources, eq(curationItems.sourceId, curationSources.id))
+      .where(whereClause)
       .orderBy(desc(curationItems.relevanceScore), desc(curationItems.collectedAt))
-      .limit(Math.min(100, limit));
+      .limit(limit)
+      .offset(offset);
 
     return successResponse({
       items: itemsResult.map((item) => ({
@@ -60,8 +85,14 @@ export async function GET(request: NextRequest) {
         tags: item.tags,
         relevanceScore: item.relevanceScore,
         sharedAt: item.isShared ? item.sharedAt?.toISOString() : null,
+        sourceName: item.sourceName ?? null,
       })),
       totalCount,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
   } catch (error) {
     console.error('Curation API error:', error);
