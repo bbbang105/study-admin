@@ -152,10 +152,15 @@ export async function startBot(
 
 /**
  * Graceful shutdown handler
+ * @param client - Discord bot client
+ * @param onShutdown - Optional async cleanup callback (e.g., pg-boss stop)
  */
-export function setupGracefulShutdown(client: BotClient): void {
+export function setupGracefulShutdown(client: BotClient, onShutdown?: () => Promise<void>): void {
   const shutdown = async (signal: string) => {
     console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+    if (onShutdown) {
+      await onShutdown();
+    }
     client.destroy();
     process.exit(0);
   };

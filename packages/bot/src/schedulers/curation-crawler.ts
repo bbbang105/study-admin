@@ -4,7 +4,6 @@
  * Requirements: 13.2, 13.6
  */
 
-import cron from 'node-cron';
 import {
   Client,
   EmbedBuilder,
@@ -130,8 +129,6 @@ export function buildCurationMessage(
  * Curation Crawler class for scheduling content curation
  */
 export class CurationCrawler {
-  private crawlJob: cron.ScheduledTask | null = null;
-  private shareJob: cron.ScheduledTask | null = null;
   private client: Client | null = null;
   private isCrawling = false;
   private isSharing = false;
@@ -150,45 +147,6 @@ export class CurationCrawler {
    */
   setCrawlFunction(fn: (url: string) => Promise<CrawledContent[]>): void {
     this.crawlFunction = fn;
-  }
-
-  /**
-   * Start the curation scheduler
-   * Requirements: 13.2 - Crawl once daily at 09:00
-   * Requirements: 13.6 - Send content at 10:00
-   */
-  start(): void {
-    if (this.crawlJob || this.shareJob) {
-      console.log('[CurationCrawler] Already running');
-      return;
-    }
-
-    // Crawl at 09:00 every day
-    this.crawlJob = cron.schedule('0 9 * * *', async () => {
-      await this.crawl();
-    });
-
-    // Share at 10:00 every day
-    this.shareJob = cron.schedule('0 10 * * *', async () => {
-      await this.shareDailyContent();
-    });
-
-    console.log('[CurationCrawler] Started - crawling at 09:00, sharing at 10:00');
-  }
-
-  /**
-   * Stop the curation scheduler
-   */
-  stop(): void {
-    if (this.crawlJob) {
-      this.crawlJob.stop();
-      this.crawlJob = null;
-    }
-    if (this.shareJob) {
-      this.shareJob.stop();
-      this.shareJob = null;
-    }
-    console.log('[CurationCrawler] Stopped');
   }
 
   /**
@@ -395,8 +353,5 @@ export function initCurationCrawler(client: Client): CurationCrawler {
  * Reset the singleton (useful for testing)
  */
 export function resetCurationCrawler(): void {
-  if (curationCrawlerInstance) {
-    curationCrawlerInstance.stop();
-  }
   curationCrawlerInstance = null;
 }

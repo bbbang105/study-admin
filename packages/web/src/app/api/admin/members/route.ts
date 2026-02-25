@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, count, sql, desc } from 'drizzle-orm';
+import { eq, count, sql, asc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
 import { utils } from '@blog-study/shared';
+import { detectRssUrl } from '@/lib/rss-detect';
 
 const { isValidBlogUrl } = utils;
 
@@ -28,7 +29,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       query = query.where(eq(members.status, status)) as typeof query;
     }
 
-    const membersList = await query.orderBy(desc(members.joinedAt));
+    const membersList = await query.orderBy(asc(members.name));
 
     // Get post counts for all members
     const postCounts = await database
@@ -171,6 +172,12 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       );
     }
 
+    // RSS URL 자동 감지 (비어있으면 blogUrl로부터 감지 시도)
+    let resolvedRssUrl = rssUrl?.trim() || null;
+    if (!resolvedRssUrl && blogUrl) {
+      resolvedRssUrl = await detectRssUrl(blogUrl.trim());
+    }
+
     // Create member (Requirement: 19.3)
     const [newMember] = await database
       .insert(members)
@@ -181,7 +188,7 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         discordId: discordId.trim(),
         discordUsername: discordUsername?.trim() || discordId.trim(),
         blogUrl: blogUrl.trim(),
-        rssUrl: rssUrl?.trim() || null,
+        rssUrl: resolvedRssUrl,
         status: MemberStatus.ACTIVE,
       })
       .returning();

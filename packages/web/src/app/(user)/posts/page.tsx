@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FileText, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getPartStyle, getPartLabel } from '@/lib/part-config';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,8 +20,9 @@ interface Post {
   title: string;
   url: string;
   publishedAt: string;
-  memberName: string;
+  memberNickname: string;
   memberDiscordUsername: string;
+  memberPart: string | null;
   roundNumber: number | null;
 }
 
@@ -103,8 +105,9 @@ function PostsContent() {
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60">
-                  <TableHead className="w-[50%] text-xs font-medium text-muted-foreground h-9">제목</TableHead>
+                  <TableHead className="w-[40%] text-xs font-medium text-muted-foreground h-9">제목</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground h-9">작성자</TableHead>
+                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9">파트</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground h-9">회차</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground h-9">작성일</TableHead>
                   <TableHead className="text-right text-xs font-medium text-muted-foreground h-9">링크</TableHead>
@@ -124,7 +127,16 @@ function PostsContent() {
                       </a>
                     </TableCell>
                     <TableCell className="text-sm text-foreground/80 py-2.5">
-                      {post.memberName || post.memberDiscordUsername}
+                      {post.memberNickname || post.memberDiscordUsername}
+                    </TableCell>
+                    <TableCell className="text-center py-2.5">
+                      {post.memberPart ? (
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPartStyle(post.memberPart).bg} ${getPartStyle(post.memberPart).text}`}>
+                          {getPartLabel(post.memberPart)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-2.5">
                       {post.roundNumber ? (
@@ -167,9 +179,32 @@ function PostsContent() {
                   <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
                   이전
                 </Button>
-                <span className="text-xs text-muted-foreground px-3 tabular-nums">
-                  {currentPage} / {data.pagination.totalPages}
-                </span>
+                {(() => {
+                  const total = data.pagination.totalPages;
+                  const maxVisible = 10;
+                  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                  const end = Math.min(total, start + maxVisible - 1);
+                  start = Math.max(1, end - maxVisible + 1);
+
+                  const pages: number[] = [];
+                  for (let i = start; i <= end; i++) pages.push(i);
+
+                  return pages.map((page) => (
+                    <Button
+                      key={page}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className={`h-8 w-8 p-0 text-xs tabular-nums ${
+                        page === currentPage
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  ));
+                })()}
                 <Button
                   variant="ghost"
                   size="sm"

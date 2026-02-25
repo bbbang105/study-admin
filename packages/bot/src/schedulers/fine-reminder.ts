@@ -4,7 +4,6 @@
  * Requirements: 8.4
  */
 
-import cron from 'node-cron';
 import { Client } from 'discord.js';
 import { getFineService } from '../services/fine.service';
 import { sendFineReminder } from '../handlers/dm-handler';
@@ -24,7 +23,6 @@ export interface FineReminderResult {
  * Fine Reminder class for scheduling fine reminder notifications
  */
 export class FineReminder {
-  private cronJob: cron.ScheduledTask | null = null;
   private isRunning = false;
   private client: Client | null = null;
 
@@ -34,37 +32,6 @@ export class FineReminder {
   setClient(client: Client): void {
     this.client = client;
   }
-
-  /**
-   * Start the fine reminder scheduler
-   * Runs every day at 10:00 to check for unpaid fines
-   * Requirements: 8.4 - Send reminder every 3 days for unpaid fines
-   */
-  start(): void {
-    if (this.cronJob) {
-      console.log('[FineReminder] Already running');
-      return;
-    }
-
-    // Run every day at 10:00: 0 10 * * *
-    this.cronJob = cron.schedule('0 10 * * *', async () => {
-      await this.sendReminders();
-    });
-
-    console.log('[FineReminder] Started - checking every day at 10:00');
-  }
-
-  /**
-   * Stop the fine reminder scheduler
-   */
-  stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-      console.log('[FineReminder] Stopped');
-    }
-  }
-
 
   /**
    * Check if the reminder is currently running
@@ -292,8 +259,5 @@ export function getFineReminder(): FineReminder {
  * Reset the singleton (useful for testing)
  */
 export function resetFineReminder(): void {
-  if (fineReminderInstance) {
-    fineReminderInstance.stop();
-  }
   fineReminderInstance = null;
 }

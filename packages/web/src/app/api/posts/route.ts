@@ -36,8 +36,9 @@ export async function GET(request: NextRequest) {
         title: posts.title,
         url: posts.url,
         publishedAt: posts.publishedAt,
-        memberName: members.name,
+        memberNickname: members.nickname,
         memberDiscordUsername: members.discordUsername,
+        memberPart: members.part,
         roundNumber: rounds.roundNumber,
       })
       .from(posts)
@@ -53,8 +54,9 @@ export async function GET(request: NextRequest) {
         title: post.title,
         url: post.url,
         publishedAt: post.publishedAt?.toISOString(),
-        memberName: post.memberName,
+        memberNickname: post.memberNickname,
         memberDiscordUsername: post.memberDiscordUsername,
+        memberPart: post.memberPart,
         roundNumber: post.roundNumber,
       })),
       pagination: createPaginationMeta(page, pageSize, totalCount),

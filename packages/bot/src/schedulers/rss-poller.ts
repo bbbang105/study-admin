@@ -4,7 +4,6 @@
  * Requirements: 6.1, 6.2
  */
 
-import cron from 'node-cron';
 import { getMemberService } from '../services/member.service';
 import { getRssService, type RssFeedItem, type PollResult } from '../services/rss.service';
 import { MemberStatus, type Member } from '@blog-study/shared/db';
@@ -32,7 +31,6 @@ export type OnNewPostCallback = (
  * RSS Poller class for scheduling RSS feed polling
  */
 export class RssPoller {
-  private cronJob: cron.ScheduledTask | null = null;
   private isRunning = false;
   private onNewPost: OnNewPostCallback | null = null;
 
@@ -41,36 +39,6 @@ export class RssPoller {
    */
   setOnNewPostCallback(callback: OnNewPostCallback): void {
     this.onNewPost = callback;
-  }
-
-  /**
-   * Start the RSS polling scheduler
-   * Runs every 5 minutes
-   * Requirements: 6.1
-   */
-  start(): void {
-    if (this.cronJob) {
-      console.log('[RssPoller] Already running');
-      return;
-    }
-
-    // Run every 5 minutes: */5 * * * *
-    this.cronJob = cron.schedule('*/5 * * * *', async () => {
-      await this.poll();
-    });
-
-    console.log('[RssPoller] Started - polling every 5 minutes');
-  }
-
-  /**
-   * Stop the RSS polling scheduler
-   */
-  stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-      console.log('[RssPoller] Stopped');
-    }
   }
 
   /**
@@ -208,8 +176,5 @@ export function getRssPoller(): RssPoller {
  * Reset the singleton (useful for testing)
  */
 export function resetRssPoller(): void {
-  if (rssPollerInstance) {
-    rssPollerInstance.stop();
-  }
   rssPollerInstance = null;
 }

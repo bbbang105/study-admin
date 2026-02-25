@@ -23,7 +23,7 @@ export interface UrlValidationResult {
  * 블로그 플랫폼별 URL 패턴
  */
 const PLATFORM_PATTERNS: Record<BlogPlatform, RegExp> = {
-  velog: /^https?:\/\/velog\.io\/@[\w-]+\/?$/,
+  velog: /^https?:\/\/velog\.io\/@[\w-]+(\/posts)?\/?$/,
   tistory: /^https?:\/\/[\w-]+\.tistory\.com\/?$/,
   medium: /^https?:\/\/medium\.com\/@[\w-]+\/?$/,
   unknown: /^https?:\/\/.+/,

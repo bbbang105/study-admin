@@ -63,7 +63,7 @@ describe('RSS Poller Property Tests', () => {
   });
 
   afterEach(() => {
-    poller.stop();
+    vi.clearAllMocks();
   });
 
   /**
