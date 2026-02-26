@@ -102,6 +102,7 @@ export async function GET() {
         bio: memberData.bio,
         interests: memberData.interests,
         resolution: memberData.resolution,
+        rssConsent: memberData.rssConsent ?? true,
         onboardingCompleted: memberData.onboardingCompleted,
         status: memberData.status,
         dormantUsed: memberData.dormantUsed,

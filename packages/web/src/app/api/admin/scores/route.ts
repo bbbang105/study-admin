@@ -78,3 +78,40 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     return errorResponse(error);
   }
 });
+
+/**
+ * DELETE /api/admin/scores
+ * 점수 내역 삭제 (관리자 전용)
+ */
+export const DELETE = withAdminAuth(async (request: NextRequest) => {
+  try {
+    const body = await request.json();
+    const { scoreId } = body;
+
+    if (!scoreId || typeof scoreId !== 'string' || !UUID_REGEX.test(scoreId)) {
+      throw Errors.badRequest('유효하지 않은 scoreId입니다.');
+    }
+
+    const database = db();
+
+    // 점수 레코드 조회
+    const [record] = await database
+      .select()
+      .from(activityScores)
+      .where(eq(activityScores.id, scoreId))
+      .limit(1);
+
+    if (!record) {
+      throw Errors.notFound('점수 내역을 찾을 수 없습니다.');
+    }
+
+    // 점수 레코드 삭제
+    await database
+      .delete(activityScores)
+      .where(eq(activityScores.id, scoreId));
+
+    return successResponse({ deleted: scoreId }, '점수 내역이 삭제되었습니다.');
+  } catch (error) {
+    return errorResponse(error);
+  }
+});

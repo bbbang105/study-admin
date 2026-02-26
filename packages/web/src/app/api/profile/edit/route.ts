@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, nickname, part, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl } = body;
+    const { name, nickname, part, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl, rssConsent } = body;
 
     if (part && (typeof part !== 'string' || part.length > 50)) {
       return NextResponse.json(
@@ -123,6 +123,7 @@ export async function PUT(request: NextRequest) {
         githubUrl: githubUrl || null,
         linkedinUrl: linkedinUrl || null,
         instagramUrl: instagramUrl || null,
+        ...(typeof rssConsent === 'boolean' ? { rssConsent } : {}),
         updatedAt: new Date(),
       })
       .where(eq(members.id, memberData.id));

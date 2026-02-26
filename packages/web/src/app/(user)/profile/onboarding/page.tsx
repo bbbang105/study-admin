@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
 import { PageLoading } from '@/components/ui/page-state';
@@ -37,6 +38,7 @@ export default function OnboardingPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
+  const [rssConsent, setRssConsent] = useState(true);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -115,6 +117,7 @@ export default function OnboardingPage() {
           githubUrl: githubUrl.trim() || null,
           linkedinUrl: linkedinUrl.trim() || null,
           instagramUrl: instagramUrl.trim() || null,
+          rssConsent,
         }),
       });
 
@@ -258,6 +261,24 @@ export default function OnboardingPage() {
               <p className="text-xs text-muted-foreground">
                 Velog, Tistory, Medium 등 블로그 주소를 입력하세요.
               </p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="rssConsent" className="text-sm font-medium">
+                  RSS 자동 수집 동의
+                </Label>
+                {!rssConsent && (
+                  <p className="text-xs text-muted-foreground">
+                    RSS 수집을 비활성화하면 글을 직접 등록해야 합니다.
+                  </p>
+                )}
+              </div>
+              <Switch
+                id="rssConsent"
+                checked={rssConsent}
+                onCheckedChange={setRssConsent}
+              />
             </div>
 
             <Separator />

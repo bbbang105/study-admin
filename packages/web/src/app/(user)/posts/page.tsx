@@ -2,11 +2,22 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { FileText, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, ExternalLink, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PageLoading, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -46,6 +57,14 @@ function PostsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 수동 글 등록 모달 state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [postUrl, setPostUrl] = useState('');
+  const [postTitle, setPostTitle] = useState('');
+  const [needsTitle, setNeedsTitle] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
@@ -67,8 +86,78 @@ function PostsContent() {
     fetchPosts();
   }, [currentPage]);
 
+  const refetchPosts = () => {
+    const fetchPosts = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/posts?page=${currentPage}&pageSize=10`);
+        if (!response.ok) throw new Error('Failed to fetch posts');
+        const result = await response.json();
+        setData(result.data);
+      } catch (err) {
+        setError('포스트 목록을 불러오는데 실패했습니다.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPosts();
+  };
+
   const handlePageChange = (page: number) => {
     router.push(`/posts?page=${page}`);
+  };
+
+  const trackPostView = (postId: string) => {
+    fetch(`/api/posts/${postId}/view`, { method: 'POST' }).catch(() => {});
+  };
+
+  const resetDialog = () => {
+    setPostUrl('');
+    setPostTitle('');
+    setNeedsTitle(false);
+    setSubmitError(null);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!postUrl.trim()) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const body: Record<string, string> = { url: postUrl.trim() };
+      if (needsTitle && postTitle.trim()) {
+        body.title = postTitle.trim();
+      }
+
+      const response = await fetch('/api/posts/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const result = await response.json();
+
+      if (response.status === 422 && result.needsTitle) {
+        setNeedsTitle(true);
+        setSubmitError(null);
+        return;
+      }
+
+      if (!response.ok) {
+        setSubmitError(result.message || '등록에 실패했습니다.');
+        return;
+      }
+
+      // 성공 → 모달 닫기 + 목록 새로고침
+      setDialogOpen(false);
+      resetDialog();
+      refetchPosts();
+    } catch {
+      setSubmitError('서버 오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -87,9 +176,72 @@ function PostsContent() {
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">전체 포스트</span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            총 {data?.pagination.totalCount ?? 0}개
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              총 {data?.pagination.totalCount ?? 0}개
+            </span>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDialog(); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                  <Plus className="h-3.5 w-3.5" />
+                  글 등록
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>글 등록</DialogTitle>
+                  <DialogDescription>
+                    블로그 글 URL을 입력하면 제목이 자동으로 추출됩니다.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="postUrl">URL</Label>
+                    <Input
+                      id="postUrl"
+                      placeholder="https://velog.io/@username/post-title"
+                      value={postUrl}
+                      onChange={(e) => setPostUrl(e.target.value)}
+                    />
+                  </div>
+                  {needsTitle && (
+                    <div className="space-y-2">
+                      <Label htmlFor="postTitle">
+                        제목 <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="postTitle"
+                        placeholder="글 제목을 직접 입력해주세요"
+                        value={postTitle}
+                        onChange={(e) => setPostTitle(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        제목을 자동으로 가져올 수 없습니다. 직접 입력해주세요.
+                      </p>
+                    </div>
+                  )}
+                  {submitError && (
+                    <p className="text-sm text-destructive">{submitError}</p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleManualSubmit}
+                    disabled={submitting || !postUrl.trim() || (needsTitle && !postTitle.trim())}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        등록 중...
+                      </>
+                    ) : (
+                      '등록'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 sm:px-6 pb-5">
@@ -104,6 +256,7 @@ function PostsContent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-start gap-3 py-3 group"
+                  onClick={() => trackPostView(post.id)}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
@@ -148,6 +301,7 @@ function PostsContent() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium"
+                        onClick={() => trackPostView(post.id)}
                       >
                         {post.title}
                       </a>
@@ -180,6 +334,7 @@ function PostsContent() {
                           href={post.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => trackPostView(post.id)}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>

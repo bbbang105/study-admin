@@ -84,6 +84,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         rssUrl: member.rssUrl,
         profileImageUrl: member.profileImageUrl,
         bio: member.bio,
+        rssConsent: member.rssConsent ?? true,
         status: member.status,
         dormantUsed: member.dormantUsed,
         dormantStartRound: member.dormantStartRound,

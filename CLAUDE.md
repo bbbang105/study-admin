@@ -56,6 +56,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
 - **한글 커맨드**: Discord 슬래시 명령어는 한글 (예: `/참가`, `/현황`)
 - **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
+- **다이얼로그**: `window.confirm()`, `window.alert()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeleteMemberDialog` 패턴 참고)
 
 ## 핵심 파일 위치
 

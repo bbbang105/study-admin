@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { Switch } from '@/components/ui/switch';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { PageLoading } from '@/components/ui/page-state';
 
@@ -39,6 +40,7 @@ interface ProfileData {
     bio: string | null;
     interests: string[] | null;
     resolution: string | null;
+    rssConsent: boolean;
     onboardingCompleted: boolean;
     githubUrl: string | null;
     linkedinUrl: string | null;
@@ -66,6 +68,7 @@ export default function ProfileEditPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
+  const [rssConsent, setRssConsent] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -102,6 +105,7 @@ export default function ProfileEditPage() {
         if (data.member.githubUrl) setGithubUrl(data.member.githubUrl);
         if (data.member.linkedinUrl) setLinkedinUrl(data.member.linkedinUrl);
         if (data.member.instagramUrl) setInstagramUrl(data.member.instagramUrl);
+        if (data.member.rssConsent !== undefined && data.member.rssConsent !== null) setRssConsent(data.member.rssConsent);
       } catch (err) {
         console.error(err);
         router.push('/profile');
@@ -145,6 +149,7 @@ export default function ProfileEditPage() {
           githubUrl: githubUrl || null,
           linkedinUrl: linkedinUrl || null,
           instagramUrl: instagramUrl || null,
+          rssConsent,
         }),
       });
 
@@ -367,6 +372,38 @@ export default function ProfileEditPage() {
             <p className="text-xs text-muted-foreground text-right">
               {resolution.length}/300
             </p>
+          </CardContent>
+        </Card>
+
+        {/* RSS 설정 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              <CardTitle>RSS 설정</CardTitle>
+            </div>
+            <CardDescription>
+              블로그 글 자동 수집 설정을 관리하세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="rssConsent" className="text-sm font-medium">
+                  RSS 자동 수집 동의
+                </Label>
+                {!rssConsent && (
+                  <p className="text-xs text-muted-foreground">
+                    RSS 수집을 비활성화하면 글을 직접 등록해야 합니다.
+                  </p>
+                )}
+              </div>
+              <Switch
+                id="rssConsent"
+                checked={rssConsent}
+                onCheckedChange={setRssConsent}
+              />
+            </div>
           </CardContent>
         </Card>
 

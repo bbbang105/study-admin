@@ -56,8 +56,8 @@ export class RssPoller {
     const memberService = getMemberService();
     const activeMembers = await memberService.getAllByStatus(MemberStatus.ACTIVE);
     
-    // Filter to only members with RSS URLs
-    return activeMembers.filter(member => member.rssUrl);
+    // Filter to only members with RSS URLs and RSS consent
+    return activeMembers.filter(member => member.rssUrl && member.rssConsent !== false);
   }
 
   /**

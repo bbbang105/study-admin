@@ -44,6 +44,7 @@ interface Member {
   part: string;
   blogUrl: string;
   rssUrl: string | null;
+  rssConsent: boolean;
   profileImageUrl: string | null;
   bio: string | null;
   status: string;
@@ -263,6 +264,9 @@ export default function AdminMembersPage() {
                       <p className="text-xs text-muted-foreground">{member.discordUsername}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                        RSS {member.rssConsent ? 'ON' : 'OFF'}
+                      </Badge>
                       <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
                         {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
                       </Badge>
@@ -348,9 +352,14 @@ export default function AdminMembersPage() {
                         </a>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
-                          {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                            RSS {member.rssConsent ? 'ON' : 'OFF'}
+                          </Badge>
+                          <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                            {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">{member.postCount}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{member.attendanceRate}%</TableCell>

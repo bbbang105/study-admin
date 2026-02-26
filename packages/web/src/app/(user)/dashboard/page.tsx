@@ -66,6 +66,10 @@ export default function DashboardPage() {
     fetchDashboard();
   }, []);
 
+  const trackPostView = (postId: string) => {
+    fetch(`/api/posts/${postId}/view`, { method: 'POST' }).catch(() => {});
+  };
+
   if (loading) {
     return <PageLoading />;
   }
@@ -213,6 +217,7 @@ export default function DashboardPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block truncate text-sm font-medium leading-snug hover:text-primary transition-colors"
+                        onClick={() => trackPostView(post.id)}
                       >
                         {post.title}
                       </a>
