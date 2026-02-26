@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getDefaultAvatar } from '@/lib/utils';
+import { PageLoading, PageError } from '@/components/ui/page-state';
 import {
   Table,
   TableBody,
@@ -103,19 +104,11 @@ export default function RankingPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -131,7 +124,7 @@ export default function RankingPage() {
 
       {/* Top 3 podium cards */}
       {data?.rankings && data.rankings.length >= 3 && (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           {data.rankings.slice(0, 3).map((member, index) => {
             const config = PODIUM_CONFIG[index]!;
             return (
@@ -225,20 +218,21 @@ export default function RankingPage() {
         </CardHeader>
         <CardContent className="px-6 pb-5">
           {data?.rankings && data.rankings.length > 0 ? (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60">
-                  <TableHead className="w-[72px] text-xs font-medium text-muted-foreground h-9">순위</TableHead>
+                  <TableHead className="w-[72px] text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">순위</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground h-9">스터디원</TableHead>
-                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9">포스트</TableHead>
-                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9">출석률</TableHead>
-                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9">출석 현황</TableHead>
+                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">포스트</TableHead>
+                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">출석률</TableHead>
+                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">출석 현황</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.rankings.map((member, index) => (
                   <TableRow key={member.id} className="border-border/40 hover:bg-muted/30">
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5 whitespace-nowrap">
                       <div className="flex items-center justify-center bg-muted rounded-full w-7 h-7">
                         {getRankDisplay(index + 1)}
                       </div>
@@ -248,23 +242,23 @@ export default function RankingPage() {
                         href={`/members/${member.id}`}
                         className="flex items-center gap-2.5 hover:opacity-75 transition-opacity"
                       >
-                        <Avatar className="h-7 w-7 ring-1 ring-border">
+                        <Avatar className="h-7 w-7 ring-1 ring-border shrink-0">
                           <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
                           <AvatarFallback className="text-[10px] font-medium">
                             {(member.nickname || member.discordUsername).slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium hover:underline underline-offset-4">
+                        <span className="text-sm font-medium hover:underline underline-offset-4 whitespace-nowrap">
                           {member.nickname || member.discordUsername}
                         </span>
                       </Link>
                     </TableCell>
-                    <TableCell className="text-center py-2.5">
+                    <TableCell className="text-center py-2.5 whitespace-nowrap">
                       <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         {member.postCount}개
                       </span>
                     </TableCell>
-                    <TableCell className="text-center py-2.5">
+                    <TableCell className="text-center py-2.5 whitespace-nowrap">
                       <Badge
                         variant={
                           member.attendanceRate >= 80
@@ -277,13 +271,14 @@ export default function RankingPage() {
                         {member.attendanceRate.toFixed(0)}%
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center py-2.5 text-sm text-muted-foreground tabular-nums">
+                    <TableCell className="text-center py-2.5 text-sm text-muted-foreground tabular-nums whitespace-nowrap">
                       {member.submittedRounds}/{member.totalRounds}회
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 gap-2">
               <Trophy className="h-8 w-8 text-muted-foreground/40" />

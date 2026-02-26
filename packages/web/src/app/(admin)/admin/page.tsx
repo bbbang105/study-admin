@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageLoading, PageError } from '@/components/ui/page-state';
 
 interface RoundInfo {
   id: number;
@@ -114,21 +115,8 @@ export default function AdminDashboardPage() {
     fetchDashboard();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-destructive">{error}</div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   return (
     <div className="space-y-6">
@@ -154,7 +142,7 @@ export default function AdminDashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">회차</p>
                 <p className="text-2xl font-bold">{data.currentRound.roundNumber}회차</p>
@@ -187,7 +175,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4 md:gap-4">
         <Card className="shadow-none border-border/60">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-3">

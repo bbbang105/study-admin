@@ -133,13 +133,13 @@ export default function CurationItemsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/curation')}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/curation')} className="self-start">
           <ArrowLeft className="h-4 w-4 mr-1" />
           돌아가기
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">수집된 아이템</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">수집된 아이템</h1>
           <p className="text-muted-foreground">
             총 {pagination.total}개의 아이템
           </p>
@@ -147,7 +147,7 @@ export default function CurationItemsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex gap-3 items-center">
+      <div className="flex flex-wrap gap-3 items-center">
         <select
           className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           value={category}
@@ -159,7 +159,7 @@ export default function CurationItemsPage() {
         </select>
 
         <select
-          className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring max-w-[200px]"
           value={sourceId}
           onChange={(e) => handleFilterChange(category, e.target.value)}
         >
@@ -182,7 +182,7 @@ export default function CurationItemsPage() {
           수집된 아이템이 없습니다.
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
             <Card key={item.id} className="flex flex-col">
               <CardContent className="flex flex-col gap-3 pt-5 flex-1">

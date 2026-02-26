@@ -6,8 +6,10 @@ import { UsersRound, ExternalLink, Github, Linkedin, Instagram } from 'lucide-re
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { PART_OPTIONS, getPartStyle, getPartLabel } from '@/lib/part-config';
+import { PART_OPTIONS } from '@/lib/part-config';
 import { getDefaultAvatar } from '@/lib/utils';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PartBadge } from '@/components/ui/part-badge';
 
 interface Member {
   id: string;
@@ -59,19 +61,11 @@ export default function MembersPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -81,7 +75,7 @@ export default function MembersPage() {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Members
         </p>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-semibold tracking-tight">스터디원 목록</h1>
           <span className="text-sm text-muted-foreground">
             {filterPart
@@ -130,8 +124,6 @@ export default function MembersPage() {
       {data?.members && data.members.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {data.members.filter((m) => !filterPart || m.part === filterPart).map((member) => {
-            const partStyle = getPartStyle(member.part);
-
             const socialLinks = [
               { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
               { url: member.githubUrl, icon: Github, label: 'GitHub' },
@@ -159,11 +151,7 @@ export default function MembersPage() {
                           <p className="text-xs text-muted-foreground truncate">
                             @{member.discordUsername.replace(/#0$/, '')}
                           </p>
-                          <span
-                            className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${partStyle.bg} ${partStyle.text}`}
-                          >
-                            {getPartLabel(member.part)}
-                          </span>
+                          <PartBadge part={member.part} size="sm" />
                         </div>
                       </div>
                     </div>
@@ -181,17 +169,17 @@ export default function MembersPage() {
                         {socialLinks.map((link) => {
                           const Icon = link.icon;
                           return (
-                            <span
+                            <a
                               key={link.label}
+                              href={link.url!}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                window.open(link.url!, '_blank', 'noopener,noreferrer');
-                              }}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <Icon className="h-3 w-3" />
                               {link.label}
-                            </span>
+                            </a>
                           );
                         })}
                       </div>

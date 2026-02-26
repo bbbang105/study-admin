@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Calendar, FileText, Clock, TrendingUp, ArrowUpRight, Inbox } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageLoading, PageError } from '@/components/ui/page-state';
 
 interface RoundInfo {
   roundNumber: number;
@@ -66,19 +67,11 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -92,23 +85,23 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {/* 현재 회차 */}
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
                 <p className="text-xs text-muted-foreground">현재 회차</p>
                 <p className="text-2xl font-bold tracking-tight">
                   {data?.currentRound ? `${data.currentRound.roundNumber}회차` : '-'}
                 </p>
                 {data?.currentRound && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     {data.currentRound.startDate} ~ {data.currentRound.endDate}
                   </p>
                 )}
               </div>
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <Calendar className="h-4 w-4" />
               </div>
             </div>
@@ -118,8 +111,8 @@ export default function DashboardPage() {
         {/* 마감까지 */}
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
                 <p className="text-xs text-muted-foreground">마감까지</p>
                 <p className="text-2xl font-bold tracking-tight">
                   {data?.currentRound ? (
@@ -133,12 +126,12 @@ export default function DashboardPage() {
                   )}
                 </p>
                 {data?.currentRound?.isGracePeriod && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     지각 마감: {data.currentRound.graceEndDate}
                   </p>
                 )}
               </div>
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <Clock className="h-4 w-4" />
               </div>
             </div>
@@ -148,15 +141,15 @@ export default function DashboardPage() {
         {/* 총 참가자 */}
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
                 <p className="text-xs text-muted-foreground">총 참가자</p>
                 <p className="text-2xl font-bold tracking-tight">
                   {data?.totalMembers ?? 0}명
                 </p>
                 <p className="text-xs text-muted-foreground">활성 스터디원</p>
               </div>
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
@@ -166,15 +159,15 @@ export default function DashboardPage() {
         {/* 총 포스트 */}
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
                 <p className="text-xs text-muted-foreground">총 포스트</p>
                 <p className="text-2xl font-bold tracking-tight">
                   {data?.totalPosts ?? 0}개
                 </p>
                 <p className="text-xs text-muted-foreground">누적 작성 글</p>
               </div>
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <FileText className="h-4 w-4" />
               </div>
             </div>

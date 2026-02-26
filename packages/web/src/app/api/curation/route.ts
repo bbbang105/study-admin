@@ -1,8 +1,9 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { desc, count, eq, and, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { successResponse, errorResponse } from '@/lib/api-error';
+import { createClient } from '@/lib/supabase/server';
 
 const { curationItems, curationSources } = sharedDb;
 
@@ -14,6 +15,12 @@ const { curationItems, curationSources } = sharedDb;
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'all';
     const tagsParam = searchParams.get('tags') || '';

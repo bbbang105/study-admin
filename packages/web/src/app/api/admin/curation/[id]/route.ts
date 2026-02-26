@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { curationSources, curationItems } from '@blog-study/shared/db';
+import { curationSources, curationItems, CurationCategory } from '@blog-study/shared/db';
 import { withAdminAuth } from '@/lib/admin';
 
 /**
@@ -49,6 +49,38 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     }
 
     const body = await request.json();
+
+    // Validate inputs before DB access
+    const validCategories = Object.values(CurationCategory);
+    if (body.category !== undefined && !validCategories.includes(body.category)) {
+      return NextResponse.json(
+        { error: `유효하지 않은 카테고리입니다. (${validCategories.join(', ')})` },
+        { status: 400 }
+      );
+    }
+    if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim() === '')) {
+      return NextResponse.json(
+        { error: '이름은 빈 문자열일 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+    if (body.url !== undefined) {
+      try {
+        new URL(body.url);
+      } catch {
+        return NextResponse.json(
+          { error: '유효하지 않은 URL입니다.' },
+          { status: 400 }
+        );
+      }
+    }
+    if (body.tags !== undefined && !Array.isArray(body.tags)) {
+      return NextResponse.json(
+        { error: 'tags는 배열이어야 합니다.' },
+        { status: 400 }
+      );
+    }
+
     const database = getDb();
 
     // Check if source exists

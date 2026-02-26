@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, count, desc, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { createClient } from '@/lib/supabase/server';
 
 const { members, posts, attendance, AttendanceStatus } = sharedDb;
 
@@ -15,6 +16,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+    }
+
     const { id } = await params;
 
     if (!id) {

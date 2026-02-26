@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FileText, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getPartStyle, getPartLabel } from '@/lib/part-config';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PartBadge } from '@/components/ui/part-badge';
 import {
   Table,
   TableBody,
@@ -71,19 +72,11 @@ function PostsContent() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -99,18 +92,51 @@ function PostsContent() {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="px-6 pb-5">
+      <CardContent className="px-4 sm:px-6 pb-5">
         {data?.posts && data.posts.length > 0 ? (
           <>
+            {/* Mobile: compact list */}
+            <div className="md:hidden divide-y divide-border/40">
+              {data.posts.map((post) => (
+                <a
+                  key={post.id}
+                  href={post.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 py-3 group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                      {post.title}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                      <span>{post.memberNickname || post.memberDiscordUsername}</span>
+                      {post.memberPart && (
+                        <>
+                          <span>·</span>
+                          <PartBadge part={post.memberPart} size="sm" />
+                        </>
+                      )}
+                      <span>·</span>
+                      <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
+                    </div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
+                </a>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60">
                   <TableHead className="w-[40%] text-xs font-medium text-muted-foreground h-9">제목</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9">작성자</TableHead>
-                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9">파트</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9">회차</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9">작성일</TableHead>
-                  <TableHead className="text-right text-xs font-medium text-muted-foreground h-9">링크</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">작성자</TableHead>
+                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">파트</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">회차</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">작성일</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">링크</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -126,19 +152,17 @@ function PostsContent() {
                         {post.title}
                       </a>
                     </TableCell>
-                    <TableCell className="text-sm text-foreground/80 py-2.5">
+                    <TableCell className="text-sm text-foreground/80 py-2.5 whitespace-nowrap">
                       {post.memberNickname || post.memberDiscordUsername}
                     </TableCell>
-                    <TableCell className="text-center py-2.5">
+                    <TableCell className="text-center py-2.5 whitespace-nowrap">
                       {post.memberPart ? (
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPartStyle(post.memberPart).bg} ${getPartStyle(post.memberPart).text}`}>
-                          {getPartLabel(post.memberPart)}
-                        </span>
+                        <PartBadge part={post.memberPart} />
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5 whitespace-nowrap">
                       {post.roundNumber ? (
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {post.roundNumber}회차
@@ -147,10 +171,10 @@ function PostsContent() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-2.5">
+                    <TableCell className="text-sm text-muted-foreground py-2.5 whitespace-nowrap">
                       {new Date(post.publishedAt).toLocaleDateString('ko-KR')}
                     </TableCell>
-                    <TableCell className="text-right py-2.5">
+                    <TableCell className="text-right py-2.5 whitespace-nowrap">
                       <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
                         <a
                           href={post.url}
@@ -165,10 +189,11 @@ function PostsContent() {
                 ))}
               </TableBody>
             </Table>
+            </div>
 
             {/* Pagination */}
             {data.pagination.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-1 mt-6">
+              <div className="flex flex-wrap items-center justify-center gap-1 mt-6">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -240,11 +265,7 @@ export default function PostsPage() {
         </p>
       </div>
 
-      <Suspense fallback={
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-sm text-muted-foreground">로딩 중...</div>
-        </div>
-      }>
+      <Suspense fallback={<PageLoading />}>
         <PostsContent />
       </Suspense>
     </div>

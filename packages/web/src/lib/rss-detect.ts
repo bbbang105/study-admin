@@ -10,6 +10,42 @@ const { detectBlogPlatform } = utils;
 const HTTP_TIMEOUT = 10000;
 
 /**
+ * SSRF 방지: 안전한 외부 URL인지 검증
+ * 로컬호스트, 프라이빗 네트워크, 메타데이터 엔드포인트 차단
+ */
+function isSafeUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+
+    // IPv6 loopback and link-local
+    if (hostname === '::1' || hostname.toLowerCase().startsWith('fe80:')) {
+      return false;
+    }
+
+    // IPv4 private/reserved ranges
+    const parts = hostname.split('.');
+    const first = parseInt(parts[0] ?? '', 10);
+    const second = parseInt(parts[1] ?? '', 10);
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('10.') ||
+      (first === 172 && second >= 16 && second <= 31) || // 172.16.0.0/12
+      hostname.startsWith('192.168.') ||
+      hostname === '169.254.169.254' ||
+      hostname.endsWith('.internal')
+    ) {
+      return false;
+    }
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 플랫폼별 RSS URL 생성
  */
 function constructRssUrl(blogUrl: string, platform: string): string | null {
@@ -41,6 +77,7 @@ function constructRssUrl(blogUrl: string, platform: string): string | null {
  */
 async function isValidFeed(url: string): Promise<boolean> {
   try {
+    if (!isSafeUrl(url)) throw new Error('Invalid URL');
     const res = await fetch(url, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
       signal: AbortSignal.timeout(HTTP_TIMEOUT),
@@ -76,6 +113,8 @@ function extractRssFromHtml(html: string): string | null {
  * @returns 감지된 RSS URL 또는 null
  */
 export async function detectRssUrl(blogUrl: string): Promise<string | null> {
+  if (!isSafeUrl(blogUrl)) return null;
+
   const platform = detectBlogPlatform(blogUrl);
 
   // 1단계: 플랫폼별 규칙으로 RSS URL 생성 + 검증
@@ -88,6 +127,7 @@ export async function detectRssUrl(blogUrl: string): Promise<string | null> {
 
   // 2단계: HTML link 태그에서 RSS 발견
   try {
+    if (!isSafeUrl(blogUrl)) throw new Error('Invalid URL');
     const res = await fetch(blogUrl, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
       signal: AbortSignal.timeout(HTTP_TIMEOUT),

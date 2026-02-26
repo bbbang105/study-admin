@@ -5,6 +5,8 @@ import { ExternalLink, Calendar, Sparkles, X, ChevronLeft, ChevronRight } from '
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageError } from '@/components/ui/page-state';
+import { TagList } from '@/components/ui/tag-list';
 
 interface CurationItem {
   id: string;
@@ -120,11 +122,7 @@ export default function CurationPage() {
   };
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-destructive text-sm">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -134,7 +132,7 @@ export default function CurationPage() {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Curation
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
           <h1 className="text-xl font-semibold text-foreground">큐레이션</h1>
           <span className="text-sm text-muted-foreground">
             {data?.totalCount ?? 0}개의 콘텐츠
@@ -143,7 +141,7 @@ export default function CurationPage() {
       </div>
 
       {/* Category Filter Pills */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {FILTERS.map(({ value, label, emoji }) => (
           <button
             key={value}
@@ -257,21 +255,7 @@ export default function CurationPage() {
 
                 {/* Tags */}
                 {item.tags && item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {item.tags.slice(0, 4).map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-primary/10 text-primary"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {item.tags.length > 4 && (
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground">
-                        +{item.tags.length - 4}
-                      </span>
-                    )}
-                  </div>
+                  <TagList tags={item.tags} />
                 )}
 
                 {/* Footer: source + date + link icon */}
@@ -328,7 +312,7 @@ export default function CurationPage() {
         const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
         return (
-          <div className="flex items-center justify-center gap-1 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-1 pt-2">
             <Button
               variant="ghost"
               size="icon"

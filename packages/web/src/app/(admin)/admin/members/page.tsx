@@ -23,9 +23,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getPartStyle, getPartLabel } from '@/lib/part-config';
 import { MemberFormDialog } from './member-form-dialog';
 import { DeleteMemberDialog } from './delete-member-dialog';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PartBadge } from '@/components/ui/part-badge';
+import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 
 interface AttendanceStats {
   total: number;
@@ -71,11 +73,6 @@ interface MembersData {
   counts: MemberCounts;
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  active: { label: '활성', variant: 'default' },
-  dormant: { label: '휴면', variant: 'secondary' },
-  withdrawn: { label: '탈퇴', variant: 'destructive' },
-};
 
 export default function AdminMembersPage() {
   const [data, setData] = useState<MembersData | null>(null);
@@ -161,39 +158,26 @@ export default function AdminMembersPage() {
     return true;
   }) || [];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-destructive">{error}</div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">참가자 관리</h1>
           <p className="text-muted-foreground">
             스터디 참가자를 관리하세요.
           </p>
         </div>
-        <Button onClick={handleAddMember}>
+        <Button onClick={handleAddMember} className="self-start sm:self-auto">
           <Plus className="h-4 w-4 mr-2" />
           멤버 추가
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card
           className={`cursor-pointer transition-colors ${statusFilter === 'all' ? 'border-primary' : ''}`}
           onClick={() => setStatusFilter('all')}
@@ -247,19 +231,19 @@ export default function AdminMembersPage() {
       {/* Members Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>멤버 목록</CardTitle>
               <CardDescription>
-                {statusFilter === 'all' ? '전체' : statusConfig[statusFilter]?.label} 멤버 {filteredMembers.length}명
+                {statusFilter === 'all' ? '전체' : MEMBER_STATUS_CONFIG[statusFilter]?.label} 멤버 {filteredMembers.length}명
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="검색..."
-                  className="pl-8 w-[200px]"
+                  className="pl-8 w-full sm:w-[200px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -268,80 +252,139 @@ export default function AdminMembersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>이름</TableHead>
-                <TableHead>파트</TableHead>
-                <TableHead>Discord</TableHead>
-                <TableHead>블로그</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead className="text-right">포스트</TableHead>
-                <TableHead className="text-right">출석률</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.length > 0 ? (
-                filteredMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPartStyle(member.part).bg} ${getPartStyle(member.part).text}`}>
-                        {getPartLabel(member.part)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {member.discordUsername}
-                    </TableCell>
-                    <TableCell>
-                      <a
-                        href={member.blogUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        블로그
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[member.status]?.variant || 'secondary'}>
-                        {statusConfig[member.status]?.label || member.status}
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-3">
+            {filteredMembers.length > 0 ? (
+              filteredMembers.map((member) => (
+                <div key={member.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{member.name}</p>
+                      <p className="text-xs text-muted-foreground">{member.discordUsername}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                        {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{member.postCount}</TableCell>
-                    <TableCell className="text-right">{member.attendanceRate}%</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditMember(member)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <PartBadge part={member.part} />
+                    <span className="text-xs text-muted-foreground">포스트 {member.postCount}개</span>
+                    <span className="text-xs text-muted-foreground">출석률 {member.attendanceRate}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <a
+                      href={member.blogUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      블로그
+                    </a>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditMember(member)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteMember(member)}
+                        disabled={member.status === 'withdrawn'}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? '검색 결과가 없습니다.' : '등록된 멤버가 없습니다.'}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>이름</TableHead>
+                  <TableHead>파트</TableHead>
+                  <TableHead>Discord</TableHead>
+                  <TableHead>블로그</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead className="text-right">포스트</TableHead>
+                  <TableHead className="text-right">출석률</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMembers.length > 0 ? (
+                  filteredMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium whitespace-nowrap">{member.name}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <PartBadge part={member.part} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {member.discordUsername}
+                      </TableCell>
+                      <TableCell>
+                        <a
+                          href={member.blogUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-sm text-primary hover:underline"
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteMember(member)}
-                          disabled={member.status === 'withdrawn'}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          <ExternalLink className="h-3 w-3" />
+                          블로그
+                        </a>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                          {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{member.postCount}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{member.attendanceRate}%</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditMember(member)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteMember(member)}
+                            disabled={member.status === 'withdrawn'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      {searchQuery ? '검색 결과가 없습니다.' : '등록된 멤버가 없습니다.'}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? '검색 결과가 없습니다.' : '등록된 멤버가 없습니다.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
