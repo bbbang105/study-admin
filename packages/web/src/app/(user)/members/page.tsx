@@ -169,17 +169,27 @@ export default function MembersPage() {
                         {socialLinks.map((link) => {
                           const Icon = link.icon;
                           return (
-                            <a
+                            <span
                               key={link.label}
-                              href={link.url!}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              onClick={(e) => e.stopPropagation()}
+                              role="link"
+                              tabIndex={0}
+                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(link.url!, '_blank', 'noopener,noreferrer');
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(link.url!, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
                             >
                               <Icon className="h-3 w-3" />
                               {link.label}
-                            </a>
+                            </span>
                           );
                         })}
                       </div>
