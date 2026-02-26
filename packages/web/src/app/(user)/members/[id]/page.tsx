@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { getPartStyle, getPartLabel } from '@/lib/part-config';
 import { getDefaultAvatar } from '@/lib/utils';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PartBadge } from '@/components/ui/part-badge';
 
 interface MemberInfo {
   id: string;
@@ -89,11 +90,7 @@ export default function MemberProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error || !data) {
@@ -102,9 +99,7 @@ export default function MemberProfilePage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex items-center justify-center min-h-[300px]">
-          <div className="text-destructive">{error || '데이터를 불러올 수 없습니다.'}</div>
-        </div>
+        <PageError message={error || '데이터를 불러올 수 없습니다.'} />
       </div>
     );
   }
@@ -120,13 +115,13 @@ export default function MemberProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{member.nickname}</h1>
-          <p className="text-muted-foreground">스터디원 프로필</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{member.nickname}</h1>
+          <p className="text-muted-foreground text-sm">스터디원 프로필</p>
         </div>
       </div>
 
@@ -142,22 +137,20 @@ export default function MemberProfilePage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-start gap-6">
-            <Avatar className="h-24 w-24">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+            <Avatar className="h-20 w-20 sm:h-24 sm:w-24 shrink-0">
               <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
               <AvatarFallback className="text-2xl">
                 {member.nickname.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-2 min-w-0">
               <div>
-                <p className="text-2xl font-semibold">{member.nickname}</p>
+                <p className="text-xl sm:text-2xl font-semibold">{member.nickname}</p>
                 <p className="text-sm text-muted-foreground">{member.name}</p>
-                <p className="text-muted-foreground">@{member.discordUsername.replace(/#0$/, '')}</p>
+                <p className="text-muted-foreground text-sm">@{member.discordUsername.replace(/#0$/, '')}</p>
               </div>
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPartStyle(member.part).bg} ${getPartStyle(member.part).text}`}>
-                {getPartLabel(member.part)}
-              </span>
+              <PartBadge part={member.part} />
             </div>
           </div>
 
@@ -238,19 +231,19 @@ export default function MemberProfilePage() {
               {recentPosts.map((post) => (
                 <div
                   key={post.id}
-                  className="flex items-start justify-between border-b pb-4 last:border-0 last:pb-0"
+                  className="flex flex-col gap-0.5 border-b pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <a
                       href={post.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium hover:underline flex items-center gap-1"
+                      className="font-medium hover:underline flex items-start gap-1 text-sm leading-snug"
                     >
-                      {post.title}
-                      <ExternalLink className="h-3 w-3" />
+                      <span className="line-clamp-2">{post.title}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 mt-0.5" />
                     </a>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(post.publishedAt).toLocaleDateString('ko-KR')}
                     </p>
                   </div>

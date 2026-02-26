@@ -20,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 
 interface RoundInfo {
   id: number;
@@ -111,11 +113,6 @@ const statusConfig = {
   },
 } as const satisfies Record<string, StatusConfigItem>;
 
-const memberStatusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
-  active: { label: '활성', variant: 'default' },
-  dormant: { label: '휴면', variant: 'secondary' },
-  withdrawn: { label: '탈퇴', variant: 'destructive' },
-};
 
 function getStatusConfig(status: string): StatusConfigItem {
   if (status in statusConfig) {
@@ -166,28 +163,17 @@ export default function AdminAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-destructive">{error}</div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   if (!data || data.rounds.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">출석 현황</h1>
-          <p className="text-muted-foreground">회차별 출석 현황을 확인하세요.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">출석 현황</h1>
+            <p className="text-muted-foreground">회차별 출석 현황을 확인하세요.</p>
+          </div>
         </div>
         <Card>
           <CardContent className="py-8">
@@ -223,11 +209,13 @@ export default function AdminAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">출석 현황</h1>
-        <p className="text-muted-foreground">
-          회차별 출석 현황을 확인하세요. (멤버 × 회차 그리드)
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">출석 현황</h1>
+          <p className="text-muted-foreground">
+            회차별 출석 현황을 확인하세요. (멤버 × 회차 그리드)
+          </p>
+        </div>
       </div>
 
       {/* Legend */}
@@ -250,7 +238,7 @@ export default function AdminAttendancePage() {
       </Card>
 
       {/* Round Stats Summary */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
         {visibleRoundStats.map((rs) => (
           <Card key={rs.roundId} className={rs.isCurrent ? 'border-primary' : ''}>
             <CardHeader className="pb-2">
@@ -282,14 +270,14 @@ export default function AdminAttendancePage() {
       {/* Attendance Grid */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>출석 그리드</CardTitle>
               <CardDescription>
                 {filteredGrid.length}명의 멤버 × {data.rounds.length}개 회차
               </CardDescription>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">상태:</span>
@@ -314,7 +302,7 @@ export default function AdminAttendancePage() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
                   {currentPage + 1} / {totalPages}
                 </span>
                 <Button
@@ -368,8 +356,8 @@ export default function AdminAttendancePage() {
                         </div>
                       </TableCell>
                       <TableCell className="sticky left-[150px] bg-background z-10">
-                        <Badge variant={memberStatusConfig[row.member.status]?.variant || 'secondary'}>
-                          {memberStatusConfig[row.member.status]?.label || row.member.status}
+                        <Badge variant={MEMBER_STATUS_CONFIG[row.member.status]?.variant || 'secondary'}>
+                          {MEMBER_STATUS_CONFIG[row.member.status]?.label || row.member.status}
                         </Badge>
                       </TableCell>
                       {visibleRounds.map((round) => {

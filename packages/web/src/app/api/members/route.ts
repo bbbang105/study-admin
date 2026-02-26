@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, count, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { createClient } from '@/lib/supabase/server';
 
 const { members, posts, attendance, AttendanceStatus } = sharedDb;
+
+const ALLOWED_STATUSES = ['active', 'dormant'];
 
 /**
  * GET /api/members
@@ -11,8 +14,18 @@ const { members, posts, attendance, AttendanceStatus } = sharedDb;
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'active';
+
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+    }
 
     const database = db();
 

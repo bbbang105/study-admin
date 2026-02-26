@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PageLoading, PageError } from '@/components/ui/page-state';
 
 interface Fine {
   id: string;
@@ -156,21 +157,8 @@ export default function AdminFinesPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-destructive">{error}</div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   // Filter fines
   const filteredFines = data?.fines.filter((fine) => {
@@ -192,15 +180,17 @@ export default function AdminFinesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">벌금 관리</h1>
-        <p className="text-muted-foreground">
-          벌금 현황을 확인하고 납부/면제 처리를 하세요.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">벌금 관리</h1>
+          <p className="text-muted-foreground">
+            벌금 현황을 확인하고 납부/면제 처리를 하세요.
+          </p>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card
           className={`cursor-pointer transition-colors ${statusFilter === 'all' ? 'border-primary' : ''}`}
           onClick={() => setStatusFilter('all')}
@@ -308,7 +298,7 @@ export default function AdminFinesPage() {
       {/* Fines Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>벌금 목록</CardTitle>
               <CardDescription>
@@ -316,11 +306,11 @@ export default function AdminFinesPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="검색..."
-                  className="pl-8 w-[200px]"
+                  className="pl-8 w-full sm:w-[200px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -329,90 +319,157 @@ export default function AdminFinesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>멤버</TableHead>
-                <TableHead>회차</TableHead>
-                <TableHead>유형</TableHead>
-                <TableHead className="text-right">금액</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead>생성일</TableHead>
-                <TableHead className="w-[150px]">작업</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredFines.length > 0 ? (
-                filteredFines.map((fine) => (
-                  <TableRow key={fine.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{fine.memberName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {fine.memberPart}
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-3">
+            {filteredFines.length > 0 ? (
+              filteredFines.map((fine) => (
+                <div key={fine.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{fine.memberName}</p>
+                      <p className="text-xs text-muted-foreground">{fine.memberPart}</p>
+                    </div>
+                    <Badge variant={statusConfig[fine.status]?.variant || 'secondary'} className="shrink-0">
+                      {statusConfig[fine.status]?.label || fine.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span>{fine.roundNumber}회차</span>
+                    <span>·</span>
+                    <span className={typeConfig[fine.type]?.color || ''}>
+                      {typeConfig[fine.type]?.label || fine.type}
+                    </span>
+                    <span>·</span>
+                    <span className="font-medium text-foreground">{fine.amount.toLocaleString()}원</span>
+                    <span>·</span>
+                    <span>{new Date(fine.createdAt).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                  {fine.status === 'unpaid' && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMarkPaid(fine.id)}
+                        disabled={updatingId === fine.id}
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        납부
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleWaive(fine.id)}
+                        disabled={updatingId === fine.id}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" />
+                        면제
+                      </Button>
+                    </div>
+                  )}
+                  {fine.status === 'paid' && fine.paidAt && (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      {new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부
+                    </p>
+                  )}
+                  {fine.status === 'waived' && (
+                    <p className="text-xs text-muted-foreground pt-1">면제됨</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? '검색 결과가 없습니다.' : '등록된 벌금이 없습니다.'}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>멤버</TableHead>
+                  <TableHead className="whitespace-nowrap">회차</TableHead>
+                  <TableHead>유형</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">금액</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead className="whitespace-nowrap">생성일</TableHead>
+                  <TableHead className="w-[150px]">작업</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredFines.length > 0 ? (
+                  filteredFines.map((fine) => (
+                    <TableRow key={fine.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium whitespace-nowrap">{fine.memberName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {fine.memberPart}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{fine.roundNumber}회차</TableCell>
-                    <TableCell>
-                      <span className={typeConfig[fine.type]?.color || ''}>
-                        {typeConfig[fine.type]?.label || fine.type}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {fine.amount.toLocaleString()}원
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[fine.status]?.variant || 'secondary'}>
-                        {statusConfig[fine.status]?.label || fine.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(fine.createdAt).toLocaleDateString('ko-KR')}
-                    </TableCell>
-                    <TableCell>
-                      {fine.status === 'unpaid' && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleMarkPaid(fine.id)}
-                            disabled={updatingId === fine.id}
-                          >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            납부
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleWaive(fine.id)}
-                            disabled={updatingId === fine.id}
-                          >
-                            <XCircle className="h-3 w-3 mr-1" />
-                            면제
-                          </Button>
-                        </div>
-                      )}
-                      {fine.status === 'paid' && fine.paidAt && (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{fine.roundNumber}회차</TableCell>
+                      <TableCell>
+                        <span className={typeConfig[fine.type]?.color || ''}>
+                          {typeConfig[fine.type]?.label || fine.type}
                         </span>
-                      )}
-                      {fine.status === 'waived' && (
-                        <span className="text-xs text-muted-foreground">면제됨</span>
-                      )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium whitespace-nowrap">
+                        {fine.amount.toLocaleString()}원
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge variant={statusConfig[fine.status]?.variant || 'secondary'}>
+                          {statusConfig[fine.status]?.label || fine.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                        {new Date(fine.createdAt).toLocaleDateString('ko-KR')}
+                      </TableCell>
+                      <TableCell>
+                        {fine.status === 'unpaid' && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMarkPaid(fine.id)}
+                              disabled={updatingId === fine.id}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              납부
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleWaive(fine.id)}
+                              disabled={updatingId === fine.id}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              면제
+                            </Button>
+                          </div>
+                        )}
+                        {fine.status === 'paid' && fine.paidAt && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부
+                          </span>
+                        )}
+                        {fine.status === 'waived' && (
+                          <span className="text-xs text-muted-foreground">면제됨</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      {searchQuery ? '검색 결과가 없습니다.' : '등록된 벌금이 없습니다.'}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? '검색 결과가 없습니다.' : '등록된 벌금이 없습니다.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

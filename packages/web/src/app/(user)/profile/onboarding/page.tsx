@@ -12,6 +12,7 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { Separator } from '@/components/ui/separator';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
+import { PageLoading } from '@/components/ui/page-state';
 
 const TOTAL_STEPS = 3;
 
@@ -136,11 +137,7 @@ export default function OnboardingPage() {
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   return (

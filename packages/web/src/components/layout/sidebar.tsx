@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -24,9 +23,11 @@ import { Separator } from '@/components/ui/separator';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
-  isOpen?: boolean;    // mobile drawer open state
-  onClose?: () => void; // mobile close handler
-  isAdmin?: boolean;   // show admin nav
+  isOpen?: boolean;              // mobile drawer open state
+  onClose?: () => void;          // mobile close handler
+  isAdmin?: boolean;             // show admin nav
+  collapsed: boolean;            // controlled collapsed state
+  onToggleCollapsed: (value: boolean) => void; // callback to toggle collapsed
 }
 
 interface NavItem {
@@ -53,10 +54,6 @@ const adminNavItems: NavItem[] = [
   { title: '큐레이션 소스', href: '/admin/curation',    icon: Newspaper },
   { title: '설정',         href: '/admin/settings',     icon: Settings },
 ];
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'study-sidebar-collapsed';
 
 // ─── NavLink sub-component ────────────────────────────────────────────────────
 
@@ -290,21 +287,16 @@ function SidebarContent({
 
 // ─── Sidebar component ────────────────────────────────────────────────────────
 
-export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarProps) {
+export function Sidebar({
+  isOpen = false,
+  onClose,
+  isAdmin = false,
+  collapsed,
+  onToggleCollapsed,
+}: SidebarProps) {
   const pathname = usePathname();
 
-  // Persist collapsed state in localStorage
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  });
-
-  // Keep localStorage in sync whenever collapsed changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(collapsed));
-  }, [collapsed]);
-
-  const toggleCollapsed = () => setCollapsed((prev) => !prev);
+  const toggleCollapsed = () => onToggleCollapsed(!collapsed);
 
   const navItems = isAdmin ? adminNavItems : userNavItems;
 
@@ -348,7 +340,6 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
       {/* ── Desktop: fixed sidebar ──────────────────────────────────── */}
       <aside
         aria-label="데스크톱 내비게이션"
-        data-collapsed={collapsed}
         className={cn(
           'fixed left-0 top-0 z-30 hidden h-full md:flex md:flex-col',
           'border-r border-zinc-200 dark:border-zinc-800',
@@ -369,42 +360,4 @@ export function Sidebar({ isOpen = false, onClose, isAdmin = false }: SidebarPro
       </aside>
     </>
   );
-}
-
-// ─── Hook: expose collapsed state for layout offset ───────────────────────────
-// Consumers can import this hook to read the sidebar width for layout shifts.
-export function useSidebarCollapsed(): boolean {
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  });
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
-        setCollapsed(e.newValue === 'true');
-      }
-    };
-    window.addEventListener('storage', onStorage);
-
-    // Also observe direct changes from same tab via a MutationObserver on the aside[data-collapsed]
-    const observer = new MutationObserver(() => {
-      const aside = document.querySelector('aside[data-collapsed]');
-      if (aside) {
-        setCollapsed(aside.getAttribute('data-collapsed') === 'true');
-      }
-    });
-
-    const target = document.querySelector('aside[data-collapsed]');
-    if (target) {
-      observer.observe(target, { attributes: true, attributeFilter: ['data-collapsed'] });
-    }
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      observer.disconnect();
-    };
-  }, []);
-
-  return collapsed;
 }

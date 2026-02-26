@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { getPartStyle, getPartLabel } from '@/lib/part-config';
+import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PartBadge } from '@/components/ui/part-badge';
 
 interface UserInfo {
   id: string;
@@ -95,19 +96,11 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -186,19 +179,17 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">파트</p>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPartStyle(data.member.part).bg} ${getPartStyle(data.member.part).text}`}>
-                    {getPartLabel(data.member.part)}
-                  </span>
+                  <PartBadge part={data.member.part} />
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 min-w-0">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">블로그</p>
                   <a
                     href={data.member.blogUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline max-w-full"
                   >
-                    {data.member.blogUrl}
+                    <span className="truncate">{data.member.blogUrl}</span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 </div>
@@ -224,9 +215,9 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">관심 분야</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {data.member.interests.map((interest, idx) => (
+                    {data.member.interests.map((interest) => (
                       <span
-                        key={idx}
+                        key={interest}
                         className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
                       >
                         {interest}
@@ -249,7 +240,6 @@ export default function ProfilePage() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">소셜 링크</p>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { url: data.member.blogUrl, icon: ExternalLink, label: '블로그' },
                       { url: data.member.githubUrl, icon: Github, label: 'GitHub' },
                       { url: data.member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
                       { url: data.member.instagramUrl, icon: Instagram, label: 'Instagram' },
@@ -278,7 +268,7 @@ export default function ProfilePage() {
 
           {/* Stats */}
           {data.stats && (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               <Card className="border-border/60 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">

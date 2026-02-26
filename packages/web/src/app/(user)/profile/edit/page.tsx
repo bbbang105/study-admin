@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { PART_OPTIONS } from '@/lib/part-config';
+import { PageLoading } from '@/components/ui/page-state';
 
 const INTEREST_OPTIONS = [
   // 개발
@@ -167,22 +168,18 @@ export default function ProfileEditPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">로딩 중...</div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">프로필 수정</h1>
-          <p className="text-muted-foreground">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">프로필 수정</h1>
+          <p className="text-muted-foreground text-sm">
             프로필 정보를 수정하세요.
           </p>
         </div>
@@ -427,7 +424,7 @@ export default function ProfileEditPage() {
         )}
 
         {/* Submit Button */}
-        <div className="flex justify-end gap-4">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             취소
           </Button>
