@@ -1,19 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
+import { getDb } from '@/lib/db';
+import { config } from '@blog-study/shared/db';
 
 /**
- * Get admin Discord IDs from environment variable
+ * Get admin Discord IDs from environment variable only (sync)
  */
-export function getAdminDiscordIds(): string[] {
+export function getEnvAdminIds(): string[] {
   const adminIds = process.env.ADMIN_DISCORD_IDS || '';
   return adminIds.split(',').map((id) => id.trim()).filter(Boolean);
 }
 
 /**
- * Check if a Discord ID is in the admin list
+ * Get admin Discord IDs: env + config table merged (async)
  */
-export function isAdminDiscordId(discordId: string): boolean {
-  const adminIds = getAdminDiscordIds();
+export async function getAdminDiscordIds(): Promise<string[]> {
+  const envIds = getEnvAdminIds();
+
+  try {
+    const database = getDb();
+    const [row] = await database
+      .select()
+      .from(config)
+      .where(eq(config.key, 'admin_discord_ids'))
+      .limit(1);
+
+    const dbIds = row
+      ? row.value.split(',').map((id) => id.trim()).filter(Boolean)
+      : [];
+
+    // merge + deduplicate
+    return [...new Set([...envIds, ...dbIds])];
+  } catch {
+    // DB 접근 실패 시 env만 사용
+    return envIds;
+  }
+}
+
+/**
+ * Check if a Discord ID is in the admin list (async)
+ */
+export async function isAdminDiscordId(discordId: string): Promise<boolean> {
+  const adminIds = await getAdminDiscordIds();
   return adminIds.includes(discordId);
 }
 
@@ -57,7 +86,7 @@ export async function verifyAdminAccess(): Promise<AdminAuthResult> {
       };
     }
 
-    const isAdmin = isAdminDiscordId(discordId);
+    const isAdmin = await isAdminDiscordId(discordId);
 
     return {
       isAuthenticated: true,

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { config, rounds } from '@blog-study/shared/db';
-import { withAdminAuth } from '@/lib/admin';
+import { config, rounds, members } from '@blog-study/shared/db';
+import { withAdminAuth, getAdminDiscordIds, getEnvAdminIds } from '@/lib/admin';
 
 /**
  * GET /api/admin/settings
  * Get all study settings
  * Requirements: 16.10
  */
-export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
+export const GET = withAdminAuth(async (_request: NextRequest, adminAuth) => {
   try {
     const database = getDb();
 
@@ -32,6 +32,34 @@ export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
     // Get total rounds count
     const allRounds = await database.select().from(rounds);
 
+    // Get merged admin IDs and resolve member info
+    const adminIds = await getAdminDiscordIds();
+    const envAdminIds = new Set(getEnvAdminIds());
+
+    let adminMembers: { discordId: string; name: string; nickname: string; isEnv: boolean }[] = [];
+    if (adminIds.length > 0) {
+      const memberRows = await database
+        .select({
+          discordId: members.discordId,
+          name: members.name,
+          nickname: members.nickname,
+        })
+        .from(members)
+        .where(inArray(members.discordId, adminIds));
+
+      const memberMap = new Map(memberRows.map((m) => [m.discordId, m]));
+
+      adminMembers = adminIds.map((id) => {
+        const member = memberMap.get(id);
+        return {
+          discordId: id,
+          name: member?.name ?? id,
+          nickname: member?.nickname ?? '',
+          isEnv: envAdminIds.has(id),
+        };
+      });
+    }
+
     return NextResponse.json({
       settings: {
         studyStartDate: settings['study_start_date'] || null,
@@ -43,6 +71,8 @@ export const GET = withAdminAuth(async (_request: NextRequest, _adminAuth) => {
       },
       currentRound: currentRound || null,
       totalRoundsCreated: allRounds.length,
+      adminMembers,
+      currentUserDiscordId: adminAuth.discordId ?? null,
     });
   } catch (error) {
     console.error('Error fetching settings:', error);

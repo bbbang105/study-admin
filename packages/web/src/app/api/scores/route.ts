@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       memberId = currentUserMemberId;
     } else if (memberId !== currentUserMemberId) {
       // 타인의 점수 → 관리자만 허용
-      const isAdmin = discordId ? isAdminDiscordId(discordId) : false;
+      const isAdmin = discordId ? await isAdminDiscordId(discordId) : false;
       if (!isAdmin) {
         return NextResponse.json({ message: '자신의 점수만 조회할 수 있습니다.' }, { status: 403 });
       }

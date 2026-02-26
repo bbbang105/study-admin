@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Settings, Calendar, Hash, Users, Save, RefreshCw } from 'lucide-react';
+import { Settings, Calendar, Hash, Users, Save, RefreshCw, Shield, ShieldOff, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/ui/page-state';
 
 interface StudySettings {
@@ -26,10 +27,19 @@ interface RoundInfo {
   isCurrent: boolean;
 }
 
+interface AdminMember {
+  discordId: string;
+  name: string;
+  nickname: string;
+  isEnv: boolean;
+}
+
 interface SettingsData {
   settings: StudySettings;
   currentRound: RoundInfo | null;
   totalRoundsCreated: number;
+  adminMembers: AdminMember[];
+  currentUserDiscordId: string | null;
 }
 
 export default function AdminSettingsPage() {
@@ -38,6 +48,9 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [toggling, setToggling] = useState(false);
+  const [showAdvancedAdmin, setShowAdvancedAdmin] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<StudySettings>({
@@ -105,6 +118,61 @@ export default function AdminSettingsPage() {
       console.error(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const currentUserDiscordId = data?.currentUserDiscordId ?? null;
+  const adminMembers = data?.adminMembers ?? [];
+  const isCurrentUserInConfig = adminMembers.some(
+    (m) => m.discordId === currentUserDiscordId && !m.isEnv
+  );
+  const isCurrentUserEnvAdmin = adminMembers.some(
+    (m) => m.discordId === currentUserDiscordId && m.isEnv
+  );
+
+  const handleToggleSelf = async () => {
+    if (!currentUserDiscordId) return;
+    try {
+      setToggling(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Current config IDs from formData
+      const currentIds = (formData.adminDiscordIds || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+      let newIds: string[];
+      if (isCurrentUserInConfig) {
+        // Remove self from config
+        newIds = currentIds.filter((id) => id !== currentUserDiscordId);
+      } else {
+        // Add self to config
+        newIds = [...new Set([...currentIds, currentUserDiscordId])];
+      }
+
+      const newAdminDiscordIds = newIds.join(',');
+
+      const response = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminDiscordIds: newAdminDiscordIds }),
+      });
+
+      if (!response.ok) throw new Error('Failed to toggle admin');
+
+      setSuccessMessage(
+        isCurrentUserInConfig
+          ? '관리자에서 제거되었습니다.'
+          : '관리자로 추가되었습니다.'
+      );
+      await fetchSettings();
+    } catch (err) {
+      setError('관리자 토글에 실패했습니다.');
+      console.error(err);
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -267,18 +335,88 @@ export default function AdminSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Admin Members List */}
             <div className="space-y-2">
-              <Label htmlFor="adminDiscordIds">관리자 Discord ID</Label>
-              <Input
-                id="adminDiscordIds"
-                value={formData.adminDiscordIds || ''}
-                onChange={(e) => handleInputChange('adminDiscordIds', e.target.value)}
-                placeholder="예: 123456789,987654321"
-              />
-              <p className="text-xs text-muted-foreground">
-                쉼표로 구분하여 여러 ID 입력 가능
-              </p>
+              <Label>현재 관리자</Label>
+              <div className="flex flex-wrap gap-2">
+                {adminMembers.length === 0 && (
+                  <p className="text-sm text-muted-foreground">등록된 관리자가 없습니다.</p>
+                )}
+                {adminMembers.map((member) => (
+                  <Badge
+                    key={member.discordId}
+                    variant={member.isEnv ? 'secondary' : 'default'}
+                    className="gap-1 py-1 px-2.5"
+                  >
+                    <span>{member.name}</span>
+                    {member.nickname && (
+                      <span className="opacity-60">({member.nickname})</span>
+                    )}
+                    {member.isEnv && (
+                      <span className="ml-1 text-[10px] opacity-70">환경변수</span>
+                    )}
+                    {member.discordId === currentUserDiscordId && (
+                      <span className="ml-1 text-[10px] opacity-70">나</span>
+                    )}
+                  </Badge>
+                ))}
+              </div>
             </div>
+
+            {/* Toggle Self Button */}
+            {currentUserDiscordId && (
+              <div>
+                {isCurrentUserEnvAdmin && !isCurrentUserInConfig ? (
+                  <p className="text-xs text-muted-foreground">
+                    환경변수로 등록된 관리자는 웹에서 제거할 수 없습니다.
+                  </p>
+                ) : (
+                  <Button
+                    variant={isCurrentUserInConfig ? 'destructive' : 'outline'}
+                    size="sm"
+                    onClick={handleToggleSelf}
+                    disabled={toggling}
+                  >
+                    {toggling ? (
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : isCurrentUserInConfig ? (
+                      <ShieldOff className="h-3.5 w-3.5 mr-1.5" />
+                    ) : (
+                      <Shield className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {isCurrentUserInConfig ? '나를 관리자에서 제거' : '나를 관리자로 추가'}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Advanced: raw ID editing */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowAdvancedAdmin((prev) => !prev)}
+              >
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${showAdvancedAdmin ? 'rotate-180' : ''}`}
+                />
+                고급: ID 직접 편집
+              </button>
+              {showAdvancedAdmin && (
+                <div className="space-y-2">
+                  <Input
+                    id="adminDiscordIds"
+                    value={formData.adminDiscordIds || ''}
+                    onChange={(e) => handleInputChange('adminDiscordIds', e.target.value)}
+                    placeholder="예: 123456789,987654321"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    쉼표로 구분하여 여러 ID 입력 가능 (config 테이블 저장용)
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="studyRoleId">스터디 역할 ID</Label>
               <Input
