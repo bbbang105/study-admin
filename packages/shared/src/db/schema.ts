@@ -1,16 +1,16 @@
 import {
-  pgTable,
-  uuid,
-  varchar,
-  text,
   boolean,
-  integer,
-  timestamp,
   date,
+  index,
+  integer,
+  pgTable,
   real,
   serial,
+  text,
+  timestamp,
   uniqueIndex,
-  index,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -57,6 +57,15 @@ export const CurationCategory = {
 
 export type CurationCategoryType = (typeof CurationCategory)[keyof typeof CurationCategory];
 
+export const ActivityScoreType = {
+  BLOG_POST: 'blog_post',
+  DISCORD_MESSAGE: 'discord_message',
+  DISCORD_THREAD: 'discord_thread',
+  DISCORD_REACTION: 'discord_reaction',
+  ADMIN_MANUAL: 'admin_manual',
+} as const;
+
+export type ActivityScoreTypeValue = (typeof ActivityScoreType)[keyof typeof ActivityScoreType];
 
 // ============================================
 // Tables
@@ -114,7 +123,6 @@ export const rounds = pgTable('rounds', {
   isCurrent: boolean('is_current').default(false),
 });
 
-
 /**
  * 블로그 글 (Posts)
  * RSS에서 수집된 스터디원의 블로그 글
@@ -159,7 +167,10 @@ export const attendance = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    memberRoundUnique: uniqueIndex('attendance_member_round_unique').on(table.memberId, table.roundId),
+    memberRoundUnique: uniqueIndex('attendance_member_round_unique').on(
+      table.memberId,
+      table.roundId
+    ),
     roundIdIdx: index('idx_attendance_round_id').on(table.roundId),
   })
 );
@@ -216,7 +227,6 @@ export const curationSources = pgTable('curation_sources', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-
 /**
  * 큐레이션 아이템 (Curation Items)
  * 수집된 외부 컨텐츠
@@ -242,6 +252,34 @@ export const curationItems = pgTable(
 );
 
 /**
+ * 활동 점수 (Activity Scores)
+ * 블로그 포스팅, 디스코드 활동, 관리자 수동 부여 점수 기록
+ */
+export const activityScores = pgTable(
+  'activity_scores',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id),
+    type: varchar('type', { length: 30 }).notNull(),
+    points: integer('points').notNull(),
+    description: varchar('description', { length: 300 }),
+    date: date('date').notNull(), // 일일 상한 체크용
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    memberIdIdx: index('idx_activity_scores_member_id').on(table.memberId),
+    memberDateTypeIdx: index('idx_activity_scores_member_date_type').on(
+      table.memberId,
+      table.date,
+      table.type
+    ),
+    dateIdx: index('idx_activity_scores_date').on(table.date),
+  })
+);
+
+/**
  * 설정 (Config)
  * 스터디 설정 키-값 저장소
  */
@@ -259,6 +297,7 @@ export const membersRelations = relations(members, ({ many }) => ({
   posts: many(posts),
   attendance: many(attendance),
   fines: many(fines),
+  activityScores: many(activityScores),
 }));
 
 export const roundsRelations = relations(rounds, ({ many }) => ({
@@ -300,6 +339,13 @@ export const finesRelations = relations(fines, ({ one }) => ({
   }),
 }));
 
+export const activityScoresRelations = relations(activityScores, ({ one }) => ({
+  member: one(members, {
+    fields: [activityScores.memberId],
+    references: [members.id],
+  }),
+}));
+
 export const curationSourcesRelations = relations(curationSources, ({ many }) => ({
   items: many(curationItems),
 }));
@@ -310,7 +356,6 @@ export const curationItemsRelations = relations(curationItems, ({ one }) => ({
     references: [curationSources.id],
   }),
 }));
-
 
 // ============================================
 // Type Exports (for use in application code)
@@ -339,6 +384,9 @@ export type NewCurationSource = typeof curationSources.$inferInsert;
 
 export type CurationItem = typeof curationItems.$inferSelect;
 export type NewCurationItem = typeof curationItems.$inferInsert;
+
+export type ActivityScore = typeof activityScores.$inferSelect;
+export type NewActivityScore = typeof activityScores.$inferInsert;
 
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;

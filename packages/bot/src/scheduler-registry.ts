@@ -15,8 +15,9 @@ import { getCurationCrawler } from './schedulers/curation-crawler';
 import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
+import { getScoreService } from './services/score.service';
+import { ActivityScoreType, curationSources, getDb } from '@blog-study/shared/db';
 import { getCurrentRound } from './services/round.service';
-import { curationSources, getDb } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -49,11 +50,12 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   roundReporter.setClient(client);
   curationCrawler.setClient(client);
 
-  // Set up RSS poller callback: new post → save to DB + send notification
+  // Set up RSS poller callback: new post → save to DB + send notification + grant score
   const postService = getPostService();
   const notificationService = getNotificationService();
+  const scoreService = getScoreService();
 
-  // 2026년 이후 발행된 글만 수집
+  // 2025-07-01 이후 발행된 글만 수집
   const POST_CUTOFF_DATE = new Date('2025-07-01T00:00:00Z');
 
   rssPoller.setOnNewPostCallback(async (member, items) => {
@@ -72,6 +74,14 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       });
 
       if (result.isNew) {
+        // 블로그 포스트 점수 부여 (+30점, 일일 2편 상한)
+        const safeTitle = item.title.replace(/[<>"'&]/g, '').slice(0, 200);
+        await scoreService.grantScore(
+          member.id,
+          ActivityScoreType.BLOG_POST,
+          `블로그 포스트: ${safeTitle}`,
+        );
+
         await notificationService.sendPostNotification({
           member,
           post: result.post,

@@ -3,18 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
-  FileText,
-  Trophy,
-  Newspaper,
-  UsersRound,
-  Users,
-  CalendarCheck,
   Banknote,
-  Settings,
-  Shield,
+  CalendarCheck,
+  FileText,
+  LayoutDashboard,
+  Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
+  Shield,
+  Star,
+  Trophy,
+  Users,
+  UsersRound,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,10 +24,10 @@ import { Separator } from '@/components/ui/separator';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
-  isOpen?: boolean;              // mobile drawer open state
-  onClose?: () => void;          // mobile close handler
-  isAdmin?: boolean;             // show admin nav
-  collapsed: boolean;            // controlled collapsed state
+  isOpen?: boolean; // mobile drawer open state
+  onClose?: () => void; // mobile close handler
+  isAdmin?: boolean; // show admin nav
+  collapsed: boolean; // controlled collapsed state
   onToggleCollapsed: (value: boolean) => void; // callback to toggle collapsed
 }
 
@@ -39,20 +40,21 @@ interface NavItem {
 // ─── Navigation data ──────────────────────────────────────────────────────────
 
 const userNavItems: NavItem[] = [
-  { title: '대시보드',     href: '/dashboard', icon: LayoutDashboard },
-  { title: '글 목록',      href: '/posts',     icon: FileText },
-  { title: '랭킹',         href: '/ranking',   icon: Trophy },
-  { title: '큐레이션',     href: '/curation',  icon: Newspaper },
-  { title: '스터디원 목록', href: '/members',   icon: UsersRound },
+  { title: '대시보드', href: '/dashboard', icon: LayoutDashboard },
+  { title: '글 목록', href: '/posts', icon: FileText },
+  { title: '랭킹', href: '/ranking', icon: Trophy },
+  { title: '큐레이션', href: '/curation', icon: Newspaper },
+  { title: '스터디원 목록', href: '/members', icon: UsersRound },
 ];
 
 const adminNavItems: NavItem[] = [
-  { title: '관리자 홈',    href: '/admin',              icon: LayoutDashboard },
-  { title: '멤버 관리',    href: '/admin/members',      icon: Users },
-  { title: '출석 관리',    href: '/admin/attendance',   icon: CalendarCheck },
-  { title: '벌금 관리',    href: '/admin/fines',        icon: Banknote },
-  { title: '큐레이션 소스', href: '/admin/curation',    icon: Newspaper },
-  { title: '설정',         href: '/admin/settings',     icon: Settings },
+  { title: '관리자 홈', href: '/admin', icon: LayoutDashboard },
+  { title: '멤버 관리', href: '/admin/members', icon: Users },
+  { title: '출석 관리', href: '/admin/attendance', icon: CalendarCheck },
+  { title: '벌금 관리', href: '/admin/fines', icon: Banknote },
+  { title: '점수 관리', href: '/admin/scores', icon: Star },
+  { title: '큐레이션 소스', href: '/admin/curation', icon: Newspaper },
+  { title: '설정', href: '/admin/settings', icon: Settings },
 ];
 
 // ─── NavLink sub-component ────────────────────────────────────────────────────
@@ -104,9 +106,7 @@ function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
           'transition-colors duration-200'
         )}
       />
-      {!collapsed && (
-        <span className="truncate leading-none">{item.title}</span>
-      )}
+      {!collapsed && <span className="truncate leading-none">{item.title}</span>}
     </Link>
   );
 }
@@ -134,16 +134,13 @@ function SidebarContent({
 }: SidebarContentProps) {
   return (
     <div className="flex h-full flex-col">
-
       {/* ── Mobile header: logo + close ────────────────────────────── */}
       {mobile && (
         <div className="flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800 px-5">
-          <Link
-            href="/dashboard"
-            onClick={onClose}
-            className="flex items-center gap-2 select-none"
-          >
-            <span className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">BS</span>
+          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2 select-none">
+            <span className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+              BS
+            </span>
             <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 tracking-wide uppercase">
               Blog Study
             </span>
@@ -159,17 +156,12 @@ function SidebarContent({
       )}
 
       {/* Desktop: spacer to match header height */}
-      {!mobile && (
-        <div className="h-14 shrink-0" />
-      )}
+      {!mobile && <div className="h-14 shrink-0" />}
 
       {/* ── Primary navigation ───────────────────────────────────────── */}
       <nav
         aria-label={isAdmin ? '관리자 메뉴' : '사용자 메뉴'}
-        className={cn(
-          'flex-1 overflow-y-auto py-3',
-          collapsed && !mobile ? 'px-2' : 'px-3'
-        )}
+        className={cn('flex-1 overflow-y-auto py-3', collapsed && !mobile ? 'px-2' : 'px-3')}
       >
         <ul role="list" className="space-y-1">
           {navItems.map((item) => {
@@ -194,12 +186,7 @@ function SidebarContent({
       </nav>
 
       {/* ── Bottom section ───────────────────────────────────────────── */}
-      <div
-        className={cn(
-          'shrink-0',
-          collapsed && !mobile ? 'px-2' : 'px-3'
-        )}
-      >
+      <div className={cn('shrink-0', collapsed && !mobile ? 'px-2' : 'px-3')}>
         <Separator className="mb-3" />
 
         {/* User / Admin page toggle link */}
@@ -246,9 +233,7 @@ function SidebarContent({
                   'h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200'
                 )}
               />
-              {(!collapsed || mobile) && (
-                <span className="truncate leading-none">관리자</span>
-              )}
+              {(!collapsed || mobile) && <span className="truncate leading-none">관리자</span>}
             </Link>
           )}
         </div>
