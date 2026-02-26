@@ -1,11 +1,11 @@
 import {
+  type ChatInputCommandInteraction,
   Client,
-  GatewayIntentBits,
   Collection,
+  Events,
+  GatewayIntentBits,
   REST,
   Routes,
-  Events,
-  type ChatInputCommandInteraction,
   type SlashCommandBuilder,
 } from 'discord.js';
 import type { BotEnv } from '@blog-study/shared';
@@ -36,6 +36,7 @@ export function createBotClient(): BotClient {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.DirectMessages,
       GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions,
     ],
   }) as BotClient;
 

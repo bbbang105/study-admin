@@ -4,15 +4,16 @@
 import { loadBotEnv } from '@blog-study/shared';
 import {
   createBotClient,
-  setupEventHandlers,
   loadCommands,
   registerCommands,
-  startBot,
+  setupEventHandlers,
   setupGracefulShutdown,
+  startBot,
 } from './bot';
 import { getAllCommands } from './commands';
 import { startJobQueue, stopJobQueue } from './job-queue';
 import { registerAllJobs } from './scheduler-registry';
+import { setupActivityHandler } from './handlers/activity-handler';
 
 async function main(): Promise<void> {
   console.log('🚀 Blog Study Discord Bot starting...');
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
 
   // Setup event handlers
   setupEventHandlers(client, env);
+  setupActivityHandler(client);
   console.log('✅ Event handlers configured');
 
   // Register slash commands with Discord API

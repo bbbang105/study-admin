@@ -55,6 +55,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **DB 컬럼**: snake_case (Drizzle ORM이 자동 매핑)
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
 - **한글 커맨드**: Discord 슬래시 명령어는 한글 (예: `/참가`, `/현황`)
+- **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
 
 ## 핵심 파일 위치
 
