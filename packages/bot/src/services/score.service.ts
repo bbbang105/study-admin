@@ -17,6 +17,7 @@ export const SCORE_CONFIG: Record<
   [ActivityScoreType.DISCORD_THREAD]: { points: 3, dailyCap: 9 },
   [ActivityScoreType.DISCORD_REACTION]: { points: 1, dailyCap: 5 },
   [ActivityScoreType.ADMIN_MANUAL]: { points: 0, dailyCap: Infinity },
+  [ActivityScoreType.POST_VIEW]: { points: 2, dailyCap: 10 },
 };
 
 function getTodayDateString(): string {

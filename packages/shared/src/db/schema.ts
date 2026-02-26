@@ -63,6 +63,7 @@ export const ActivityScoreType = {
   DISCORD_THREAD: 'discord_thread',
   DISCORD_REACTION: 'discord_reaction',
   ADMIN_MANUAL: 'admin_manual',
+  POST_VIEW: 'post_view',
 } as const;
 
 export type ActivityScoreTypeValue = (typeof ActivityScoreType)[keyof typeof ActivityScoreType];
@@ -92,6 +93,7 @@ export const members = pgTable(
     interests: text('interests').array(),
     resolution: varchar('resolution', { length: 300 }),
     onboardingCompleted: boolean('onboarding_completed').default(false),
+    rssConsent: boolean('rss_consent').default(true),
     // 소셜 링크
     githubUrl: varchar('github_url', { length: 500 }),
     linkedinUrl: varchar('linkedin_url', { length: 500 }),
@@ -280,6 +282,31 @@ export const activityScores = pgTable(
 );
 
 /**
+ * 글 조회 기록 (Post Views)
+ * 글 조회 점수 중복 방지용
+ */
+export const postViews = pgTable(
+  'post_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id),
+    viewedAt: timestamp('viewed_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    memberPostUnique: uniqueIndex('post_views_member_post_unique').on(
+      table.memberId,
+      table.postId
+    ),
+    memberIdIdx: index('idx_post_views_member_id').on(table.memberId),
+  })
+);
+
+/**
  * 설정 (Config)
  * 스터디 설정 키-값 저장소
  */
@@ -298,6 +325,7 @@ export const membersRelations = relations(members, ({ many }) => ({
   attendance: many(attendance),
   fines: many(fines),
   activityScores: many(activityScores),
+  postViews: many(postViews),
 }));
 
 export const roundsRelations = relations(rounds, ({ many }) => ({
@@ -346,6 +374,17 @@ export const activityScoresRelations = relations(activityScores, ({ one }) => ({
   }),
 }));
 
+export const postViewsRelations = relations(postViews, ({ one }) => ({
+  member: one(members, {
+    fields: [postViews.memberId],
+    references: [members.id],
+  }),
+  post: one(posts, {
+    fields: [postViews.postId],
+    references: [posts.id],
+  }),
+}));
+
 export const curationSourcesRelations = relations(curationSources, ({ many }) => ({
   items: many(curationItems),
 }));
@@ -387,6 +426,9 @@ export type NewCurationItem = typeof curationItems.$inferInsert;
 
 export type ActivityScore = typeof activityScores.$inferSelect;
 export type NewActivityScore = typeof activityScores.$inferInsert;
+
+export type PostView = typeof postViews.$inferSelect;
+export type NewPostView = typeof postViews.$inferInsert;
 
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;

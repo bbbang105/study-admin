@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, nickname, part, blogUrl, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl } = body;
+    const { name, nickname, part, blogUrl, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl, rssConsent } = body;
 
     // 필수 필드 검증
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
           githubUrl: githubUrl || null,
           linkedinUrl: linkedinUrl || null,
           instagramUrl: instagramUrl || null,
+          rssConsent: rssConsent !== false,
           onboardingCompleted: true,
           updatedAt: new Date(),
         })
@@ -185,6 +186,7 @@ export async function POST(request: NextRequest) {
           githubUrl: githubUrl || null,
           linkedinUrl: linkedinUrl || null,
           instagramUrl: instagramUrl || null,
+          rssConsent: rssConsent !== false,
           onboardingCompleted: true,
           status: 'active',
         });

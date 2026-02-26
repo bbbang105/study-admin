@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   ChevronDown,
+  Loader2,
   Minus,
   Plus,
   Search,
   Send,
   Star,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -66,6 +69,7 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   discord_thread: '스레드 댓글',
   discord_reaction: '리액션',
   admin_manual: '관리자 부여',
+  post_view: '글 조회',
 };
 
 const TOP_MEMBERS_COUNT = 5;
@@ -91,6 +95,9 @@ function getActivityTypeBadgeClass(type: string): string {
   }
   if (type === 'discord_reaction') {
     return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+  }
+  if (type === 'post_view') {
+    return 'bg-teal-100 text-teal-700 border-teal-200';
   }
   return 'bg-muted text-muted-foreground border-border';
 }
@@ -263,6 +270,11 @@ export default function AdminScoresPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // ── Delete state ──
+  const [deletingRecord, setDeletingRecord] = useState<ScoreRecord | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // ── Top members summary state ──
   const [topMembers, setTopMembers] = useState<MemberScoreSummary[]>([]);
@@ -453,6 +465,39 @@ export default function AdminScoresPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingRecord) return;
+
+    try {
+      setDeleteLoading(true);
+      setDeleteError(null);
+      const response = await fetch('/api/admin/scores', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scoreId: deletingRecord.id }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        setDeleteError(result.error?.message ?? '삭제에 실패했습니다.');
+        return;
+      }
+
+      setDeletingRecord(null);
+      await fetchScoreHistory(selectedMemberId);
+      await fetchTopMembers(members);
+    } catch {
+      setDeleteError('서버 오류가 발생했습니다.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteClose = () => {
+    setDeletingRecord(null);
+    setDeleteError(null);
   };
 
   // ─── Derived values ────────────────────────────────────────────────────────
@@ -731,7 +776,7 @@ export default function AdminScoresPage() {
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Star className="h-10 w-10 text-muted-foreground/30 mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    왼쪽에서 멤버를 선택하면
+                    멤버를 선택하면
                     <br />
                     점수 내역이 표시됩니다.
                   </p>
@@ -771,7 +816,22 @@ export default function AdminScoresPage() {
                           </span>
                         </div>
                         <p className="text-sm text-foreground">{record.description}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(record.date)}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">{formatDate(record.date)}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeletingRecord(record)}
+                            disabled={deleteLoading && deletingRecord?.id === record.id}
+                          >
+                            {deleteLoading && deletingRecord?.id === record.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -785,6 +845,7 @@ export default function AdminScoresPage() {
                           <TableHead className="text-right whitespace-nowrap">점수</TableHead>
                           <TableHead>설명</TableHead>
                           <TableHead className="whitespace-nowrap">날짜</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -817,6 +878,21 @@ export default function AdminScoresPage() {
                             <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                               {formatDate(record.date)}
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeletingRecord(record)}
+                                disabled={deleteLoading && deletingRecord?.id === record.id}
+                              >
+                                {deleteLoading && deletingRecord?.id === record.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -828,6 +904,72 @@ export default function AdminScoresPage() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-xs"
+            onClick={handleDeleteClose}
+          />
+          <div className="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">점수 내역 삭제</h2>
+                <p className="text-sm text-muted-foreground">
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6 space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={cn(
+                    'border text-xs font-medium',
+                    getActivityTypeBadgeClass(deletingRecord.type)
+                  )}
+                >
+                  {getActivityTypeLabel(deletingRecord.type)}
+                </Badge>
+                <span
+                  className={cn(
+                    'text-sm font-bold',
+                    deletingRecord.points >= 0 ? 'text-emerald-600' : 'text-rose-500'
+                  )}
+                >
+                  {deletingRecord.points >= 0 ? '+' : ''}
+                  {deletingRecord.points.toLocaleString()}점
+                </span>
+              </div>
+              <p className="text-sm text-foreground">{deletingRecord.description}</p>
+              <p className="text-xs text-muted-foreground">{formatDate(deletingRecord.date)}</p>
+            </div>
+
+            {deleteError && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive mb-4">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleDeleteClose}>
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? '삭제 중...' : '삭제'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
