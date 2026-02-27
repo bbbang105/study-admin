@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   real,
   serial,
@@ -319,6 +320,69 @@ export const config = pgTable('config', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── Board ─────────────────────────────────────────────────────────
+
+export const BoardCategory = {
+  NOTICE: 'notice',
+  SUGGESTION: 'suggestion',
+  REVIEW: 'review',
+  KNOWLEDGE: 'knowledge',
+  DAILY: 'daily',
+  ETC: 'etc',
+} as const;
+
+export type BoardCategoryType = (typeof BoardCategory)[keyof typeof BoardCategory];
+
+export const boardPosts = pgTable(
+  'board_posts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id),
+    category: varchar('category', { length: 20 }).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    content: jsonb('content').notNull(),
+    contentText: text('content_text').notNull(),
+    isSecret: boolean('is_secret').default(false),
+    isPinned: boolean('is_pinned').default(false),
+    commentCount: integer('comment_count').default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    memberIdIdx: index('idx_board_posts_member_id').on(table.memberId),
+    categoryIdx: index('idx_board_posts_category').on(table.category),
+    isPinnedIdx: index('idx_board_posts_is_pinned').on(table.isPinned),
+    createdAtIdx: index('idx_board_posts_created_at').on(table.createdAt),
+  })
+);
+
+export const boardComments = pgTable(
+  'board_comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => boardPosts.id),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id),
+    parentId: uuid('parent_id'),
+    content: text('content').notNull(),
+    isSecret: boolean('is_secret').default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    postIdIdx: index('idx_board_comments_post_id').on(table.postId),
+    memberIdIdx: index('idx_board_comments_member_id').on(table.memberId),
+    parentIdIdx: index('idx_board_comments_parent_id').on(table.parentId),
+  })
+);
+
 // ============================================
 // Relations
 // ============================================
@@ -329,6 +393,8 @@ export const membersRelations = relations(members, ({ many }) => ({
   fines: many(fines),
   activityScores: many(activityScores),
   postViews: many(postViews),
+  boardPosts: many(boardPosts),
+  boardComments: many(boardComments),
 }));
 
 export const roundsRelations = relations(rounds, ({ many }) => ({
@@ -399,6 +465,31 @@ export const curationItemsRelations = relations(curationItems, ({ one }) => ({
   }),
 }));
 
+export const boardPostsRelations = relations(boardPosts, ({ one, many }) => ({
+  member: one(members, {
+    fields: [boardPosts.memberId],
+    references: [members.id],
+  }),
+  comments: many(boardComments),
+}));
+
+export const boardCommentsRelations = relations(boardComments, ({ one, many }) => ({
+  post: one(boardPosts, {
+    fields: [boardComments.postId],
+    references: [boardPosts.id],
+  }),
+  member: one(members, {
+    fields: [boardComments.memberId],
+    references: [members.id],
+  }),
+  parent: one(boardComments, {
+    fields: [boardComments.parentId],
+    references: [boardComments.id],
+    relationName: 'parentChild',
+  }),
+  children: many(boardComments, { relationName: 'parentChild' }),
+}));
+
 // ============================================
 // Type Exports (for use in application code)
 // ============================================
@@ -435,3 +526,9 @@ export type NewPostView = typeof postViews.$inferInsert;
 
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;
+
+export type BoardPost = typeof boardPosts.$inferSelect;
+export type NewBoardPost = typeof boardPosts.$inferInsert;
+
+export type BoardComment = typeof boardComments.$inferSelect;
+export type NewBoardComment = typeof boardComments.$inferInsert;
