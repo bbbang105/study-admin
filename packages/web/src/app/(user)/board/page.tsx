@@ -22,11 +22,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
+import { MemberAvatar } from '@/components/ui/member-avatar';
 import { BoardListSkeleton, PageError } from '@/components/ui/page-state';
 import { BOARD_CATEGORIES, categoryBadgeConfig, getCategoryLabel } from '@/lib/board-config';
-import { getDefaultAvatar } from '@/lib/utils';
 
 // ─────────────────────────────────────────────
 // Types
@@ -38,6 +37,7 @@ interface BoardPost {
   memberName: string;
   memberProfileImage: string | null;
   memberDiscordId: string;
+  memberIsAdmin: boolean;
   category: string;
   title: string;
   contentText: string;
@@ -148,36 +148,17 @@ function PostTableRow({ post }: { post: BoardPost }) {
         </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap">
-        <div className="flex items-center gap-1.5">
-          {!post.isMasked ? (
-            <Link
-              href={`/members/${post.memberId}`}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            >
-              <Avatar className="h-5 w-5 ring-1 ring-border shrink-0 hover:ring-primary transition-colors">
-                <AvatarImage
-                  src={post.memberProfileImage ?? getDefaultAvatar(avatarSeed)}
-                  alt={displayName}
-                />
-                <AvatarFallback className="text-[9px] font-medium">
-                  {displayName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          ) : (
-            <Avatar className="h-5 w-5 ring-1 ring-border shrink-0">
-              <AvatarImage
-                src={getDefaultAvatar(avatarSeed)}
-                alt={displayName}
-              />
-              <AvatarFallback className="text-[9px] font-medium">
-                {displayName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <span className="text-sm text-foreground/80 truncate max-w-[80px]">{displayName}</span>
-        </div>
+        <MemberAvatar
+          memberId={post.memberId}
+          name={displayName}
+          seed={avatarSeed}
+          imageUrl={post.isMasked ? null : post.memberProfileImage}
+          size="sm"
+          noLink={post.isMasked}
+          showName
+          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+          isAdmin={post.memberIsAdmin}
+        />
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -191,11 +172,15 @@ function PostTableRow({ post }: { post: BoardPost }) {
 // ─────────────────────────────────────────────
 
 function PostCard({ post }: { post: BoardPost }) {
+  const router = useRouter();
   const displayName = post.isMasked ? '익명' : post.memberName || '알 수 없음';
   const avatarSeed = post.isMasked ? 'anonymous' : post.memberDiscordId || post.memberName;
 
   return (
-    <Link href={`/board/${post.id}`} className="block group">
+    <div
+      className="block group cursor-pointer"
+      onClick={() => router.push(`/board/${post.id}`)}
+    >
       <div className="flex items-start gap-3 py-3 border-b border-border/40 last:border-0">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -208,36 +193,16 @@ function PostCard({ post }: { post: BoardPost }) {
             {post.isMasked ? '비밀글입니다' : post.title}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              {!post.isMasked ? (
-                <Link
-                  href={`/members/${post.memberId}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="shrink-0"
-                >
-                  <Avatar className="h-4 w-4 ring-1 ring-border shrink-0 hover:ring-primary transition-colors">
-                    <AvatarImage
-                      src={post.memberProfileImage ?? getDefaultAvatar(avatarSeed)}
-                      alt={displayName}
-                    />
-                    <AvatarFallback className="text-[8px]">
-                      {displayName.slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-              ) : (
-                <Avatar className="h-4 w-4 ring-1 ring-border shrink-0">
-                  <AvatarImage
-                    src={getDefaultAvatar(avatarSeed)}
-                    alt={displayName}
-                  />
-                  <AvatarFallback className="text-[8px]">
-                    {displayName.slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <span>{displayName}</span>
-            </div>
+            <MemberAvatar
+              memberId={post.memberId}
+              name={displayName}
+              seed={avatarSeed}
+              imageUrl={post.isMasked ? null : post.memberProfileImage}
+              size="xs"
+              noLink={post.isMasked}
+              showName
+              isAdmin={post.memberIsAdmin}
+            />
             <span>·</span>
             <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
             {post.commentCount > 0 && (
@@ -252,7 +217,7 @@ function PostCard({ post }: { post: BoardPost }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -290,24 +255,16 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
         </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap">
-        <div className="flex items-center gap-1.5">
-          <Link
-            href={`/members/${post.memberId}`}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0"
-          >
-            <Avatar className="h-5 w-5 ring-1 ring-border shrink-0 hover:ring-primary transition-colors">
-              <AvatarImage
-                src={post.memberProfileImage ?? getDefaultAvatar(avatarSeed)}
-                alt={displayName}
-              />
-              <AvatarFallback className="text-[9px] font-medium">
-                {displayName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
-          <span className="text-sm text-foreground/80 truncate max-w-[80px]">{displayName}</span>
-        </div>
+        <MemberAvatar
+          memberId={post.memberId}
+          name={displayName}
+          seed={avatarSeed}
+          imageUrl={post.memberProfileImage}
+          size="sm"
+          showName
+          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+          isAdmin={post.memberIsAdmin}
+        />
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -321,11 +278,15 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
 // ─────────────────────────────────────────────
 
 function PinnedCard({ post }: { post: BoardPost }) {
+  const router = useRouter();
   const displayName = post.memberName || '알 수 없음';
   const avatarSeed = post.memberDiscordId || post.memberName;
 
   return (
-    <Link href={`/board/${post.id}`} className="block group">
+    <div
+      className="block group cursor-pointer"
+      onClick={() => router.push(`/board/${post.id}`)}
+    >
       <div className="flex items-start gap-3 py-3 border-b border-amber-200/60 dark:border-amber-800/30 last:border-0">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
@@ -338,24 +299,15 @@ function PinnedCard({ post }: { post: BoardPost }) {
             {post.title}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Link
-                href={`/members/${post.memberId}`}
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0"
-              >
-                <Avatar className="h-4 w-4 ring-1 ring-border shrink-0 hover:ring-primary transition-colors">
-                  <AvatarImage
-                    src={post.memberProfileImage ?? getDefaultAvatar(avatarSeed)}
-                    alt={displayName}
-                  />
-                  <AvatarFallback className="text-[8px]">
-                    {displayName.slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              <span>{displayName}</span>
-            </div>
+            <MemberAvatar
+              memberId={post.memberId}
+              name={displayName}
+              seed={avatarSeed}
+              imageUrl={post.memberProfileImage}
+              size="xs"
+              showName
+              isAdmin={post.memberIsAdmin}
+            />
             <span>·</span>
             <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
             {post.commentCount > 0 && (
@@ -370,7 +322,7 @@ function PinnedCard({ post }: { post: BoardPost }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

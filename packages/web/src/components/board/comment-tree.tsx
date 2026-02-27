@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Lock, Reply, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { cn, getDefaultAvatar } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { CommentForm } from '@/components/board/comment-form';
 
 // ─────────────────────────────────────────────
@@ -21,6 +22,7 @@ export interface Comment {
   memberName: string;
   memberProfileImage: string | null;
   memberDiscordId: string;
+  memberIsAdmin: boolean;
   parentId: string | null;
   content: string;
   isSecret: boolean;
@@ -244,9 +246,12 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = node.memberId === currentMemberId;
+  const isPostAuthor = postAuthorId === currentMemberId;
   const canEdit = isOwner && !node.isDeleted && !node.isMasked;
   const canDelete = (isOwner || isAdmin) && !node.isDeleted;
-  const canReply = !node.isDeleted && depth < 3;
+  // 비밀댓글 답글: 본인/글작성자/관리자만 가능 (마스킹된 건 볼 수 없으므로 불가)
+  const canReply = !node.isDeleted && !node.isMasked && depth < 3
+    && (!node.isSecret || isOwner || isPostAuthor || isAdmin);
 
   const displayName = node.isDeleted
     ? '알 수 없음'
@@ -362,6 +367,7 @@ function CommentItem({
             <CommentForm
               postId={node.postId}
               parentId={node.id}
+              parentIsSecret={node.isSecret}
               placeholder={`@${displayName}에게 답글 달기...`}
               onSuccess={() => {
                 setReplyOpen(false);
@@ -429,37 +435,43 @@ function CommentContent({
   return (
     <div className="flex gap-3 py-3">
       {/* Avatar */}
-      <Avatar
-        className={cn(
-          'shrink-0 ring-1 ring-border',
-          node.isDeleted ? 'h-7 w-7 opacity-40' : 'h-8 w-8'
-        )}
-      >
-        <AvatarImage
-          src={
-            node.isDeleted || node.isMasked
-              ? getDefaultAvatar(avatarSeed)
-              : (node.memberProfileImage ?? getDefaultAvatar(avatarSeed))
-          }
-          alt={displayName}
-        />
-        <AvatarFallback className="text-[10px] font-medium">
-          {displayName.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <MemberAvatar
+        memberId={node.memberId}
+        name={displayName}
+        seed={avatarSeed}
+        imageUrl={node.isDeleted || node.isMasked ? null : node.memberProfileImage}
+        size="md"
+        noLink={node.isDeleted || node.isMasked}
+        className={node.isDeleted ? 'opacity-40' : undefined}
+      />
 
       {/* Body */}
       <div className="flex-1 min-w-0 space-y-1">
         {/* Header row */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className={cn(
-              'text-sm font-medium',
-              node.isDeleted && 'text-muted-foreground'
-            )}
-          >
-            {displayName}
-          </span>
+          {!node.isDeleted && !node.isMasked ? (
+            <Link
+              href={`/members/${node.memberId}`}
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
+              {displayName}
+            </Link>
+          ) : (
+            <span
+              className={cn(
+                'text-sm font-medium',
+                node.isDeleted && 'text-muted-foreground'
+              )}
+            >
+              {displayName}
+            </span>
+          )}
+
+          {node.memberIsAdmin && !node.isDeleted && !node.isMasked && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+              관리자
+            </span>
+          )}
 
           {node.isSecret && !node.isDeleted && (
             <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">

@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 interface CommentFormProps {
   postId: string;
   parentId?: string | null;
+  /** 부모 댓글이 비밀댓글이면 답글도 강제 비밀 */
+  parentIsSecret?: boolean;
   onSuccess: () => void;
   onCancel?: () => void;
   placeholder?: string;
@@ -26,12 +28,14 @@ interface CommentFormProps {
 export function CommentForm({
   postId,
   parentId,
+  parentIsSecret = false,
   onSuccess,
   onCancel,
   placeholder = '댓글을 입력해주세요...',
 }: CommentFormProps) {
   const [content, setContent] = useState('');
-  const [isSecret, setIsSecret] = useState(false);
+  const [isSecret, setIsSecret] = useState(parentIsSecret);
+  const forceSecret = parentIsSecret;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +55,7 @@ export function CommentForm({
         body: JSON.stringify({
           content: content.trim(),
           parentId: parentId ?? null,
-          isSecret,
+          isSecret: forceSecret || isSecret,
         }),
       });
 
@@ -105,9 +109,9 @@ export function CommentForm({
         <div className="flex items-center gap-2">
           <Switch
             id={`secret-${parentId ?? 'root'}`}
-            checked={isSecret}
-            onCheckedChange={setIsSecret}
-            disabled={submitting}
+            checked={forceSecret || isSecret}
+            onCheckedChange={forceSecret ? undefined : setIsSecret}
+            disabled={submitting || forceSecret}
             className="data-[state=checked]:bg-sky-500"
           />
           <Label
@@ -115,7 +119,7 @@ export function CommentForm({
             className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none"
           >
             <Lock className="h-3 w-3" />
-            비밀댓글
+            비밀댓글{forceSecret && ' (자동)'}
           </Label>
         </div>
 

@@ -15,8 +15,7 @@ import { CommentTree, type Comment } from '@/components/board/comment-tree';
 import { CommentForm } from '@/components/board/comment-form';
 import { DeletePostDialog } from '@/components/board/delete-post-dialog';
 import { categoryBadgeConfig } from '@/lib/board-config';
-import { getDefaultAvatar } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
 import { BoardDetailSkeleton, PageError } from '@/components/ui/page-state';
 
@@ -30,6 +29,7 @@ interface Post {
   memberName: string;
   memberProfileImage: string | null;
   memberDiscordId: string;
+  memberIsAdmin: boolean;
   category: string;
   title: string;
   content: object;
@@ -246,17 +246,28 @@ export default function BoardDetailPage() {
           {/* Author + meta row */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2.5">
-              <Avatar className="h-8 w-8 ring-1 ring-border shrink-0">
-                <AvatarImage
-                  src={post.memberProfileImage ?? getDefaultAvatar(avatarSeed)}
-                  alt={post.memberName}
-                />
-                <AvatarFallback className="text-[11px] font-medium">
-                  {post.memberName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <MemberAvatar
+                memberId={post.memberId}
+                name={post.memberName}
+                seed={avatarSeed}
+                imageUrl={post.memberProfileImage}
+                size="md"
+              />
               <div className="flex flex-col">
-                <span className="text-sm font-medium leading-none">{post.memberName}</span>
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/members/${post.memberId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-sm font-medium leading-none hover:text-primary transition-colors"
+                  >
+                    {post.memberName}
+                  </Link>
+                  {post.memberIsAdmin && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+                      관리자
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-muted-foreground tabular-nums mt-0.5">
                   {formatRelativeTime(post.createdAt)}
                   {post.updatedAt !== post.createdAt && (

@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { successResponse, errorResponse, Errors } from '@/lib/api-error';
+import { getAdminDiscordIds } from '@/lib/admin';
 
 const { boardPosts, boardComments, members } = sharedDb;
 
@@ -68,6 +69,9 @@ export async function GET(
       .where(eq(boardComments.postId, id))
       .orderBy(asc(boardComments.createdAt));
 
+    // Admin discord IDs for badge display
+    const adminDiscordIds = await getAdminDiscordIds();
+
     // Mask secret/deleted comments
     const maskedComments = comments.map((comment) => {
       if (comment.deletedAt) {
@@ -79,6 +83,7 @@ export async function GET(
           memberDiscordId: '',
           isDeleted: true,
           isMasked: false,
+          memberIsAdmin: false,
         };
       }
       if (
@@ -95,12 +100,23 @@ export async function GET(
           memberDiscordId: '',
           isDeleted: false,
           isMasked: true,
+          memberIsAdmin: false,
         };
       }
-      return { ...comment, isDeleted: false, isMasked: false };
+      return {
+        ...comment,
+        isDeleted: false,
+        isMasked: false,
+        memberIsAdmin: adminDiscordIds.includes(comment.memberDiscordId),
+      };
     });
 
-    return successResponse({ post, comments: maskedComments });
+    const postWithAdmin = {
+      ...post,
+      memberIsAdmin: adminDiscordIds.includes(post.memberDiscordId),
+    };
+
+    return successResponse({ post: postWithAdmin, comments: maskedComments });
   } catch (error) {
     return errorResponse(error);
   }

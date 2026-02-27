@@ -10,6 +10,7 @@ import {
   parsePagination,
   createPaginationMeta,
 } from '@/lib/api-error';
+import { getAdminDiscordIds } from '@/lib/admin';
 
 const { boardPosts, members } = sharedDb;
 
@@ -75,6 +76,9 @@ export async function GET(request: NextRequest) {
       .limit(pageSize)
       .offset(offset);
 
+    // Admin discord IDs for badge display
+    const adminDiscordIds = await getAdminDiscordIds();
+
     // Mask secret posts for non-owner non-admin
     const maskSecret = (post: typeof normalPosts[number]) => {
       if (post.isSecret && post.memberId !== auth.memberId && !auth.isAdmin) {
@@ -86,9 +90,14 @@ export async function GET(request: NextRequest) {
           memberProfileImage: null,
           memberDiscordId: '',
           isMasked: true,
+          memberIsAdmin: false,
         };
       }
-      return { ...post, isMasked: false };
+      return {
+        ...post,
+        isMasked: false,
+        memberIsAdmin: adminDiscordIds.includes(post.memberDiscordId),
+      };
     };
 
     return successResponse({
