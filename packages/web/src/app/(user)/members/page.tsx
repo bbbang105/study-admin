@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { getDefaultAvatar } from '@/lib/utils';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { MembersListSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 
 interface Member {
@@ -61,7 +61,7 @@ export default function MembersPage() {
   }, []);
 
   if (loading) {
-    return <PageLoading />;
+    return <MembersListSkeleton />;
   }
 
   if (error) {

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
-import { PageLoading } from '@/components/ui/page-state';
+import { FormPageSkeleton } from '@/components/ui/page-state';
 
 const TOTAL_STEPS = 3;
 
@@ -140,7 +140,7 @@ export default function OnboardingPage() {
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   if (loading) {
-    return <PageLoading />;
+    return <FormPageSkeleton />;
   }
 
   return (

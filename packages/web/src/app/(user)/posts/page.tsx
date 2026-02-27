@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { PostsListSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 import {
   Dialog,
@@ -161,7 +161,7 @@ function PostsContent() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <PostsListSkeleton />;
   }
 
   if (error) {
@@ -420,7 +420,7 @@ export default function PostsPage() {
         </p>
       </div>
 
-      <Suspense fallback={<PageLoading />}>
+      <Suspense fallback={<PostsListSkeleton />}>
         <PostsContent />
       </Suspense>
     </div>

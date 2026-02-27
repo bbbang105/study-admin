@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { PageLoading } from '@/components/ui/page-state';
+import { AdminSettingsSkeleton } from '@/components/ui/page-state';
 
 interface StudySettings {
   studyStartDate: string | null;
@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminSettingsSkeleton />;
 
   return (
     <div className="space-y-6">

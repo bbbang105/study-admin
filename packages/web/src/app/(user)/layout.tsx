@@ -71,11 +71,20 @@ export default function UserLayout({
     }
   }, [router]);
 
-  // 체크 완료 전 로딩 표시 (pathname 변경 시 자동 리셋, 온보딩 페이지는 바로 표시)
+  // 체크 완료 전 스켈레톤 표시 (pathname 변경 시 자동 리셋, 온보딩 페이지는 바로 표시)
   if (checkedPathname !== pathname && pathname !== '/profile/onboarding') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-muted-foreground">로딩 중...</div>
+        <div className="space-y-4 w-full max-w-4xl px-6">
+          <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+          <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mt-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+            ))}
+          </div>
+          <div className="h-64 bg-muted animate-pulse rounded-lg mt-4" />
+        </div>
       </div>
     );
   }

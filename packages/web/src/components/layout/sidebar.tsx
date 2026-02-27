@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
@@ -44,6 +45,7 @@ const userNavItems: NavItem[] = [
   { title: '글 목록', href: '/posts', icon: FileText },
   { title: '랭킹', href: '/ranking', icon: Trophy },
   { title: '큐레이션', href: '/curation', icon: Newspaper },
+  { title: '게시판', href: '/board', icon: MessageSquare },
   { title: '스터디원 목록', href: '/members', icon: UsersRound },
 ];
 

@@ -19,7 +19,7 @@ packages/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
-| Web | Next.js 14 App Router, React 18, shadcn/ui, Tailwind CSS v3 |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | AI | OpenAI GPT-4o-mini + text-embedding-3-small (예정) |
@@ -56,7 +56,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
 - **한글 커맨드**: Discord 슬래시 명령어는 한글 (예: `/참가`, `/현황`)
 - **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
-- **다이얼로그**: `window.confirm()`, `window.alert()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeleteMemberDialog` 패턴 참고)
+- **다이얼로그**: `window.confirm()`, `window.alert()`, `window.prompt()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeletePostDialog` 패턴 참고)
 
 ## 핵심 파일 위치
 
@@ -68,13 +68,22 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | `packages/web/src/lib/supabase/server.ts` | 서버용 Supabase 클라이언트 (cookies) |
 | `packages/web/src/lib/supabase/middleware.ts` | 미들웨어용 세션 갱신 |
 | `packages/web/middleware.ts` | 라우트 보호 (protected/admin/auth) |
-| `packages/web/src/app/auth/callback/route.ts` | OAuth 콜백 |
-| `packages/web/src/lib/admin.ts` | 관리자 권한 체크 |
+| `packages/web/src/app/auth/callback/route.ts` | OAuth 콜백 + 상태별 리다이렉트 |
+| `packages/web/src/lib/admin.ts` | 관리자 권한 체크 (`withAdminAuth`) |
+| `packages/web/src/lib/member-config.ts` | 멤버 상태별 라벨/뱃지 설정 |
+| `packages/web/src/lib/rss-detect.ts` | 블로그 URL → RSS URL 자동 감지 |
+| `packages/web/src/app/(user)/layout.tsx` | 사용자 레이아웃 (상태 체크 + 리다이렉트) |
 | `packages/web/src/app/` | Next.js 페이지/라우트 |
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 |
 | `packages/bot/src/commands/index.ts` | 커맨드 레지스트리 |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
-| `packages/bot/src/scheduler-registry.ts` | 7개 잡 등록 + RSS→Post→Notification 파이프라인 |
+| `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
+| `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 |
+| `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
+| `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
+| `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`) |
+| `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
+| `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (코드블록 언어선택, 링크 다이얼로그) |
 
 ## 인증 구조
 
@@ -83,6 +92,18 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **미들웨어**: `@supabase/ssr`의 `updateSession()`으로 세션 자동 갱신
 - **관리자**: `ADMIN_DISCORD_IDS` 환경변수로 Discord ID 기반 권한 체크
 - **API Route**: `createClient()` → `getUser()` → `identities` 배열에서 Discord ID 추출
+- **상태 리다이렉트**: `auth/callback` + `(user)/layout.tsx`에서 이중 체크 → 상태별 차단 페이지로 리다이렉트
+
+## 멤버 상태 규칙
+
+| 상태 | 접근 | 출석/벌금 | 비고 |
+|------|------|-----------|------|
+| `pending_approval` | 차단 (`/pending`) | 제외 | 온보딩 후 기본 상태 |
+| `active` | 허용 | 대상 | 관리자 승인 시 전환 |
+| `inactive` | 차단 (`/inactive`) | 제외 | |
+| `dormant` | 허용 | 제외 | 1회 사용 가능 |
+| `ob` | 허용 | 제외 | 관리자 승인 시 선택 가능 |
+| `withdrawn` | 차단 | 제외 | soft delete |
 
 ## UI 디자인 시스템
 
@@ -134,7 +155,21 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
 - `OPENAI_API_KEY` (AI 기능용, 예정)
 
+**env 파일 위치** (2곳):
+- `/Users/hansangho/Desktop/study-admin/.env.local` — 루트 (shared/bot용)
+- `/Users/hansangho/Desktop/study-admin/packages/web/.env.local` — Next.js용
+
 **주의**: `packages/web/.env.local`에도 동일 환경변수 필요 (Next.js는 패키지 디렉토리 기준)
+
+## DB 마이그레이션
+
+스키마 변경 시 drizzle-kit push까지 직접 실행:
+
+```bash
+cd packages/shared
+export $(grep DATABASE_URL /Users/hansangho/Desktop/study-admin/.env.local | head -1 | xargs)
+npx drizzle-kit push --force
+```
 
 ## 문서
 
@@ -145,3 +180,5 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | `docs/UI-DESIGN-SYSTEM.md` | UI 디자인 시스템 스펙 |
 | `docs/DEVELOPMENT.md` | 개발 환경 설정 |
 | `docs/CHECKLIST.md` | 구현 체크리스트 |
+| `docs/schema-summary.md` | DB 스키마 요약 (테이블/Enum/FK) |
+| `docs/patterns.md` | API 패턴 & 코드 규칙 |

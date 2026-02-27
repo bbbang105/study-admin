@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { AdminDashboardSkeleton, PageError } from '@/components/ui/page-state';
 import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 
 interface RoundInfo {
@@ -163,7 +163,7 @@ export default function AdminAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminDashboardSkeleton />;
   if (error) return <PageError message={error} />;
 
   if (!data || data.rounds.length === 0) {

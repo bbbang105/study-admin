@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { getDefaultAvatar } from '@/lib/utils';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { MemberDetailSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 
 interface MemberInfo {
@@ -90,7 +90,7 @@ export default function MemberProfilePage() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <MemberDetailSkeleton />;
   }
 
   if (error || !data) {

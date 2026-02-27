@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { AdminDashboardSkeleton, PageError } from '@/components/ui/page-state';
 import { CrawlModal } from './crawl-modal';
 import type { CrawlStatus, CrawlSourceResult, CrawlSummary } from './crawl-modal';
 import { SourceForm } from './source-form';
@@ -298,7 +298,7 @@ export default function AdminCurationPage() {
     if (!open) setCrawlStatus('idle');
   };
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminDashboardSkeleton />;
   if (error) return <PageError message={error} />;
 
   const filteredSources =

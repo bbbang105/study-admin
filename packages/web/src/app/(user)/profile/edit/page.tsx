@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { Switch } from '@/components/ui/switch';
 import { PART_OPTIONS } from '@/lib/part-config';
-import { PageLoading } from '@/components/ui/page-state';
+import { FormPageSkeleton } from '@/components/ui/page-state';
 
 const INTEREST_OPTIONS = [
   // 개발
@@ -173,7 +173,7 @@ export default function ProfileEditPage() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <FormPageSkeleton />;
   }
 
   return (
