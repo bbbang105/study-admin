@@ -62,13 +62,13 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     );
 
     // Group members by status
-    const groupedMembers: Record<string, typeof result> = {
-      pending_approval: [],
-      active: [],
-      inactive: [],
-      dormant: [],
-      ob: [],
-      withdrawn: [],
+    const groupedMembers = {
+      pending_approval: [] as typeof result,
+      active: [] as typeof result,
+      inactive: [] as typeof result,
+      dormant: [] as typeof result,
+      ob: [] as typeof result,
+      withdrawn: [] as typeof result,
     };
 
     const result = membersList.map((member) => {
@@ -105,7 +105,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     // Group by status
     result.forEach((member) => {
-      const status = member.status;
+      const status = member.status as keyof typeof groupedMembers;
       if (groupedMembers[status]) {
         groupedMembers[status].push(member);
       }
