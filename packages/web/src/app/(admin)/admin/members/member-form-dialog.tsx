@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 
 interface Member {
   id: string;
@@ -41,6 +42,7 @@ export function MemberFormDialog({
     discordUsername: '',
     blogUrl: '',
     rssUrl: '',
+    status: 'active',
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +58,7 @@ export function MemberFormDialog({
         discordUsername: member.discordUsername,
         blogUrl: member.blogUrl,
         rssUrl: member.rssUrl || '',
+        status: member.status,
       });
     } else {
       setFormData({
@@ -65,6 +68,7 @@ export function MemberFormDialog({
         discordUsername: '',
         blogUrl: '',
         rssUrl: '',
+        status: 'active',
       });
     }
     setErrors([]);
@@ -139,6 +143,7 @@ export function MemberFormDialog({
           discordUsername: formData.discordUsername.trim() || formData.discordId.trim(),
           blogUrl: formData.blogUrl.trim(),
           rssUrl: formData.rssUrl.trim() || null,
+          ...(isEditing && { status: formData.status }),
         }),
       });
 
@@ -268,6 +273,26 @@ export function MemberFormDialog({
               비워두면 자동으로 감지합니다.
             </p>
           </div>
+
+          {/* Status field (edit mode only) */}
+          {isEditing && (
+            <div className="space-y-2">
+              <Label htmlFor="status">상태</Label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {Object.entries(MEMBER_STATUS_CONFIG).map(([value, config]) => (
+                  <option key={value} value={value}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">

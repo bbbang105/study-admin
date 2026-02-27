@@ -63,8 +63,11 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     // Group members by status
     const groupedMembers = {
+      pending_approval: [] as typeof result,
       active: [] as typeof result,
+      inactive: [] as typeof result,
       dormant: [] as typeof result,
+      ob: [] as typeof result,
       withdrawn: [] as typeof result,
     };
 
@@ -79,13 +82,17 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         discordId: member.discordId,
         discordUsername: member.discordUsername,
         name: member.name,
+        nickname: member.nickname,
         part: member.part,
         blogUrl: member.blogUrl,
         rssUrl: member.rssUrl,
         profileImageUrl: member.profileImageUrl,
         bio: member.bio,
+        interests: member.interests,
+        resolution: member.resolution,
         rssConsent: member.rssConsent ?? true,
         status: member.status,
+        onboardingCompleted: member.onboardingCompleted,
         dormantUsed: member.dormantUsed,
         dormantStartRound: member.dormantStartRound,
         postCount,
@@ -98,12 +105,9 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     // Group by status
     result.forEach((member) => {
-      if (member.status === MemberStatus.ACTIVE) {
-        groupedMembers.active.push(member);
-      } else if (member.status === MemberStatus.DORMANT) {
-        groupedMembers.dormant.push(member);
-      } else if (member.status === MemberStatus.WITHDRAWN) {
-        groupedMembers.withdrawn.push(member);
+      const status = member.status as keyof typeof groupedMembers;
+      if (groupedMembers[status]) {
+        groupedMembers[status].push(member);
       }
     });
 
@@ -111,8 +115,11 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       members: result,
       grouped: groupedMembers,
       counts: {
+        pending_approval: groupedMembers.pending_approval.length,
         active: groupedMembers.active.length,
+        inactive: groupedMembers.inactive.length,
         dormant: groupedMembers.dormant.length,
+        ob: groupedMembers.ob.length,
         withdrawn: groupedMembers.withdrawn.length,
         total: result.length,
       },

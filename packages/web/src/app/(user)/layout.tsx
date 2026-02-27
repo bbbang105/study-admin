@@ -18,7 +18,7 @@ export default function UserLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [checkedPathname, setCheckedPathname] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -33,16 +33,29 @@ export default function UserLayout({
             return;
           }
 
+          // 상태별 차단 페이지 리다이렉트 (차단 페이지 자체는 예외)
+          const blockedPages = ['/pending', '/inactive'];
+          if (!blockedPages.includes(pathname)) {
+            if (data.status === 'pending_approval') {
+              router.push('/pending');
+              return;
+            }
+            if (data.status === 'inactive') {
+              router.push('/inactive');
+              return;
+            }
+          }
+
           setUser({
             name: data.name || data.discordUsername || data.email?.split('@')[0] || '',
             email: data.email || '',
             imageUrl: data.profileImageUrl || data.avatarUrl,
           });
         }
+        setCheckedPathname(pathname);
       } catch {
         // User not authenticated, middleware will handle redirect
-      } finally {
-        setOnboardingChecked(true);
+        setCheckedPathname(pathname);
       }
     };
     fetchUser();
@@ -58,8 +71,8 @@ export default function UserLayout({
     }
   }, [router]);
 
-  // 온보딩 체크 중에는 로딩 표시 (무한루프 방지를 위해 온보딩 페이지는 바로 표시)
-  if (!onboardingChecked && pathname !== '/profile/onboarding') {
+  // 체크 완료 전 로딩 표시 (pathname 변경 시 자동 리셋, 온보딩 페이지는 바로 표시)
+  if (checkedPathname !== pathname && pathname !== '/profile/onboarding') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-muted-foreground">로딩 중...</div>

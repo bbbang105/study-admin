@@ -58,6 +58,7 @@ export async function GET() {
       discordId,
       hasMemberRecord: !!memberData,
       onboardingCompleted: memberData?.onboardingCompleted ?? false,
+      status: memberData?.status ?? null,
     });
   } catch (error) {
     console.error('Get user error:', error);

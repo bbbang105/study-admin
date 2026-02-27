@@ -88,7 +88,14 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     }
 
     // Validate status
-    const validStatuses = [MemberStatus.ACTIVE, MemberStatus.DORMANT, MemberStatus.WITHDRAWN];
+    const validStatuses = [
+      MemberStatus.PENDING_APPROVAL,
+      MemberStatus.ACTIVE,
+      MemberStatus.INACTIVE,
+      MemberStatus.DORMANT,
+      MemberStatus.OB,
+      MemberStatus.WITHDRAWN,
+    ];
     if (status !== undefined && !validStatuses.includes(status)) {
       errors.push('유효하지 않은 상태입니다.');
     }

@@ -10,6 +10,9 @@ import {
   ExternalLink,
   Moon,
   UserX,
+  Clock,
+  UserCheck,
+  GraduationCap,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +28,11 @@ import {
 } from '@/components/ui/table';
 import { MemberFormDialog } from './member-form-dialog';
 import { DeleteMemberDialog } from './delete-member-dialog';
+import { PendingMemberCard } from './pending-member-card';
 import { PageLoading, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
+import { cn } from '@/lib/utils';
 
 interface AttendanceStats {
   total: number;
@@ -41,13 +46,17 @@ interface Member {
   discordId: string;
   discordUsername: string;
   name: string;
+  nickname: string;
   part: string;
   blogUrl: string;
   rssUrl: string | null;
   rssConsent: boolean;
   profileImageUrl: string | null;
   bio: string | null;
+  interests: string[] | null;
+  resolution: string | null;
   status: string;
+  onboardingCompleted: boolean;
   dormantUsed: boolean;
   dormantStartRound: number | null;
   postCount: number;
@@ -58,19 +67,18 @@ interface Member {
 }
 
 interface MemberCounts {
+  pending_approval: number;
   active: number;
+  inactive: number;
   dormant: number;
+  ob: number;
   withdrawn: number;
   total: number;
 }
 
 interface MembersData {
   members: Member[];
-  grouped: {
-    active: Member[];
-    dormant: Member[];
-    withdrawn: Member[];
-  };
+  grouped: Record<string, Member[]>;
   counts: MemberCounts;
 }
 
@@ -140,6 +148,32 @@ export default function AdminMembersPage() {
     fetchMembers();
   };
 
+  const handleApproveMember = async (memberId: string, targetStatus: string) => {
+    try {
+      const response = await fetch(`/api/admin/members/${memberId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+      if (response.ok) fetchMembers();
+    } catch (err) {
+      console.error('Approve failed:', err);
+    }
+  };
+
+  const handleRejectMember = async (memberId: string) => {
+    try {
+      const response = await fetch(`/api/admin/members/${memberId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'withdrawn' }),
+      });
+      if (response.ok) fetchMembers();
+    } catch (err) {
+      console.error('Reject failed:', err);
+    }
+  };
+
   // Filter members
   const filteredMembers = data?.members.filter((member) => {
     // Status filter
@@ -177,56 +211,38 @@ export default function AdminMembersPage() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'all' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('all')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">전체</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.counts.total ?? 0}명</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'active' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('active')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">활성</CardTitle>
-            <Users className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.counts.active ?? 0}명</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'dormant' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('dormant')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">휴면</CardTitle>
-            <Moon className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.counts.dormant ?? 0}명</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'withdrawn' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('withdrawn')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">탈퇴</CardTitle>
-            <UserX className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.counts.withdrawn ?? 0}명</div>
-          </CardContent>
-        </Card>
+      {/* Status Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'all', label: '전체', count: data?.counts.total, icon: Users },
+          { key: 'pending_approval', label: '승인대기', count: data?.counts.pending_approval, icon: Clock },
+          { key: 'active', label: '활성', count: data?.counts.active, icon: UserCheck },
+          { key: 'ob', label: 'OB', count: data?.counts.ob, icon: GraduationCap },
+          { key: 'dormant', label: '휴면', count: data?.counts.dormant, icon: Moon },
+          { key: 'inactive', label: '비활성', count: data?.counts.inactive, icon: UserX },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              statusFilter === tab.key
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            )}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+            <span className={cn(
+              'ml-0.5 rounded-full px-1.5 py-0.5 text-xs',
+              statusFilter === tab.key
+                ? 'bg-primary-foreground/20 text-primary-foreground'
+                : 'bg-background text-foreground'
+            )}>
+              {tab.count ?? 0}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Members Table */}
@@ -253,106 +269,30 @@ export default function AdminMembersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Mobile card list */}
-          <div className="md:hidden space-y-3">
-            {filteredMembers.length > 0 ? (
-              filteredMembers.map((member) => (
-                <div key={member.id} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">{member.discordUsername}</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                        RSS {member.rssConsent ? 'ON' : 'OFF'}
-                      </Badge>
-                      <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
-                        {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <PartBadge part={member.part} />
-                    <span className="text-xs text-muted-foreground">포스트 {member.postCount}개</span>
-                    <span className="text-xs text-muted-foreground">출석률 {member.attendanceRate}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <a
-                      href={member.blogUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      블로그
-                    </a>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditMember(member)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteMember(member)}
-                        disabled={member.status === 'withdrawn'}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchQuery ? '검색 결과가 없습니다.' : '등록된 멤버가 없습니다.'}
-              </div>
-            )}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>이름</TableHead>
-                  <TableHead>파트</TableHead>
-                  <TableHead>Discord</TableHead>
-                  <TableHead>블로그</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead className="text-right">포스트</TableHead>
-                  <TableHead className="text-right">출석률</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {statusFilter === 'pending_approval' && filteredMembers.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {filteredMembers.map((member) => (
+                <PendingMemberCard
+                  key={member.id}
+                  member={member}
+                  onApprove={handleApproveMember}
+                  onReject={handleRejectMember}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              {/* Mobile card list */}
+              <div className="md:hidden space-y-3">
                 {filteredMembers.length > 0 ? (
                   filteredMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium whitespace-nowrap">{member.name}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <PartBadge part={member.part} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {member.discordUsername}
-                      </TableCell>
-                      <TableCell>
-                        <a
-                          href={member.blogUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          블로그
-                        </a>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                    <div key={member.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{member.name}</p>
+                          <p className="text-xs text-muted-foreground">{member.discordUsername}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
                           <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
                             RSS {member.rssConsent ? 'ON' : 'OFF'}
                           </Badge>
@@ -360,10 +300,22 @@ export default function AdminMembersPage() {
                             {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
                           </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right">{member.postCount}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">{member.attendanceRate}%</TableCell>
-                      <TableCell>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <PartBadge part={member.part} />
+                        <span className="text-xs text-muted-foreground">포스트 {member.postCount}개</span>
+                        <span className="text-xs text-muted-foreground">출석률 {member.attendanceRate}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <a
+                          href={member.blogUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          블로그
+                        </a>
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -381,19 +333,98 @@ export default function AdminMembersPage() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      {searchQuery ? '검색 결과가 없습니다.' : '등록된 멤버가 없습니다.'}
-                    </TableCell>
-                  </TableRow>
+                  <div className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? '검색 결과가 없습니다.' : statusFilter === 'pending_approval' ? '승인 대기 중인 멤버가 없습니다.' : '등록된 멤버가 없습니다.'}
+                  </div>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>이름</TableHead>
+                      <TableHead>파트</TableHead>
+                      <TableHead>Discord</TableHead>
+                      <TableHead>블로그</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead className="text-right">포스트</TableHead>
+                      <TableHead className="text-right">출석률</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMembers.length > 0 ? (
+                      filteredMembers.map((member) => (
+                        <TableRow key={member.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{member.name}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <PartBadge part={member.part} />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {member.discordUsername}
+                          </TableCell>
+                          <TableCell>
+                            <a
+                              href={member.blogUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-sm text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              블로그
+                            </a>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                                RSS {member.rssConsent ? 'ON' : 'OFF'}
+                              </Badge>
+                              <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                                {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{member.postCount}</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">{member.attendanceRate}%</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditMember(member)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteMember(member)}
+                                disabled={member.status === 'withdrawn'}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          {searchQuery ? '검색 결과가 없습니다.' : statusFilter === 'pending_approval' ? '승인 대기 중인 멤버가 없습니다.' : '등록된 멤버가 없습니다.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

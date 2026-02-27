@@ -19,8 +19,11 @@ import { relations } from 'drizzle-orm';
 // ============================================
 
 export const MemberStatus = {
+  PENDING_APPROVAL: 'pending_approval',
   ACTIVE: 'active',
+  INACTIVE: 'inactive',
   DORMANT: 'dormant',
+  OB: 'ob',
   WITHDRAWN: 'withdrawn',
 } as const;
 
