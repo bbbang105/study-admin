@@ -21,6 +21,7 @@ export default function UserLayout({
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
+    setOnboardingChecked(false);
     const fetchUser = async () => {
       try {
         const response = await fetch('/api/auth/me');
