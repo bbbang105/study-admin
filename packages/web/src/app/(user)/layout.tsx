@@ -52,9 +52,9 @@ export default function UserLayout({
             imageUrl: data.profileImageUrl || data.avatarUrl,
           });
         }
+        setOnboardingChecked(true);
       } catch {
         // User not authenticated, middleware will handle redirect
-      } finally {
         setOnboardingChecked(true);
       }
     };
