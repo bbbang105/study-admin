@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     return successResponse({
       pinnedPosts: pinnedPosts.map(maskSecret),
       posts: normalPosts.map(maskSecret),
-      pagination: createPaginationMeta(page, pageSize, countResult.total),
+      pagination: createPaginationMeta(page, pageSize, countResult?.total ?? 0),
     });
   } catch (error) {
     return errorResponse(error);
