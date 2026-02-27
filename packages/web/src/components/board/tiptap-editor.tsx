@@ -64,6 +64,7 @@ export function TiptapEditor({
   editable = true,
 }: TiptapEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({ codeBlock: false }),
       Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-sky-500 underline' } }),

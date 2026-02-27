@@ -14,6 +14,7 @@ interface TiptapRendererProps {
 
 export function TiptapRenderer({ content }: TiptapRendererProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({ codeBlock: false }),
       Link.configure({ openOnClick: true }),
