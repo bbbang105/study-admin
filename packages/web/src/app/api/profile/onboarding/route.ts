@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
           instagramUrl: instagramUrl || null,
           rssConsent: rssConsent !== false,
           onboardingCompleted: true,
-          status: 'active',
+          status: 'pending_approval',
         });
     }
 
