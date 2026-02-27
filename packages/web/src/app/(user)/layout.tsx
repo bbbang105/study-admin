@@ -18,10 +18,9 @@ export default function UserLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [checkedPathname, setCheckedPathname] = useState<string | null>(null);
 
   useEffect(() => {
-    setOnboardingChecked(false);
     const fetchUser = async () => {
       try {
         const response = await fetch('/api/auth/me');
@@ -53,10 +52,10 @@ export default function UserLayout({
             imageUrl: data.profileImageUrl || data.avatarUrl,
           });
         }
-        setOnboardingChecked(true);
+        setCheckedPathname(pathname);
       } catch {
         // User not authenticated, middleware will handle redirect
-        setOnboardingChecked(true);
+        setCheckedPathname(pathname);
       }
     };
     fetchUser();
@@ -72,8 +71,8 @@ export default function UserLayout({
     }
   }, [router]);
 
-  // 온보딩 체크 중에는 로딩 표시 (무한루프 방지를 위해 온보딩 페이지는 바로 표시)
-  if (!onboardingChecked && pathname !== '/profile/onboarding') {
+  // 체크 완료 전 로딩 표시 (pathname 변경 시 자동 리셋, 온보딩 페이지는 바로 표시)
+  if (checkedPathname !== pathname && pathname !== '/profile/onboarding') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-muted-foreground">로딩 중...</div>
