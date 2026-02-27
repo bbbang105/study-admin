@@ -33,6 +33,19 @@ export default function UserLayout({
             return;
           }
 
+          // 상태별 차단 페이지 리다이렉트 (차단 페이지 자체는 예외)
+          const blockedPages = ['/pending', '/inactive'];
+          if (!blockedPages.includes(pathname)) {
+            if (data.status === 'pending_approval') {
+              router.push('/pending');
+              return;
+            }
+            if (data.status === 'inactive') {
+              router.push('/inactive');
+              return;
+            }
+          }
+
           setUser({
             name: data.name || data.discordUsername || data.email?.split('@')[0] || '',
             email: data.email || '',
