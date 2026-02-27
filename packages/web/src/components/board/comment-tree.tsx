@@ -3,6 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Lock, Reply, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Textarea } from '@/components/ui/textarea';
@@ -244,6 +254,7 @@ function CommentItem({
   const [replyOpen, setReplyOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const isOwner = node.memberId === currentMemberId;
   const isPostAuthor = postAuthorId === currentMemberId;
@@ -268,7 +279,8 @@ function CommentItem({
   // Visual indent: cap at 3 levels deep
   const indentDepth = Math.min(depth, 3);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     setDeleting(true);
     try {
       const res = await fetch(
@@ -280,6 +292,7 @@ function CommentItem({
         console.error(result.message || '댓글 삭제에 실패했습니다.');
         return;
       }
+      setDeleteConfirmOpen(false);
       onRefresh();
     } catch {
       console.error('댓글 삭제 중 오류가 발생했습니다.');
@@ -315,7 +328,7 @@ function CommentItem({
                 editing={editing}
                 replyOpen={replyOpen}
                 onEdit={() => setEditing(true)}
-                onDelete={handleDelete}
+                onDelete={() => setDeleteConfirmOpen(true)}
                 onReply={() => setReplyOpen((v) => !v)}
               />
             </div>
@@ -334,7 +347,7 @@ function CommentItem({
             editing={editing}
             replyOpen={replyOpen}
             onEdit={() => setEditing(true)}
-            onDelete={handleDelete}
+            onDelete={() => setDeleteConfirmOpen(true)}
             onReply={() => setReplyOpen((v) => !v)}
           />
         )}
@@ -395,6 +408,37 @@ function CommentItem({
           ))}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">댓글을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              삭제된 댓글은 복구할 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} className="h-9 text-sm">
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {deleting ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  삭제 중...
+                </span>
+              ) : (
+                '삭제하기'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
