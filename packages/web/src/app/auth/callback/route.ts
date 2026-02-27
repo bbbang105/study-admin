@@ -52,19 +52,32 @@ export async function GET(request: Request) {
     if (discordId) {
       const database = db();
       const [memberData] = await database
-        .select({ onboardingCompleted: members.onboardingCompleted })
+        .select({
+          onboardingCompleted: members.onboardingCompleted,
+          status: members.status,
+        })
         .from(members)
         .where(eq(members.discordId, discordId))
         .limit(1);
 
       console.log(
-        `[auth/callback] 멤버 조회: ${memberData ? `onboarding=${memberData.onboardingCompleted}` : '레코드 없음'}`
+        `[auth/callback] 멤버 조회: ${memberData ? `onboarding=${memberData.onboardingCompleted}, status=${memberData.status}` : '레코드 없음'}`
       );
 
       // 멤버 레코드가 없거나 온보딩 미완료 → 온보딩으로
       if (!memberData || !memberData.onboardingCompleted) {
         console.log('[auth/callback] → /profile/onboarding 리다이렉트');
         return NextResponse.redirect(`${origin}/profile/onboarding`);
+      }
+
+      // 상태별 리다이렉트
+      if (memberData.status === 'pending_approval') {
+        console.log('[auth/callback] → /pending 리다이렉트 (승인대기)');
+        return NextResponse.redirect(`${origin}/pending`);
+      }
+      if (memberData.status === 'inactive') {
+        console.log('[auth/callback] → /inactive 리다이렉트 (비활성)');
+        return NextResponse.redirect(`${origin}/inactive`);
       }
     } else {
       // Discord ID가 없는 경우 (일반적이지 않지만) → 온보딩으로
