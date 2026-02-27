@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { AdminDashboardSkeleton, PageError } from '@/components/ui/page-state';
 
 interface RoundInfo {
   id: number;
@@ -115,7 +115,7 @@ export default function AdminDashboardPage() {
     fetchDashboard();
   }, []);
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminDashboardSkeleton />;
   if (error) return <PageError message={error} />;
 
   return (

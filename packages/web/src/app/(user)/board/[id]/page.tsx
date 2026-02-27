@@ -18,7 +18,7 @@ import { categoryBadgeConfig } from '@/lib/board-config';
 import { getDefaultAvatar } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { BoardDetailSkeleton, PageError } from '@/components/ui/page-state';
 
 // ─────────────────────────────────────────────
 // Types
@@ -171,7 +171,7 @@ export default function BoardDetailPage() {
     }
   }, [postId]);
 
-  if (loading) return <PageLoading />;
+  if (loading) return <BoardDetailSkeleton />;
   if (error || !post) {
     return (
       <div className="space-y-5">

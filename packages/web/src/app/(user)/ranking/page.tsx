@@ -25,7 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn, getDefaultAvatar } from '@/lib/utils';
-import { PageError, PageLoading } from '@/components/ui/page-state';
+import { PageError, RankingSkeleton } from '@/components/ui/page-state';
 
 // ─────────────────────────────────────────────
 // Types
@@ -444,7 +444,7 @@ export default function RankingPage() {
   }, [sortBy]);
 
   if (initialLoading) {
-    return <PageLoading />;
+    return <RankingSkeleton />;
   }
 
   if (error && !data) {

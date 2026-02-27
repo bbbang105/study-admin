@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { AdminFinesSkeleton, PageError } from '@/components/ui/page-state';
 
 interface Fine {
   id: string;
@@ -157,7 +157,7 @@ export default function AdminFinesPage() {
     }
   };
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminFinesSkeleton />;
   if (error) return <PageError message={error} />;
 
   // Filter fines

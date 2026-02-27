@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { BoardListSkeleton, PageError } from '@/components/ui/page-state';
 import { BOARD_CATEGORIES, categoryBadgeConfig, getCategoryLabel } from '@/lib/board-config';
 import { getDefaultAvatar } from '@/lib/utils';
 
@@ -381,7 +381,7 @@ function BoardContent() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <BoardListSkeleton />;
   }
 
   if (error) {
@@ -583,7 +583,7 @@ export default function BoardPage() {
         </div>
       </div>
 
-      <Suspense fallback={<PageLoading />}>
+      <Suspense fallback={<BoardListSkeleton />}>
         <BoardContent />
       </Suspense>
     </div>

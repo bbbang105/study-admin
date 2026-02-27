@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { BoardFormSkeleton, PageError } from '@/components/ui/page-state';
 
 // ─────────────────────────────────────────────
 // Page
@@ -155,7 +155,7 @@ export default function BoardEditPage() {
     }
   };
 
-  if (loading) return <PageLoading />;
+  if (loading) return <BoardFormSkeleton />;
 
   if (fetchError) {
     return (

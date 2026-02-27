@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { ProfileSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 
 interface UserInfo {
@@ -96,7 +96,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <ProfileSkeleton />;
   }
 
   if (error) {

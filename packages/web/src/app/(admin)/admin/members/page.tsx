@@ -29,7 +29,7 @@ import {
 import { MemberFormDialog } from './member-form-dialog';
 import { DeleteMemberDialog } from './delete-member-dialog';
 import { PendingMemberCard } from './pending-member-card';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { AdminMembersSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 import { cn } from '@/lib/utils';
@@ -193,7 +193,7 @@ export default function AdminMembersPage() {
     return true;
   }) || [];
 
-  if (loading) return <PageLoading />;
+  if (loading) return <AdminMembersSkeleton />;
   if (error) return <PageError message={error} />;
 
   return (

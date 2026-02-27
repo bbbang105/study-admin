@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Calendar, FileText, Clock, TrendingUp, ArrowUpRight, Inbox } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PageLoading, PageError } from '@/components/ui/page-state';
+import { DashboardSkeleton, PageError } from '@/components/ui/page-state';
 
 interface RoundInfo {
   roundNumber: number;
@@ -71,7 +71,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return <PageLoading />;
+    return <DashboardSkeleton />;
   }
 
   if (error) {
