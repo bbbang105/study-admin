@@ -19,7 +19,7 @@ packages/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
-| Web | Next.js 14 App Router, React 18, shadcn/ui, Tailwind CSS v3 |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | AI | OpenAI GPT-4o-mini + text-embedding-3-small (예정) |
@@ -56,7 +56,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
 - **한글 커맨드**: Discord 슬래시 명령어는 한글 (예: `/참가`, `/현황`)
 - **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
-- **다이얼로그**: `window.confirm()`, `window.alert()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeleteMemberDialog` 패턴 참고)
+- **다이얼로그**: `window.confirm()`, `window.alert()`, `window.prompt()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeletePostDialog` 패턴 참고)
 
 ## 핵심 파일 위치
 
@@ -79,6 +79,11 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
 | `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
 | `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 |
+| `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
+| `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
+| `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`) |
+| `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
+| `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (코드블록 언어선택, 링크 다이얼로그) |
 
 ## 인증 구조
 
