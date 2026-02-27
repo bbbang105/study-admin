@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { useCallback, useState } from 'react';
 import type { NodeViewProps } from '@tiptap/react';
+import {
+  EditorContent,
+  NodeViewContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  useEditor,
+} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -10,25 +16,25 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import {
   Bold,
+  Code,
   Italic,
-  Strikethrough,
+  Link as LinkIcon,
   List,
   ListOrdered,
-  Code,
-  Link as LinkIcon,
-  Unlink,
-  Undo,
-  Redo,
   Quote,
+  Redo,
+  Strikethrough,
+  Undo,
+  Unlink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,7 +88,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
           'absolute right-2 top-2 z-10 rounded-md border border-border/60 bg-card px-2 py-0.5',
           'text-[11px] text-muted-foreground cursor-pointer',
           'opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity',
-          'outline-none focus:ring-1 focus:ring-ring',
+          'outline-none focus:ring-1 focus:ring-ring'
         )}
       >
         {CODE_LANGUAGES.map((lang) => (
@@ -91,9 +97,8 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
           </option>
         ))}
       </select>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <pre>
-        <NodeViewContent {...{ as: 'code' } as any} />
+        <NodeViewContent {...({ as: 'code' } as Record<string, string>)} />
       </pre>
     </NodeViewWrapper>
   );
@@ -248,11 +253,7 @@ export function TiptapEditor({
             </ToolbarButton>
             <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
             {isLinkActive ? (
-              <ToolbarButton
-                onClick={handleLinkRemove}
-                active
-                title="링크 제거"
-              >
+              <ToolbarButton onClick={handleLinkRemove} active title="링크 제거">
                 <Unlink className="h-4 w-4" />
               </ToolbarButton>
             ) : (
