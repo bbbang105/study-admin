@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, count, eq, and, sql, lt } from 'drizzle-orm';
+import { desc, count, eq, and, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { successResponse, errorResponse } from '@/lib/api-error';
@@ -67,8 +67,9 @@ export async function GET(request: NextRequest) {
       const cursorDate = cursorDateStr ? new Date(cursorDateStr) : null;
       if (cursorDate && !isNaN(cursorDate.getTime()) && cursorId) {
         // (publishedAt < cursorDate) OR (publishedAt = cursorDate AND id < cursorId)
+        const cursorIso = cursorDate.toISOString();
         queryConditions.push(
-          sql`(${curationItems.publishedAt} < ${cursorDate} OR (${curationItems.publishedAt} = ${cursorDate} AND ${curationItems.id} < ${cursorId}))`
+          sql`(${curationItems.publishedAt} < ${cursorIso}::timestamptz OR (${curationItems.publishedAt} = ${cursorIso}::timestamptz AND ${curationItems.id} < ${cursorId}))`
         );
       } else if (cursorId && !cursorDateStr) {
         // publishedAt was null — show items with null publishedAt and id < cursorId
@@ -76,7 +77,9 @@ export async function GET(request: NextRequest) {
           sql`(${curationItems.publishedAt} IS NULL AND ${curationItems.id} < ${cursorId})`
         );
       } else if (cursorDate && !isNaN(cursorDate.getTime())) {
-        queryConditions.push(lt(curationItems.publishedAt, cursorDate));
+        queryConditions.push(
+          sql`${curationItems.publishedAt} < ${cursorDate.toISOString()}::timestamptz`
+        );
       }
     }
     const whereClause = queryConditions.length > 0 ? and(...queryConditions) : undefined;
