@@ -58,10 +58,24 @@ export async function GET(request: NextRequest) {
     const totalCount = totalCountResult[0]?.count ?? 0;
 
     // Query conditions = filter + cursor
+    // Cursor format: "publishedAt|id" (composite to handle duplicate timestamps)
     const queryConditions = [...filterConditions];
     if (cursor) {
-      const cursorDate = new Date(cursor);
-      if (!isNaN(cursorDate.getTime())) {
+      const separatorIdx = cursor.lastIndexOf('|');
+      const cursorDateStr = separatorIdx > 0 ? cursor.slice(0, separatorIdx) : '';
+      const cursorId = separatorIdx > 0 ? cursor.slice(separatorIdx + 1) : '';
+      const cursorDate = cursorDateStr ? new Date(cursorDateStr) : null;
+      if (cursorDate && !isNaN(cursorDate.getTime()) && cursorId) {
+        // (publishedAt < cursorDate) OR (publishedAt = cursorDate AND id < cursorId)
+        queryConditions.push(
+          sql`(${curationItems.publishedAt} < ${cursorDate} OR (${curationItems.publishedAt} = ${cursorDate} AND ${curationItems.id} < ${cursorId}))`
+        );
+      } else if (cursorId && !cursorDateStr) {
+        // publishedAt was null — show items with null publishedAt and id < cursorId
+        queryConditions.push(
+          sql`(${curationItems.publishedAt} IS NULL AND ${curationItems.id} < ${cursorId})`
+        );
+      } else if (cursorDate && !isNaN(cursorDate.getTime())) {
         queryConditions.push(lt(curationItems.publishedAt, cursorDate));
       }
     }
@@ -86,14 +100,15 @@ export async function GET(request: NextRequest) {
       .from(curationItems)
       .leftJoin(curationSources, eq(curationItems.sourceId, curationSources.id))
       .where(whereClause)
-      .orderBy(desc(curationItems.publishedAt), desc(curationItems.collectedAt))
+      .orderBy(sql`${curationItems.publishedAt} DESC NULLS LAST`, desc(curationItems.id))
       .limit(limit + 1);
 
     const hasMore = itemsResult.length > limit;
     const items = hasMore ? itemsResult.slice(0, limit) : itemsResult;
     const lastItem = items[items.length - 1];
-    const nextCursor = hasMore && lastItem?.publishedAt
-      ? lastItem.publishedAt.toISOString()
+    // Composite cursor: "publishedAt|id" to handle duplicate timestamps
+    const nextCursor = hasMore && lastItem
+      ? `${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
       : null;
 
     return successResponse({
