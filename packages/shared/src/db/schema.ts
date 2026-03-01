@@ -244,6 +244,8 @@ export const curationItems = pgTable(
     sourceId: uuid('source_id').references(() => curationSources.id),
     title: varchar('title', { length: 500 }).notNull(),
     url: varchar('url', { length: 1000 }).notNull().unique(),
+    description: text('description'),
+    thumbnailUrl: varchar('thumbnail_url', { length: 1000 }),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     category: varchar('category', { length: 50 }).notNull(),
     tags: text('tags').array(),
@@ -254,6 +256,7 @@ export const curationItems = pgTable(
   },
   (table) => ({
     isSharedIdx: index('idx_curation_items_is_shared').on(table.isShared),
+    publishedAtIdx: index('idx_curation_items_published_at').on(table.publishedAt),
   })
 );
 
