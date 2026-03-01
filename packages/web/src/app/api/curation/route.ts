@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, count, eq, and, sql } from 'drizzle-orm';
+import { desc, count, eq, and, sql, lt } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { successResponse, errorResponse } from '@/lib/api-error';
@@ -9,9 +9,8 @@ const { curationItems, curationSources } = sharedDb;
 
 /**
  * GET /api/curation
- * Get curated articles and conferences
+ * Cursor-based pagination for infinite scroll
  * Supports category filter and tag AND-filter (up to 4 tags)
- * Tags are predefined in INTEREST_OPTIONS (shared config)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -24,19 +23,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'all';
     const tagsParam = searchParams.get('tags') || '';
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const cursor = searchParams.get('cursor');
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
-    const offset = (page - 1) * limit;
 
     const database = db();
 
-    // Build query conditions
-    const conditions = [];
+    // Build filter conditions (without cursor)
+    const filterConditions = [];
     if (category !== 'all') {
-      conditions.push(eq(curationItems.category, category));
+      filterConditions.push(eq(curationItems.category, category));
     }
 
-    // Tag AND-filter: items must contain ALL selected tags
     const selectedTags = tagsParam
       .split(',')
       .map((t) => t.trim())
@@ -44,7 +41,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 4);
 
     if (selectedTags.length > 0) {
-      conditions.push(
+      filterConditions.push(
         sql`${curationItems.tags} @> ARRAY[${sql.join(
           selectedTags.map((t) => sql`${t}`),
           sql`,`
@@ -52,21 +49,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    // Get total count
+    // Total count (filter only, no cursor)
+    const countWhere = filterConditions.length > 0 ? and(...filterConditions) : undefined;
     const totalCountResult = await database
       .select({ count: count() })
       .from(curationItems)
-      .where(whereClause);
+      .where(countWhere);
     const totalCount = totalCountResult[0]?.count ?? 0;
 
-    // Get curation items with source name
+    // Query conditions = filter + cursor
+    const queryConditions = [...filterConditions];
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (!isNaN(cursorDate.getTime())) {
+        queryConditions.push(lt(curationItems.publishedAt, cursorDate));
+      }
+    }
+    const whereClause = queryConditions.length > 0 ? and(...queryConditions) : undefined;
+
+    // Fetch limit+1 to determine hasMore
     const itemsResult = await database
       .select({
         id: curationItems.id,
         title: curationItems.title,
         url: curationItems.url,
+        description: curationItems.description,
+        thumbnailUrl: curationItems.thumbnailUrl,
         publishedAt: curationItems.publishedAt,
         category: curationItems.category,
         tags: curationItems.tags,
@@ -78,15 +86,23 @@ export async function GET(request: NextRequest) {
       .from(curationItems)
       .leftJoin(curationSources, eq(curationItems.sourceId, curationSources.id))
       .where(whereClause)
-      .orderBy(desc(curationItems.relevanceScore), desc(curationItems.collectedAt))
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(curationItems.publishedAt), desc(curationItems.collectedAt))
+      .limit(limit + 1);
+
+    const hasMore = itemsResult.length > limit;
+    const items = hasMore ? itemsResult.slice(0, limit) : itemsResult;
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore && lastItem?.publishedAt
+      ? lastItem.publishedAt.toISOString()
+      : null;
 
     return successResponse({
-      items: itemsResult.map((item) => ({
+      items: items.map((item) => ({
         id: item.id,
         title: item.title,
         url: item.url,
+        description: item.description ?? null,
+        thumbnailUrl: item.thumbnailUrl ?? null,
         publishedAt: item.publishedAt?.toISOString() ?? null,
         category: item.category,
         tags: item.tags,
@@ -94,12 +110,9 @@ export async function GET(request: NextRequest) {
         sharedAt: item.isShared ? item.sharedAt?.toISOString() : null,
         sourceName: item.sourceName ?? null,
       })),
+      nextCursor,
+      hasMore,
       totalCount,
-      pagination: {
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-      },
     });
   } catch (error) {
     console.error('Curation API error:', error);
