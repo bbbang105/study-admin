@@ -70,12 +70,14 @@ interface ThumbnailProps {
 
 function Thumbnail({ src, title, category, className = '' }: ThumbnailProps) {
   const [failed, setFailed] = useState(false);
+  const [prevSrc, setPrevSrc] = useState(src);
   const gradient = useMemo(() => getArticleGradient(title), [title]);
   const catStyle = CATEGORY_STYLES[category] ?? CATEGORY_STYLES['article']!;
 
-  useEffect(() => {
+  if (src !== prevSrc) {
+    setPrevSrc(src);
     setFailed(false);
-  }, [src]);
+  }
 
   if (!src || failed) {
     return (
