@@ -30,22 +30,34 @@ export function getArticleGradient(seed: string): string {
 export function formatRelativeDate(dateStr: string | null): string | null {
   if (!dateStr) return null;
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
+  if (diffDays < 0) {
+    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
   if (diffDays === 0) return '오늘';
   if (diffDays === 1) return '어제';
   if (diffDays < 7) return `${diffDays}일 전`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
   if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /**
  * 카테고리별 스타일 상수
  */
 export const CATEGORY_STYLES: Record<string, { label: string; emoji: string; bg: string; text: string; ring: string }> = {
+  recommended: {
+    label: '맞춤',
+    emoji: '✨',
+    bg: 'bg-amber-100 dark:bg-amber-500/20',
+    text: 'text-amber-700 dark:text-amber-300',
+    ring: 'ring-amber-200 dark:ring-amber-500/30',
+  },
   conference: {
     label: '컨퍼런스',
     emoji: '🎤',
