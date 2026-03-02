@@ -291,3 +291,12 @@
 .dark .hljs-selector-class,
 .dark .hljs-selector-id { color: #d2a8ff; }
 .dark .hljs-property { color: #79c0ff; }
+
+/* Scrollbar hide utility for horizontal scroll filters */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
