@@ -40,3 +40,4 @@ coverage
 packages/shared/drizzle/*.sql
 scripts/
 .scripts
+.vercel
