@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { db as sharedDb } from '@blog-study/shared';
+import { db as sharedDb, utils } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
-import { utils } from '@blog-study/shared';
 import { detectRssUrl } from '@/lib/rss-detect';
 
 const { isValidBlogUrl } = utils;
 
-const { members, MemberStatus } = sharedDb;
+const { members, MemberStatus, rounds } = sharedDb;
 
 /**
  * GET /api/admin/members/[id]
@@ -22,11 +21,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     }
 
     const database = db();
-    const [member] = await database
-      .select()
-      .from(members)
-      .where(eq(members.id, id))
-      .limit(1);
+    const [member] = await database.select().from(members).where(eq(members.id, id)).limit(1);
 
     if (!member) {
       return NextResponse.json({ message: '멤버를 찾을 수 없습니다.' }, { status: 404 });
@@ -75,7 +70,10 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (part !== undefined && (typeof part !== 'string' || part.trim().length === 0)) {
       errors.push('파트는 필수입니다.');
     }
-    if (discordId !== undefined && (typeof discordId !== 'string' || discordId.trim().length === 0)) {
+    if (
+      discordId !== undefined &&
+      (typeof discordId !== 'string' || discordId.trim().length === 0)
+    ) {
       errors.push('Discord ID는 필수입니다.');
     }
     if (blogUrl !== undefined && (typeof blogUrl !== 'string' || blogUrl.trim().length === 0)) {
@@ -113,10 +111,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         .limit(1);
 
       if (duplicateMember) {
-        return NextResponse.json(
-          { message: '이미 등록된 Discord ID입니다.' },
-          { status: 409 }
-        );
+        return NextResponse.json({ message: '이미 등록된 Discord ID입니다.' }, { status: 409 });
       }
     }
 
@@ -131,7 +126,39 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (discordUsername !== undefined) updateData.discordUsername = discordUsername.trim();
     if (blogUrl !== undefined) updateData.blogUrl = blogUrl.trim();
     if (rssUrl !== undefined) updateData.rssUrl = rssUrl?.trim() || null;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      // 휴면 전환 시 전용 로직
+      if (status === MemberStatus.DORMANT) {
+        // 이미 휴면을 사용한 멤버는 재사용 불가 (1회 제한)
+        if (existingMember.dormantUsed) {
+          return NextResponse.json(
+            { message: '이미 휴면을 사용한 멤버입니다. (1회 제한)' },
+            { status: 400 }
+          );
+        }
+
+        // 현재 회차 조회
+        const [currentRound] = await database
+          .select()
+          .from(rounds)
+          .where(eq(rounds.isCurrent, true))
+          .limit(1);
+
+        if (!currentRound) {
+          return NextResponse.json({ message: '현재 진행 중인 회차가 없습니다.' }, { status: 400 });
+        }
+
+        updateData.dormantStartRound = currentRound.roundNumber;
+        updateData.dormantUsed = true;
+      }
+
+      // 휴면에서 다른 상태로 전환 시 dormantStartRound 초기화
+      if (existingMember.status === MemberStatus.DORMANT && status !== MemberStatus.DORMANT) {
+        updateData.dormantStartRound = null;
+      }
+
+      updateData.status = status;
+    }
 
     // RSS URL 자동 감지: rssUrl이 비어있고 blogUrl이 있으면 감지 시도
     const targetBlogUrl = updateData.blogUrl ?? existingMember.blogUrl;

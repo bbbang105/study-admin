@@ -1,12 +1,12 @@
 # Blog Study Discord Bot
 
-블로그 글쓰기 스터디 자동화 플랫폼. Discord 봇 + 웹 대시보드.
+블로그 글쓰기 스터디 자동화 플랫폼. 웹 대시보드(관리+유저) + Discord 봇(스케줄러+이벤트).
 
 ## 프로젝트 구조
 
 ```
 packages/
-├── bot/      # Discord 봇 (discord.js v14) → AWS EC2 배포
+├── bot/      # Discord 봇 (스케줄러 + 이벤트 핸들러만, 슬래시 커맨드 없음) → AWS EC2 배포
 ├── web/      # Next.js 16 대시보드 → Vercel 배포
 └── shared/   # 공유 코드 (DB 스키마, 타입, 유틸)
 ```
@@ -41,8 +41,6 @@ pnpm typecheck        # 타입 체크
 pnpm --filter @blog-study/shared build   # 반드시 리빌드
 
 # 봇 전용
-pnpm --filter @blog-study/bot deploy-commands  # 슬래시 커맨드 등록
-pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 ```
 
@@ -54,7 +52,6 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **네이밍**: camelCase (변수/함수), PascalCase (컴포넌트/타입), kebab-case (파일명)
 - **DB 컬럼**: snake_case (Drizzle ORM이 자동 매핑)
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
-- **한글 커맨드**: Discord 슬래시 명령어는 한글 (예: `/참가`, `/현황`)
 - **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
 - **다이얼로그**: `window.confirm()`, `window.alert()`, `window.prompt()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeletePostDialog` 패턴 참고)
 
@@ -74,8 +71,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/rss-detect.ts` | 블로그 URL → RSS URL 자동 감지 |
 | `packages/web/src/app/(user)/layout.tsx` | 사용자 레이아웃 (상태 체크 + 리다이렉트) |
 | `packages/web/src/app/` | Next.js 페이지/라우트 |
-| `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 |
-| `packages/bot/src/commands/index.ts` | 커맨드 레지스트리 |
+| `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 (이벤트 핸들러만) |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
 | `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
 | `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 |
@@ -85,12 +81,14 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
 | `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (코드블록 언어선택, 링크 다이얼로그) |
 | `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (5개 메뉴) |
+| `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
+| `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 
 ## 인증 구조
 
 - **웹**: Supabase Auth → Discord OAuth → `user.identities[].id` (Discord ID) → `members.discord_id` 매칭
-- **봇**: `service_role` key로 직접 DB 접근, `interaction.user.id`로 Discord ID 획득
+- **봇**: `service_role` key로 직접 DB 접근 (스케줄러/이벤트 핸들러 전용, 슬래시 커맨드 없음)
 - **미들웨어**: `@supabase/ssr`의 `updateSession()`으로 세션 자동 갱신
 - **관리자**: `ADMIN_DISCORD_IDS` 환경변수로 Discord ID 기반 권한 체크
 - **API Route**: `createClient()` → `getUser()` → `identities` 배열에서 Discord ID 추출

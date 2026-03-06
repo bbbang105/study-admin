@@ -12,8 +12,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deploy-commands": "tsx src/deploy-commands.ts",
-    "init-rounds": "tsx src/scripts/init-rounds.ts",
     "rss-collect": "tsx src/scripts/rss-collect.ts"
   },
   "dependencies": {

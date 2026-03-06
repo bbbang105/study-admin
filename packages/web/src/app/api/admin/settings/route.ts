@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { config, rounds, members } from '@blog-study/shared/db';
-import { withAdminAuth, getAdminDiscordIds, getEnvAdminIds } from '@/lib/admin';
+import { config, members, rounds } from '@blog-study/shared/db';
+import { getAdminDiscordIds, getEnvAdminIds, withAdminAuth } from '@/lib/admin';
+import { generateAllRoundDates, getPreviousMonday, isMonday } from '@blog-study/shared/utils';
+
+function formatDateToString(date: Date): string {
+  return date.toISOString().split('T')[0]!;
+}
 
 /**
  * GET /api/admin/settings
@@ -76,10 +81,7 @@ export const GET = withAdminAuth(async (_request: NextRequest, adminAuth) => {
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch settings' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
   }
 });
 
@@ -112,11 +114,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       const stringValue = String(value);
 
       // Check if key exists
-      const [existing] = await database
-        .select()
-        .from(config)
-        .where(eq(config.key, dbKey))
-        .limit(1);
+      const [existing] = await database.select().from(config).where(eq(config.key, dbKey)).limit(1);
 
       if (existing) {
         // Update existing
@@ -134,12 +132,35 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       }
     }
 
-    return NextResponse.json({ success: true });
+    // Generate rounds if studyStartDate and totalRounds are provided
+    let roundsCreated = 0;
+    if (body.studyStartDate && body.totalRounds) {
+      const totalRounds = Math.max(1, Math.min(52, Number(body.totalRounds)));
+      let startDate = new Date(body.studyStartDate);
+
+      // Adjust to previous Monday if not already Monday
+      if (!isMonday(startDate)) {
+        startDate = getPreviousMonday(startDate);
+      }
+
+      const roundDatesList = generateAllRoundDates(startDate, totalRounds);
+      const roundRecords = roundDatesList.map((rd, index) => ({
+        roundNumber: rd.roundNumber,
+        startDate: formatDateToString(rd.startDate),
+        endDate: formatDateToString(rd.endDate),
+        graceEndDate: formatDateToString(rd.graceEndDate),
+        isCurrent: index === 0,
+      }));
+
+      // Delete existing rounds and recreate
+      await database.delete(rounds);
+      await database.insert(rounds).values(roundRecords);
+      roundsCreated = roundRecords.length;
+    }
+
+    return NextResponse.json({ success: true, roundsCreated });
   } catch (error) {
     console.error('Error updating settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to update settings' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
   }
 });
