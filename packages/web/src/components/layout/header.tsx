@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Menu, LogOut, Moon, Sun, UserCircle } from 'lucide-react';
+import { LogOut, Moon, Shield, Sun, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,7 +15,6 @@ interface HeaderProps {
     email: string;
     imageUrl?: string;
   } | null;
-  onMenuClick?: () => void;
   onLogout?: () => void;
 }
 
@@ -23,7 +22,11 @@ const emptySubscribe = () => () => {};
 
 function DarkModeToggle() {
   const { theme, setTheme } = useTheme();
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     // Render a placeholder with the same dimensions to prevent layout shift
@@ -50,16 +53,12 @@ function DarkModeToggle() {
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
     >
-      {isDark ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
   );
 }
 
-export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
+export function Header({ user, onLogout }: HeaderProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -86,20 +85,6 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
       )}
     >
       <div className="flex h-14 items-center px-4 lg:px-6">
-
-        {/* Left: hamburger (mobile only) */}
-        <div className="flex items-center lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            onClick={onMenuClick}
-            aria-label="메뉴 열기"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-
         {/* Logo */}
         <Link
           href="/dashboard"
@@ -111,13 +96,11 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
           </span>
         </Link>
 
-
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* Right: dark mode toggle + user menu */}
         <div className="flex items-center gap-1">
-
           {/* Dark mode toggle */}
           <DarkModeToggle />
 
@@ -156,6 +139,19 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
                   >
                     <UserCircle className="h-4 w-4 text-muted-foreground" />
                     프로필
+                  </button>
+
+                  {/* Admin */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push('/admin');
+                    }}
+                  >
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    관리자
                   </button>
 
                   {/* Logout */}

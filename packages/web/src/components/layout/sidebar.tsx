@@ -17,7 +17,6 @@ import {
   Trophy,
   Users,
   UsersRound,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -25,11 +24,9 @@ import { Separator } from '@/components/ui/separator';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
-  isOpen?: boolean; // mobile drawer open state
-  onClose?: () => void; // mobile close handler
-  isAdmin?: boolean; // show admin nav
-  collapsed: boolean; // controlled collapsed state
-  onToggleCollapsed: (value: boolean) => void; // callback to toggle collapsed
+  isAdmin?: boolean;
+  collapsed: boolean;
+  onToggleCollapsed: (value: boolean) => void;
 }
 
 interface NavItem {
@@ -65,16 +62,14 @@ interface NavLinkProps {
   item: NavItem;
   isActive: boolean;
   collapsed: boolean;
-  onClick?: () => void;
 }
 
-function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
+function NavLink({ item, isActive, collapsed }: NavLinkProps) {
   const Icon = item.icon;
 
   return (
     <Link
       href={item.href}
-      onClick={onClick}
       title={collapsed ? item.title : undefined}
       className={cn(
         // Base layout
@@ -116,8 +111,6 @@ function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
 // ─── SidebarContent sub-component ────────────────────────────────────────────
 
 interface SidebarContentProps {
-  mobile?: boolean;
-  onClose?: () => void;
   collapsed: boolean;
   navItems: NavItem[];
   pathname: string;
@@ -126,8 +119,6 @@ interface SidebarContentProps {
 }
 
 function SidebarContent({
-  mobile = false,
-  onClose,
   collapsed,
   navItems,
   pathname,
@@ -136,34 +127,13 @@ function SidebarContent({
 }: SidebarContentProps) {
   return (
     <div className="flex h-full flex-col">
-      {/* ── Mobile header: logo + close ────────────────────────────── */}
-      {mobile && (
-        <div className="flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800 px-5">
-          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2 select-none">
-            <span className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-              BS
-            </span>
-            <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 tracking-wide uppercase">
-              Blog Study
-            </span>
-          </Link>
-          <button
-            onClick={onClose}
-            aria-label="사이드바 닫기"
-            className="ml-auto rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors duration-200"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Desktop: spacer to match header height */}
-      {!mobile && <div className="h-14 shrink-0" />}
+      {/* Spacer to match header height */}
+      <div className="h-14 shrink-0" />
 
       {/* ── Primary navigation ───────────────────────────────────────── */}
       <nav
         aria-label={isAdmin ? '관리자 메뉴' : '사용자 메뉴'}
-        className={cn('flex-1 overflow-y-auto py-3', collapsed && !mobile ? 'px-2' : 'px-3')}
+        className={cn('flex-1 overflow-y-auto py-3', collapsed ? 'px-2' : 'px-3')}
       >
         <ul role="list" className="space-y-1">
           {navItems.map((item) => {
@@ -175,12 +145,7 @@ function SidebarContent({
 
             return (
               <li key={item.href}>
-                <NavLink
-                  item={item}
-                  isActive={isActive}
-                  collapsed={collapsed && !mobile}
-                  onClick={mobile ? onClose : undefined}
-                />
+                <NavLink item={item} isActive={isActive} collapsed={collapsed} />
               </li>
             );
           })}
@@ -188,7 +153,7 @@ function SidebarContent({
       </nav>
 
       {/* ── Bottom section ───────────────────────────────────────────── */}
-      <div className={cn('shrink-0', collapsed && !mobile ? 'px-2' : 'px-3')}>
+      <div className={cn('shrink-0', collapsed ? 'px-2' : 'px-3')}>
         <Separator className="mb-3" />
 
         {/* User / Admin page toggle link */}
@@ -196,11 +161,10 @@ function SidebarContent({
           {isAdmin ? (
             <Link
               href="/dashboard"
-              onClick={mobile ? onClose : undefined}
-              title={collapsed && !mobile ? '사용자 페이지' : undefined}
+              title={collapsed ? '사용자 페이지' : undefined}
               className={cn(
                 'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                collapsed && !mobile && 'justify-center px-0',
+                collapsed && 'justify-center px-0',
                 'text-zinc-500 dark:text-zinc-400',
                 'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
                 'hover:text-zinc-900 dark:hover:text-zinc-100',
@@ -212,18 +176,15 @@ function SidebarContent({
                   'h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200'
                 )}
               />
-              {(!collapsed || mobile) && (
-                <span className="truncate leading-none">사용자 페이지</span>
-              )}
+              {!collapsed && <span className="truncate leading-none">사용자 페이지</span>}
             </Link>
           ) : (
             <Link
               href="/admin"
-              onClick={mobile ? onClose : undefined}
-              title={collapsed && !mobile ? '관리자' : undefined}
+              title={collapsed ? '관리자' : undefined}
               className={cn(
                 'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                collapsed && !mobile && 'justify-center px-0',
+                collapsed && 'justify-center px-0',
                 'text-zinc-500 dark:text-zinc-400',
                 'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
                 'hover:text-zinc-900 dark:hover:text-zinc-100',
@@ -235,38 +196,36 @@ function SidebarContent({
                   'h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200'
                 )}
               />
-              {(!collapsed || mobile) && <span className="truncate leading-none">관리자</span>}
+              {!collapsed && <span className="truncate leading-none">관리자</span>}
             </Link>
           )}
         </div>
 
-        {/* Collapse toggle — desktop only (hidden inside mobile drawer) */}
-        {!mobile && (
-          <div className="mb-3">
-            <button
-              onClick={toggleCollapsed}
-              title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-              aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                collapsed && 'justify-center px-0',
-                'text-zinc-400 dark:text-zinc-500',
-                'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
-                'hover:text-zinc-700 dark:hover:text-zinc-300',
-                'transition-colors duration-200'
-              )}
-            >
-              {collapsed ? (
-                <PanelLeftOpen className="h-4 w-4 shrink-0" />
-              ) : (
-                <>
-                  <PanelLeftClose className="h-4 w-4 shrink-0" />
-                  <span className="truncate leading-none">접기</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        {/* Collapse toggle */}
+        <div className="mb-3">
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+              collapsed && 'justify-center px-0',
+              'text-zinc-400 dark:text-zinc-500',
+              'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
+              'hover:text-zinc-700 dark:hover:text-zinc-300',
+              'transition-colors duration-200'
+            )}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4 shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose className="h-4 w-4 shrink-0" />
+                <span className="truncate leading-none">접기</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -274,13 +233,7 @@ function SidebarContent({
 
 // ─── Sidebar component ────────────────────────────────────────────────────────
 
-export function Sidebar({
-  isOpen = false,
-  onClose,
-  isAdmin = false,
-  collapsed,
-  onToggleCollapsed,
-}: SidebarProps) {
+export function Sidebar({ isAdmin = false, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
 
   const toggleCollapsed = () => onToggleCollapsed(!collapsed);
@@ -288,63 +241,23 @@ export function Sidebar({
   const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
-    <>
-      {/* ── Mobile: overlay backdrop + drawer ──────────────────────── */}
-      {/* Backdrop */}
-      <div
-        aria-hidden="true"
-        onClick={onClose}
-        className={cn(
-          'fixed inset-0 z-40 bg-black/30 backdrop-blur-xs md:hidden',
-          'transition-opacity duration-200',
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        )}
+    <aside
+      aria-label="데스크톱 내비게이션"
+      className={cn(
+        'fixed left-0 top-0 z-30 hidden h-full md:flex md:flex-col',
+        'border-r border-zinc-200 dark:border-zinc-800',
+        'bg-white dark:bg-zinc-950',
+        'transition-[width] duration-200 ease-in-out',
+        collapsed ? 'w-16' : 'w-60'
+      )}
+    >
+      <SidebarContent
+        collapsed={collapsed}
+        navItems={navItems}
+        pathname={pathname}
+        isAdmin={isAdmin}
+        toggleCollapsed={toggleCollapsed}
       />
-
-      {/* Mobile drawer */}
-      <aside
-        aria-label="모바일 내비게이션"
-        className={cn(
-          'fixed left-0 top-0 z-50 h-full w-60 md:hidden',
-          'border-r border-zinc-200 dark:border-zinc-800',
-          'bg-white dark:bg-zinc-950',
-          'shadow-xl',
-          'transition-transform duration-200 ease-in-out',
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        <SidebarContent
-          mobile
-          onClose={onClose}
-          collapsed={collapsed}
-          navItems={navItems}
-          pathname={pathname}
-          isAdmin={isAdmin}
-          toggleCollapsed={toggleCollapsed}
-        />
-      </aside>
-
-      {/* ── Desktop: fixed sidebar ──────────────────────────────────── */}
-      <aside
-        aria-label="데스크톱 내비게이션"
-        className={cn(
-          'fixed left-0 top-0 z-30 hidden h-full md:flex md:flex-col',
-          'border-r border-zinc-200 dark:border-zinc-800',
-          'bg-white dark:bg-zinc-950',
-          // Width transitions between expanded (240px) and collapsed (64px)
-          'transition-[width] duration-200 ease-in-out',
-          collapsed ? 'w-16' : 'w-60'
-        )}
-      >
-        <SidebarContent
-          onClose={onClose}
-          collapsed={collapsed}
-          navItems={navItems}
-          pathname={pathname}
-          isAdmin={isAdmin}
-          toggleCollapsed={toggleCollapsed}
-        />
-      </aside>
-    </>
+    </aside>
   );
 }

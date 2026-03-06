@@ -1,6 +1,11 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+  themeColor: '#0ea5e9',
+};
 
 export const metadata: Metadata = {
   title: {
@@ -31,7 +36,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="theme-color" content="#0ea5e9" />
       </head>
       <body
         className="font-sans antialiased"
