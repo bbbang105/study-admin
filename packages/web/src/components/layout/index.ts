@@ -1,4 +1,4 @@
 export { Header } from './header';
 export { Sidebar } from './sidebar';
-export { Footer } from './footer';
+export { BottomNav } from './bottom-nav';
 export { MainLayout } from './main-layout';

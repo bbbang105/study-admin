@@ -29,7 +29,7 @@ packages/
 ```bash
 # 개발
 pnpm dev:bot          # 봇 로컬 실행
-pnpm dev:web          # 웹 로컬 실행 (localhost:3000)
+pnpm dev:web          # 웹 로컬 실행 (localhost:3300)
 
 # 빌드/테스트
 pnpm build            # 전체 빌드 (shared → bot/web)
@@ -43,6 +43,7 @@ pnpm --filter @blog-study/shared build   # 반드시 리빌드
 # 봇 전용
 pnpm --filter @blog-study/bot deploy-commands  # 슬래시 커맨드 등록
 pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
+pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 ```
 
 ## 코딩 컨벤션
@@ -83,6 +84,8 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`) |
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
 | `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (코드블록 언어선택, 링크 다이얼로그) |
+| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (5개 메뉴) |
+| `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 
 ## 인증 구조
 
@@ -113,6 +116,8 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **폰트**: Pretendard Variable
 - **기본 아바타**: DiceBear `fun-emoji` 스타일 (`getDefaultAvatar()` in `utils.ts`)
 - **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
+- **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (BottomNav)
+- **PWA**: 홈 화면 추가 지원 (manifest.json, 서비스 워커 없음)
 - **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
 ## 에이전트 활용 가이드

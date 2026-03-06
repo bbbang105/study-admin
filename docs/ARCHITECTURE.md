@@ -30,6 +30,7 @@ graph TB
     subgraph Web["Web Dashboard · Vercel"]
         MW["Middleware<br/>세션 검증"]
         PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Curation · Board · Admin"]
+        PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
         API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board · ..."]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
     end
@@ -62,6 +63,7 @@ mindmap
       Tailwind CSS v4
       shadcn/ui + Radix UI
       Tiptap Rich Editor
+      PWA 홈 화면 추가
       Supabase Auth
         Discord OAuth
         @supabase/ssr
@@ -352,6 +354,16 @@ erDiagram
 ```
 
 상세 스키마: [`docs/26-03-06-schema-summary.md`](./26-03-06-schema-summary.md)
+
+## 레이아웃 구조
+
+| 뷰포트 | 내비게이션 | 컴포넌트 |
+|--------|-----------|---------|
+| Desktop (md+) | 좌측 고정 사이드바 (접기/펼치기) | `Sidebar` |
+| Mobile (<md) | 하단 고정 탭 바 (5개 메뉴) | `BottomNav` |
+
+- **Header**: 로고 + 다크모드 토글 + 프로필 드롭다운 (관리자 링크 포함)
+- **PWA**: `manifest.json` + 아이콘 (192/512) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
 
 ## 스케줄러 (pg-boss)
 
