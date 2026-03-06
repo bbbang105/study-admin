@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 
 const { members } = sharedDb;
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
@@ -20,10 +22,7 @@ export async function GET(request: Request) {
     // invalid URL, use default
   }
 
-  console.log(`[auth/callback] code=${code ? '있음' : '없음'}, next=${next}`);
-
   if (!code) {
-    console.log('[auth/callback] code 없음 → /login?error=auth 리다이렉트');
     return NextResponse.redirect(`${origin}/login?error=auth`);
   }
 
@@ -31,23 +30,20 @@ export async function GET(request: Request) {
   const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error(`[auth/callback] exchangeCodeForSession 실패: ${error.message} (status: ${error.status})`);
+    if (isDev) console.error(`[auth/callback] exchangeCodeForSession 실패: ${error.message}`);
     return NextResponse.redirect(`${origin}/login?error=auth`);
   }
 
-  console.log(
-    `[auth/callback] 세션 교환 성공: user=${sessionData.user.id.slice(0, 8)}..., expires_at=${sessionData.session.expires_at}`
-  );
+  if (isDev) {
+    console.log(`[auth/callback] 세션 교환 성공: user=${sessionData.user.id.slice(0, 8)}...`);
+  }
 
   // 온보딩 완료 여부 체크
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const discordIdentity = user?.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
-    const discordId = discordIdentity?.id;
-
-    console.log(`[auth/callback] discord_id=${discordId ?? '없음'}`);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const discordId = user?.identities?.find((identity) => identity.provider === 'discord')?.id;
 
     if (discordId) {
       const database = db();
@@ -60,28 +56,20 @@ export async function GET(request: Request) {
         .where(eq(members.discordId, discordId))
         .limit(1);
 
-      console.log(
-        `[auth/callback] 멤버 조회: ${memberData ? `onboarding=${memberData.onboardingCompleted}, status=${memberData.status}` : '레코드 없음'}`
-      );
-
       // 멤버 레코드가 없거나 온보딩 미완료 → 온보딩으로
       if (!memberData || !memberData.onboardingCompleted) {
-        console.log('[auth/callback] → /profile/onboarding 리다이렉트');
         return NextResponse.redirect(`${origin}/profile/onboarding`);
       }
 
       // 상태별 리다이렉트
       if (memberData.status === 'pending_approval') {
-        console.log('[auth/callback] → /pending 리다이렉트 (승인대기)');
         return NextResponse.redirect(`${origin}/pending`);
       }
       if (memberData.status === 'inactive') {
-        console.log('[auth/callback] → /inactive 리다이렉트 (비활성)');
         return NextResponse.redirect(`${origin}/inactive`);
       }
     } else {
-      // Discord ID가 없는 경우 (일반적이지 않지만) → 온보딩으로
-      console.log('[auth/callback] Discord ID 없음 → /profile/onboarding 리다이렉트');
+      // Discord ID가 없는 경우 → 온보딩으로
       return NextResponse.redirect(`${origin}/profile/onboarding`);
     }
   } catch (e) {
@@ -89,6 +77,5 @@ export async function GET(request: Request) {
     // DB 오류 시 안전하게 대시보드로 (layout에서 2차 체크)
   }
 
-  console.log(`[auth/callback] → ${next} 리다이렉트`);
   return NextResponse.redirect(`${origin}${next}`);
 }

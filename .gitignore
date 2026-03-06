@@ -34,7 +34,9 @@ coverage
 *.tsbuildinfo
 
 ### CLAUDE ###
-/docs
+#/docs
 
 # Drizzle migration SQL (로컬 전용, DB에서 직접 실행)
 packages/shared/drizzle/*.sql
+.vercel
+scripts

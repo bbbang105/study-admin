@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server';
 import { desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { successResponse, errorResponse } from '@/lib/api-error';
+import { errorResponse, successResponse } from '@/lib/api-error';
 
 const { keywords } = sharedDb;
 
@@ -11,7 +10,7 @@ const { keywords } = sharedDb;
  * Get top keywords (interest analysis)
  * Requirement: 14.3 - /관심분야 command equivalent
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
@@ -38,9 +37,10 @@ export async function GET(request: NextRequest) {
         rank: index + 1,
         keyword: k.keyword,
         frequency: k.frequency ?? 0,
-        percentage: totalFrequency > 0 
-          ? Math.round(((k.frequency ?? 0) / totalFrequency) * 100 * 10) / 10 
-          : 0,
+        percentage:
+          totalFrequency > 0
+            ? Math.round(((k.frequency ?? 0) / totalFrequency) * 100 * 10) / 10
+            : 0,
         lastUpdated: k.lastUpdated?.toISOString(),
       })),
       total: topKeywords.length,

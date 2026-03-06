@@ -14,6 +14,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -85,6 +95,13 @@ export default function AdminFinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [waiveTarget, setWaiveTarget] = useState<string | null>(null);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const fetchFines = useCallback(async () => {
     try {
@@ -120,23 +137,20 @@ export default function AdminFinesPage() {
         throw new Error('Failed to mark fine as paid');
       }
 
-      // Refresh data
       await fetchFines();
+      showToast('success', '납부 처리되었습니다.');
     } catch (err) {
       console.error('Error marking fine as paid:', err);
-      alert('납부 처리에 실패했습니다.');
+      showToast('error', '납부 처리에 실패했습니다.');
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleWaive = async (fineId: string) => {
-    if (!confirm('정말 이 벌금을 면제하시겠습니까?')) {
-      return;
-    }
-
     try {
       setUpdatingId(fineId);
+      setWaiveTarget(null);
       const response = await fetch(`/api/admin/fines/${fineId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -147,11 +161,11 @@ export default function AdminFinesPage() {
         throw new Error('Failed to waive fine');
       }
 
-      // Refresh data
       await fetchFines();
+      showToast('success', '면제 처리되었습니다.');
     } catch (err) {
       console.error('Error waiving fine:', err);
-      alert('면제 처리에 실패했습니다.');
+      showToast('error', '면제 처리에 실패했습니다.');
     } finally {
       setUpdatingId(null);
     }
@@ -358,7 +372,7 @@ export default function AdminFinesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleWaive(fine.id)}
+                        onClick={() => setWaiveTarget(fine.id)}
                         disabled={updatingId === fine.id}
                       >
                         <XCircle className="h-3 w-3 mr-1" />
@@ -441,7 +455,7 @@ export default function AdminFinesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleWaive(fine.id)}
+                              onClick={() => setWaiveTarget(fine.id)}
                               disabled={updatingId === fine.id}
                             >
                               <XCircle className="h-3 w-3 mr-1" />
@@ -472,6 +486,44 @@ export default function AdminFinesPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Waive Confirmation Dialog */}
+      <AlertDialog open={!!waiveTarget} onOpenChange={(open) => !open && setWaiveTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">벌금을 면제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              면제 처리된 벌금은 미납 금액에서 제외됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-9 text-sm">취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => waiveTarget && handleWaive(waiveTarget)}
+              className="h-9 text-sm"
+            >
+              면제하기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg transition-all ${
+            toast.type === 'success'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          }`}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
