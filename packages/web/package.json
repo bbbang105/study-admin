@@ -4,7 +4,7 @@
   "private": true,
   "description": "블로그 스터디 관리자 대시보드",
   "scripts": {
-    "dev": "next dev --port 3200",
+    "dev": "next dev --port 3300",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
