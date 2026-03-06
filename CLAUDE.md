@@ -1,13 +1,13 @@
 # Blog Study Discord Bot
 
-블로그 글쓰기 스터디 자동화 플랫폼. Discord 봇 + 웹 대시보드 + AI 추천.
+블로그 글쓰기 스터디 자동화 플랫폼. Discord 봇 + 웹 대시보드.
 
 ## 프로젝트 구조
 
 ```
 packages/
 ├── bot/      # Discord 봇 (discord.js v14) → AWS EC2 배포
-├── web/      # Next.js 14 대시보드 → Vercel 배포
+├── web/      # Next.js 16 대시보드 → Vercel 배포
 └── shared/   # 공유 코드 (DB 스키마, 타입, 유틸)
 ```
 
@@ -22,7 +22,6 @@ packages/
 | Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
-| AI | OpenAI GPT-4o-mini + text-embedding-3-small (예정) |
 | 배포 | AWS EC2 (bot), Vercel (web), Supabase (DB + Auth) |
 
 ## 개발 명령어
@@ -114,7 +113,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - **폰트**: Pretendard Variable
 - **기본 아바타**: DiceBear `fun-emoji` 스타일 (`getDefaultAvatar()` in `utils.ts`)
 - **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
-- **상세 스펙**: `docs/UI-DESIGN-SYSTEM.md` 참조
+- **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
 ## 에이전트 활용 가이드
 
@@ -153,11 +152,10 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 - `SUPABASE_SERVICE_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT` (DB)
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_GUILD_ID`
 - `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
-- `OPENAI_API_KEY` (AI 기능용, 예정)
 
 **env 파일 위치** (2곳):
-- `/Users/hansangho/Desktop/study-admin/.env.local` — 루트 (shared/bot용)
-- `/Users/hansangho/Desktop/study-admin/packages/web/.env.local` — Next.js용
+- `.env.local` — 루트 (shared/bot용)
+- `packages/web/.env.local` — Next.js용
 
 **주의**: `packages/web/.env.local`에도 동일 환경변수 필요 (Next.js는 패키지 디렉토리 기준)
 
@@ -167,7 +165,7 @@ pnpm --filter @blog-study/bot init-rounds      # 회차 초기화
 
 ```bash
 cd packages/shared
-export $(grep DATABASE_URL /Users/hansangho/Desktop/study-admin/.env.local | head -1 | xargs)
+export $(grep DATABASE_URL ../../.env.local | head -1 | xargs)
 npx drizzle-kit push --force
 ```
 
@@ -176,9 +174,16 @@ npx drizzle-kit push --force
 | 문서 | 설명 |
 |------|------|
 | `docs/ARCHITECTURE.md` | 시스템 아키텍처 (Mermaid 다이어그램) |
-| `docs/TECH-DECISIONS.md` | 기술 선택 근거 (ADR) |
-| `docs/UI-DESIGN-SYSTEM.md` | UI 디자인 시스템 스펙 |
-| `docs/DEVELOPMENT.md` | 개발 환경 설정 |
-| `docs/CHECKLIST.md` | 구현 체크리스트 |
-| `docs/schema-summary.md` | DB 스키마 요약 (테이블/Enum/FK) |
-| `docs/patterns.md` | API 패턴 & 코드 규칙 |
+| `docs/26-03-06-tech-decisions.md` | 기술 선택 근거 (ADR) |
+| `docs/26-03-06-ui-design-system.md` | UI 디자인 시스템 스펙 |
+| `docs/26-03-06-development.md` | 개발 환경 설정 |
+| `docs/26-03-06-checklist.md` | 구현 체크리스트 |
+| `docs/26-03-06-schema-summary.md` | DB 스키마 요약 (테이블/Enum/FK) |
+| `docs/26-03-06-patterns.md` | API 패턴 & 코드 규칙 |
+
+## docs 파일명 컨벤션
+
+`yy-mm-dd-{설명}.md` — 예: `26-03-03-system-architecture.md`
+- 설명은 다른 문서와 구분될 정도로 구체적으로 작명
+- `docs/plans/` 하위도 동일 컨벤션 적용
+- 단, `docs/ARCHITECTURE.md`는 제외하며 업데이트 시에도 네이밍을 그대로 유지

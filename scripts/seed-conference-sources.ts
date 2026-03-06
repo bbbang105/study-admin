@@ -6,7 +6,7 @@
  *   export $(grep DATABASE_URL /Users/hansangho/Desktop/study-admin/.env.local | head -1 | xargs)
  *   npx tsx ../../scripts/seed-conference-sources.ts
  */
-import { db } from '../packages/shared/src/db/index.js';
+import { getDb } from '../packages/shared/src/db/index.js';
 import { curationSources } from '../packages/shared/src/db/schema.js';
 
 const CONFERENCE_SOURCES = [
@@ -77,7 +77,7 @@ const CONFERENCE_SOURCES = [
 ] as const;
 
 async function main() {
-  const database = db.getDb();
+  const database = getDb();
 
   for (const source of CONFERENCE_SOURCES) {
     try {
