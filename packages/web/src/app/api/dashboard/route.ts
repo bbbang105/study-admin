@@ -4,7 +4,7 @@ import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { Errors, successResponse } from '@/lib/api-error';
 
-const { members, posts, rounds, MemberStatus } = sharedDb;
+const { members, posts, rounds, attendance, MemberStatus, AttendanceStatus } = sharedDb;
 
 /**
  * GET /api/dashboard
@@ -44,6 +44,20 @@ export async function GET() {
       // Check if in grace period
       const isGracePeriod = now > endDate && now <= graceEndDate;
 
+      // Get submission stats for current round
+      const attendanceStats = await database
+        .select({
+          status: attendance.status,
+          count: count(),
+        })
+        .from(attendance)
+        .where(eq(attendance.roundId, currentRoundData.id))
+        .groupBy(attendance.status);
+
+      const statsMap = new Map(attendanceStats.map((s) => [s.status, s.count]));
+      const total = attendanceStats.reduce((sum, s) => sum + s.count, 0);
+      const submitted = statsMap.get(AttendanceStatus.SUBMITTED) || 0;
+
       currentRound = {
         roundNumber: currentRoundData.roundNumber,
         startDate: currentRoundData.startDate,
@@ -51,6 +65,7 @@ export async function GET() {
         graceEndDate: currentRoundData.graceEndDate,
         daysRemaining: Math.max(0, daysRemaining),
         isGracePeriod,
+        submissionRate: total > 0 ? Math.round((submitted / total) * 100) : 0,
       };
     }
 

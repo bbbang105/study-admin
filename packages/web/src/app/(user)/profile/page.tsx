@@ -1,14 +1,38 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Link2, FileText, CheckCircle, Calendar, Wallet, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
+import {
+  Calendar,
+  CheckCircle,
+  ExternalLink,
+  FileText,
+  Github,
+  Instagram,
+  Link2,
+  Linkedin,
+  Loader2,
+  LogOut,
+  User,
+  Wallet,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { ProfileSkeleton, PageError } from '@/components/ui/page-state';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { PageError, ProfileSkeleton } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 
 interface UserInfo {
@@ -61,6 +85,9 @@ export default function ProfilePage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -81,6 +108,30 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  const handleWithdraw = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setWithdrawing(true);
+    setWithdrawError(null);
+
+    try {
+      const res = await fetch('/api/profile/withdraw', { method: 'POST' });
+      const result = await res.json();
+
+      if (!res.ok) {
+        setWithdrawError(result.message || '탈퇴 처리에 실패했습니다.');
+        setWithdrawing(false);
+        return;
+      }
+
+      setWithdrawOpen(false);
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    } catch {
+      setWithdrawError('서버 오류가 발생했습니다. 다시 시도해주세요.');
+      setWithdrawing(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -175,7 +226,9 @@ export default function ProfilePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Discord</p>
-                  <p className="text-sm font-medium">{data.member.discordUsername.replace(/#0$/, '')}</p>
+                  <p className="text-sm font-medium">
+                    {data.member.discordUsername.replace(/#0$/, '')}
+                  </p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">파트</p>
@@ -205,7 +258,9 @@ export default function ProfilePage() {
                 <>
                   <Separator className="border-border/60" />
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">자기소개</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      자기소개
+                    </p>
                     <p className="text-sm">{data.member.bio}</p>
                   </div>
                 </>
@@ -230,7 +285,9 @@ export default function ProfilePage() {
               {data.member.resolution && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">다짐</p>
-                  <p className="text-sm italic text-muted-foreground">&ldquo;{data.member.resolution}&rdquo;</p>
+                  <p className="text-sm italic text-muted-foreground">
+                    &ldquo;{data.member.resolution}&rdquo;
+                  </p>
                 </div>
               )}
 
@@ -288,7 +345,9 @@ export default function ProfilePage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">출석률</p>
-                      <p className="text-2xl font-bold tracking-tight">{data.stats.attendanceRate}%</p>
+                      <p className="text-2xl font-bold tracking-tight">
+                        {data.stats.attendanceRate}%
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {data.stats.submittedRounds}/{data.stats.totalRounds}회
                       </p>
@@ -340,9 +399,63 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Edit Profile Button */}
+          {/* Edit Profile & Withdraw Buttons */}
           {data.member.onboardingCompleted && (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    탈퇴하기
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent className="max-w-sm">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-base">
+                      정말 탈퇴하시겠습니까?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm text-muted-foreground">
+                      탈퇴하면 스터디 활동이 중단되며, 다시 참가하려면 관리자 승인이 필요합니다.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  {withdrawError && (
+                    <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 border border-destructive/20">
+                      {withdrawError}
+                    </p>
+                  )}
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      disabled={withdrawing}
+                      className="h-9 text-sm"
+                      onClick={() => setWithdrawError(null)}
+                    >
+                      취소
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleWithdraw}
+                      disabled={withdrawing}
+                      className="h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                    >
+                      {withdrawing ? (
+                        <span className="flex items-center gap-1.5">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          처리 중...
+                        </span>
+                      ) : (
+                        '탈퇴하기'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
               <Button size="sm" onClick={() => router.push('/profile/edit')}>
                 프로필 수정
               </Button>

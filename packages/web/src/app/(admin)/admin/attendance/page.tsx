@@ -1,14 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  CheckCircle,
-  Clock,
-  XCircle,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Clock, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -113,7 +106,6 @@ const statusConfig = {
   },
 } as const satisfies Record<string, StatusConfigItem>;
 
-
 function getStatusConfig(status: string): StatusConfigItem {
   if (status in statusConfig) {
     return statusConfig[status as keyof typeof statusConfig];
@@ -124,12 +116,64 @@ function getStatusConfig(status: string): StatusConfigItem {
 // Number of rounds to show per page
 const ROUNDS_PER_PAGE = 5;
 
+const attendanceStatuses = [
+  { value: 'submitted', label: '제출', className: 'text-success' },
+  { value: 'pending', label: '대기', className: 'text-muted-foreground' },
+  { value: 'late', label: '지각', className: 'text-warning' },
+  { value: 'absent', label: '결석', className: 'text-destructive' },
+] as const;
+
 export default function AdminAttendancePage() {
   const [data, setData] = useState<AttendanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
+
+  const handleStatusChange = async (
+    memberId: string,
+    roundId: number,
+    attendanceId: string | null,
+    newStatus: string
+  ) => {
+    try {
+      setUpdating(true);
+
+      if (attendanceId) {
+        // Update existing record
+        const res = await fetch(`/api/admin/attendance/${attendanceId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error?.message || err.message || '업데이트 실패');
+        }
+      } else {
+        // Create new record
+        const res = await fetch('/api/admin/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId, roundId, status: newStatus }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error?.message || err.message || '생성 실패');
+        }
+      }
+
+      setEditingCell(null);
+      await fetchAttendance();
+    } catch (err) {
+      console.error('Attendance update error:', err);
+      setError(err instanceof Error ? err.message : '출석 상태 변경에 실패했습니다.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const fetchAttendance = useCallback(async () => {
     try {
@@ -140,7 +184,7 @@ export default function AdminAttendancePage() {
       }
       const result = await response.json();
       setData(result);
-      
+
       // Set initial page to show current round
       if (result.rounds.length > 0) {
         const currentRoundIndex = result.rounds.findIndex((r: RoundInfo) => r.isCurrent);
@@ -177,9 +221,7 @@ export default function AdminAttendancePage() {
         </div>
         <Card>
           <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              등록된 회차가 없습니다.
-            </div>
+            <div className="text-center text-muted-foreground">등록된 회차가 없습니다.</div>
           </CardContent>
         </Card>
       </div>
@@ -195,9 +237,10 @@ export default function AdminAttendancePage() {
   );
 
   // Filter members by status
-  const filteredGrid = statusFilter === 'all'
-    ? data.grid
-    : data.grid.filter((row) => row.member.status === statusFilter);
+  const filteredGrid =
+    statusFilter === 'all'
+      ? data.grid
+      : data.grid.filter((row) => row.member.status === statusFilter);
 
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(0, prev - 1));
@@ -225,14 +268,16 @@ export default function AdminAttendancePage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            {Object.entries(statusConfig).filter(([key]) => key !== 'none').map(([key, config]) => (
-              <div key={key} className="flex items-center gap-2">
-                <div className={`p-1 rounded ${config.bgClassName}`}>
-                  <span className={config.className}>{config.icon}</span>
+            {Object.entries(statusConfig)
+              .filter(([key]) => key !== 'none')
+              .map(([key, config]) => (
+                <div key={key} className="flex items-center gap-2">
+                  <div className={`p-1 rounded ${config.bgClassName}`}>
+                    <span className={config.className}>{config.icon}</span>
+                  </div>
+                  <span className="text-sm">{config.label}</span>
                 </div>
-                <span className="text-sm">{config.label}</span>
-              </div>
-            ))}
+              ))}
           </div>
         </CardContent>
       </Card>
@@ -243,11 +288,11 @@ export default function AdminAttendancePage() {
           <Card key={rs.roundId} className={rs.isCurrent ? 'border-primary' : ''}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
-                  {rs.roundNumber}회차
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">{rs.roundNumber}회차</CardTitle>
                 {rs.isCurrent && (
-                  <Badge variant="default" className="text-xs">현재</Badge>
+                  <Badge variant="default" className="text-xs">
+                    현재
+                  </Badge>
                 )}
               </div>
               <CardDescription className="text-xs">
@@ -350,32 +395,67 @@ export default function AdminAttendancePage() {
                       <TableCell className="sticky left-0 bg-background z-10 font-medium">
                         <div>
                           <div>{row.member.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {row.member.part}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{row.member.part}</div>
                         </div>
                       </TableCell>
                       <TableCell className="sticky left-[150px] bg-background z-10">
-                        <Badge variant={MEMBER_STATUS_CONFIG[row.member.status]?.variant || 'secondary'}>
+                        <Badge
+                          variant={MEMBER_STATUS_CONFIG[row.member.status]?.variant || 'secondary'}
+                        >
                           {MEMBER_STATUS_CONFIG[row.member.status]?.label || row.member.status}
                         </Badge>
                       </TableCell>
                       {visibleRounds.map((round) => {
                         const att = row.attendance[round.id];
                         const cellConfig = getStatusConfig(att?.status || 'none');
+                        const cellKey = `${row.member.id}-${round.id}`;
+                        const isEditing = editingCell === cellKey;
                         return (
                           <TableCell
                             key={round.id}
-                            className={`text-center ${round.isCurrent ? 'bg-primary/5' : ''}`}
+                            className={`text-center relative ${round.isCurrent ? 'bg-primary/5' : ''}`}
                           >
-                            <div
-                              className={`inline-flex items-center justify-center p-1.5 rounded ${cellConfig.bgClassName}`}
-                              title={`${cellConfig.label}${att?.submittedAt ? ` (${new Date(att.submittedAt).toLocaleDateString('ko-KR')})` : ''}`}
-                            >
-                              <span className={cellConfig.className}>
-                                {cellConfig.icon || '-'}
-                              </span>
-                            </div>
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1 min-w-[70px]">
+                                {attendanceStatuses.map((s) => (
+                                  <button
+                                    key={s.value}
+                                    disabled={updating}
+                                    className={`text-xs px-2 py-1 rounded hover:bg-muted transition-colors ${s.className} ${att?.status === s.value ? 'font-bold bg-muted' : ''}`}
+                                    onClick={() =>
+                                      handleStatusChange(
+                                        row.member.id,
+                                        round.id,
+                                        att?.id || null,
+                                        s.value
+                                      )
+                                    }
+                                  >
+                                    {s.label}
+                                  </button>
+                                ))}
+                                <button
+                                  className="text-xs text-muted-foreground hover:text-foreground mt-0.5"
+                                  onClick={() => setEditingCell(null)}
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                className="inline-flex items-center justify-center p-1.5 rounded cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
+                                title={`클릭하여 출석 상태 변경${att?.submittedAt ? ` (${new Date(att.submittedAt).toLocaleDateString('ko-KR')})` : ''}`}
+                                onClick={() => setEditingCell(cellKey)}
+                              >
+                                <div
+                                  className={`inline-flex items-center justify-center p-1.5 rounded ${cellConfig.bgClassName}`}
+                                >
+                                  <span className={cellConfig.className}>
+                                    {cellConfig.icon || '-'}
+                                  </span>
+                                </div>
+                              </button>
+                            )}
                           </TableCell>
                         );
                       })}

@@ -2,7 +2,7 @@
 
 > 최종 업데이트: 2026-03-06
 
-블로그 글쓰기 스터디 운영 자동화 플랫폼. Discord 봇이 RSS 수집/출석/벌금/큐레이션을 자동화하고, 웹 대시보드로 멤버/관리자가 현황을 확인한다.
+블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
 ## 전체 구조
 
@@ -16,9 +16,9 @@ graph TB
     end
 
     subgraph Bot["Discord Bot · AWS EC2"]
-        CMD["Commands<br/>discord.js v14"]
         SCH["Schedulers<br/>pg-boss"]
-        SVC["Service Layer<br/>Member · Post · RSS · Fine · Curation · Score"]
+        EVT["Event Handlers<br/>discord.js v14"]
+        SVC["Service Layer<br/>RSS · Fine · Curation · Score"]
     end
 
     subgraph DB["Supabase · PostgreSQL"]
@@ -29,14 +29,14 @@ graph TB
 
     subgraph Web["Web Dashboard · Vercel"]
         MW["Middleware<br/>세션 검증"]
-        PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Curation · Board · Admin"]
+        PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Curation · Board<br/>Admin (Members · Rounds · Attendance<br/>Fines · Scores · Curation · Settings)"]
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
         API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board · ..."]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
     end
 
     Discord <-->|WebSocket| Bot
-    CMD --> SVC
+    EVT --> SVC
     SCH --> SVC
     SVC --> DB
     Bot -->|service_role key| TABLES
@@ -106,7 +106,7 @@ graph LR
 | 패키지 | 설명 | 배포 |
 |--------|------|------|
 | `packages/shared` | Drizzle 스키마, 타입, 유틸 | npm (workspace 내부) |
-| `packages/bot` | Discord 봇, 스케줄러 | AWS EC2 |
+| `packages/bot` | Discord 봇 (스케줄러 + 이벤트 핸들러, 슬래시 커맨드 없음) | AWS EC2 |
 | `packages/web` | Next.js 대시보드, API Routes | Vercel |
 
 ## 인증 아키텍처
@@ -157,7 +157,7 @@ sequenceDiagram
 | **웹 브라우저** | Supabase Auth (Discord OAuth PKCE) | `user.identities[].id` where `provider === 'discord'` |
 | **웹 미들웨어** | `@supabase/ssr` 쿠키 기반 세션 | 동일 |
 | **웹 API Route** | `createClient()` → `getUser()` | 동일 |
-| **Discord 봇** | `service_role` key로 직접 DB 접근 | `interaction.user.id` (discord.js) |
+| **Discord 봇** | `service_role` key로 직접 DB 접근 | 스케줄러/이벤트 핸들러 전용 (슬래시 커맨드 없음) |
 
 ## 데이터 흐름
 
@@ -206,6 +206,7 @@ flowchart TD
 | User | `/profile` | 프로필 | 로그인 필수 |
 | Admin | `/admin` | 관리자 대시보드 | 관리자 전용 |
 | Admin | `/admin/members` | 멤버 관리 | 관리자 전용 |
+| Admin | `/admin/rounds` | 회차 관리 | 관리자 전용 |
 | Admin | `/admin/attendance` | 출석 관리 | 관리자 전용 |
 | Admin | `/admin/fines` | 벌금 관리 | 관리자 전용 |
 | Admin | `/admin/scores` | 점수 관리 | 관리자 전용 |

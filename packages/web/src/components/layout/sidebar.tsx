@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Banknote,
   CalendarCheck,
+  CalendarRange,
   FileText,
   LayoutDashboard,
   MessageSquare,
@@ -49,6 +50,7 @@ const userNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { title: '관리자 홈', href: '/admin', icon: LayoutDashboard },
   { title: '멤버 관리', href: '/admin/members', icon: Users },
+  { title: '회차 관리', href: '/admin/rounds', icon: CalendarRange },
   { title: '출석 관리', href: '/admin/attendance', icon: CalendarCheck },
   { title: '벌금 관리', href: '/admin/fines', icon: Banknote },
   { title: '점수 관리', href: '/admin/scores', icon: Star },
