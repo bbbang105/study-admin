@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   Rss,
-  Brain,
+  Activity,
   CalendarCheck,
   Banknote,
   Trophy,
@@ -20,9 +20,9 @@ const features = [
     description: '블로그 글 발행 시 자동 감지 및 수집',
   },
   {
-    icon: Brain,
-    title: 'AI 요약 & 추천',
-    description: 'GPT가 글을 요약하고 관심사를 분석',
+    icon: Activity,
+    title: '활동 점수 & 랭킹',
+    description: '글 작성·댓글·출석 등 활동 기반 점수 시스템',
   },
   {
     icon: CalendarCheck,
@@ -96,7 +96,7 @@ export default function Home() {
 
         {/* Subtext */}
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          AI가 글을 요약하고, 봇이 출석을 관리하고, 대시보드에서 한눈에
+          봇이 글을 수집하고, 출석을 관리하고, 대시보드에서 한눈에
           확인하세요.
         </p>
 
@@ -151,7 +151,7 @@ export default function Home() {
       {/* ------------------------------------------------------------------ */}
       <footer className="mt-auto border-t border-border px-6 py-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between text-xs text-muted-foreground">
-          <span>© 2025 블로그 스터디</span>
+          <span>© 2026 블로그 스터디</span>
           <Link
             href="#"
             className="transition-colors hover:text-foreground"
