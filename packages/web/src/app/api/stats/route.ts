@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server';
-import { eq, count, sql, desc } from 'drizzle-orm';
+import { count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { successResponse, errorResponse } from '@/lib/api-error';
+import { errorResponse, successResponse } from '@/lib/api-error';
 
 const { rounds, attendance, posts, members, MemberStatus, AttendanceStatus } = sharedDb;
 
@@ -11,7 +10,7 @@ const { rounds, attendance, posts, members, MemberStatus, AttendanceStatus } = s
  * Get overall study statistics
  * Requirement: 9.4 - /통계 command equivalent
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const roundNumber = searchParams.get('round');
@@ -96,13 +95,9 @@ export async function GET(request: NextRequest) {
       .from(members)
       .where(eq(members.status, MemberStatus.ACTIVE));
 
-    const [totalPostsResult] = await database
-      .select({ count: count() })
-      .from(posts);
+    const [totalPostsResult] = await database.select({ count: count() }).from(posts);
 
-    const [totalRoundsResult] = await database
-      .select({ count: count() })
-      .from(rounds);
+    const [totalRoundsResult] = await database.select({ count: count() }).from(rounds);
 
     // Get overall attendance stats
     const overallAttendance = await database
@@ -139,15 +134,10 @@ export async function GET(request: NextRequest) {
         totalMembers: totalMembersResult?.count ?? 0,
         totalPosts: totalPostsResult?.count ?? 0,
         totalRounds: totalRoundsResult?.count ?? 0,
-        overallSubmissionRate: overallTotal > 0 
-          ? Math.round((overallSubmitted / overallTotal) * 100) 
-          : 0,
-        overallLateRate: overallTotal > 0 
-          ? Math.round((overallLate / overallTotal) * 100) 
-          : 0,
-        overallAbsentRate: overallTotal > 0 
-          ? Math.round((overallAbsent / overallTotal) * 100) 
-          : 0,
+        overallSubmissionRate:
+          overallTotal > 0 ? Math.round((overallSubmitted / overallTotal) * 100) : 0,
+        overallLateRate: overallTotal > 0 ? Math.round((overallLate / overallTotal) * 100) : 0,
+        overallAbsentRate: overallTotal > 0 ? Math.round((overallAbsent / overallTotal) * 100) : 0,
       },
       roundStats: roundStats.map((r) => ({
         roundNumber: r.roundNumber,
