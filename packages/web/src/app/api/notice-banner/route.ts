@@ -17,6 +17,7 @@ export async function GET() {
       .select({
         id: boardPosts.id,
         title: boardPosts.title,
+        contentText: boardPosts.contentText,
         createdAt: boardPosts.createdAt,
         memberName: members.nickname,
       })
