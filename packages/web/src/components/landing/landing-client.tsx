@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import {
-  Rss,
-  Trophy,
-  CalendarCheck,
   Banknote,
+  CalendarCheck,
+  FileText,
+  LogIn,
   MessageSquare,
   Newspaper,
-  LogIn,
-  FileText,
+  Rss,
   TrendingUp,
+  Trophy,
 } from 'lucide-react';
-import { FadeUp, StaggerContainer, StaggerItem, CountUp, DrawLine } from './motion';
+import { CountUp, DrawLine, FadeUp, StaggerContainer, StaggerItem } from './motion';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,7 +31,6 @@ interface LandingClientProps {
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
-
 
 const STEPS = [
   {
@@ -52,9 +51,26 @@ const STEPS = [
 ] as const;
 
 const AVATAR_SEEDS = [
-  'alice', 'bob', 'charlie', 'dave', 'eve', 'frank', 'grace', 'heidi',
-  'ivan', 'judy', 'karl', 'lisa', 'mike', 'nina', 'oscar', 'pat',
-  'quinn', 'rachel', 'steve', 'tina',
+  'alice',
+  'bob',
+  'charlie',
+  'dave',
+  'eve',
+  'frank',
+  'grace',
+  'heidi',
+  'ivan',
+  'judy',
+  'karl',
+  'lisa',
+  'mike',
+  'nina',
+  'oscar',
+  'pat',
+  'quinn',
+  'rachel',
+  'steve',
+  'tina',
 ];
 
 // ---------------------------------------------------------------------------
@@ -67,8 +83,8 @@ function Nav() {
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.svg" alt="블로그 스터디" width={28} height={28} />
-          <span className="text-sm font-semibold text-white">블로그 스터디</span>
+          <img src="/icon.svg" alt="큐스팅 4th" width={28} height={28} />
+          <span className="text-sm font-semibold text-white">큐스팅 4th</span>
         </Link>
 
         <Link
@@ -185,18 +201,24 @@ function FeaturesBento() {
             <h2 className="text-3xl font-bold tracking-tight text-white">
               필요한 기능, 전부 갖췄습니다
             </h2>
-            <p className="mt-3 text-base text-zinc-400">
-              반복적인 스터디 운영 업무를 자동화하세요
-            </p>
+            <p className="mt-3 text-base text-zinc-400">반복적인 스터디 운영 업무를 자동화하세요</p>
           </div>
         </FadeUp>
 
         <StaggerContainer className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
             { icon: Rss, title: 'RSS 자동 수집', desc: '블로그 글 발행 시 자동 감지 및 수집' },
-            { icon: Trophy, title: '랭킹 & 활동 점수', desc: '글 작성·댓글·출석 등 활동 기반 점수 시스템' },
+            {
+              icon: Trophy,
+              title: '랭킹 & 활동 점수',
+              desc: '글 작성·댓글·출석 등 활동 기반 점수 시스템',
+            },
             { icon: CalendarCheck, title: '출석 자동화', desc: '2주 1회차, 지각·결석 자동 판정' },
-            { icon: MessageSquare, title: '커뮤니티 게시판', desc: 'Tiptap 에디터, 댓글, 비밀글 지원' },
+            {
+              icon: MessageSquare,
+              title: '커뮤니티 게시판',
+              desc: 'Tiptap 에디터, 댓글, 비밀글 지원',
+            },
             { icon: Banknote, title: '벌금 관리', desc: '자동 부과, DM 알림, 납부 확인' },
             { icon: Newspaper, title: '큐레이션', desc: '관심 키워드 기반 아티클·컨퍼런스 추천' },
           ].map(({ icon: Icon, title, desc }) => (
@@ -230,7 +252,10 @@ function HowItWorks() {
             const isLast = index === STEPS.length - 1;
 
             return (
-              <StaggerItem key={step.title} className="relative flex flex-1 flex-col items-center text-center">
+              <StaggerItem
+                key={step.title}
+                className="relative flex flex-1 flex-col items-center text-center"
+              >
                 {/* Connector line between steps */}
                 {!isLast && (
                   <DrawLine className="absolute top-6 left-1/2 hidden h-px w-full bg-gradient-to-r from-blue-500/40 to-blue-500/10 md:block" />
@@ -301,9 +326,7 @@ function FinalCTA() {
 
       <div className="relative z-10 mx-auto max-w-2xl">
         <FadeUp delay={0}>
-          <h2 className="text-3xl font-bold tracking-tight gradient-text">
-            지금 바로 시작하세요.
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight gradient-text">지금 바로 시작하세요.</h2>
         </FadeUp>
 
         <FadeUp delay={0.1}>
@@ -326,7 +349,24 @@ function Footer() {
     <footer className="border-t border-white/5 px-6 py-8">
       <div className="mx-auto max-w-6xl text-center">
         <p className="text-xs text-zinc-600">
-          © {new Date().getFullYear()} 블로그 스터디 · Powered by KUSITMS
+          © {new Date().getFullYear()} 큐스팅 4th · Built by{' '}
+          <a
+            href="https://github.com/bbbang105"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-500 hover:text-white transition-colors"
+          >
+            @bbbang105
+          </a>
+          {' & '}
+          <a
+            href="https://github.com/choihooo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-500 hover:text-white transition-colors"
+          >
+            @choihooo
+          </a>
         </p>
       </div>
     </footer>

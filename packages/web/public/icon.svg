@@ -7,18 +7,45 @@
   </defs>
   <rect width="512" height="512" rx="108" fill="#0a0a0a"/>
   <!--
-    K lettermark with writing motif.
-    Bold geometric "K" using KUSITMS blue gradient.
-    The right strokes of K are slightly tapered like pen strokes.
+    Retro terminal "K" — CRT monitor / old-school code aesthetic.
+    - Monospace-weight K with pixel-sharp edges
+    - Horizontal scanlines across the letter (CRT effect)
+    - Blinking cursor block after the K
+    - Faint terminal grid in background
   -->
-  <g fill="url(#icon-grad)">
-    <!-- Vertical stem of K -->
-    <rect x="136" y="120" width="48" height="272" rx="8"/>
-    <!-- Upper diagonal stroke (pen-like taper: thicker at junction, thinner at tip) -->
-    <polygon points="184,268 184,228 340,120 356,120 356,152"/>
-    <!-- Lower diagonal stroke (pen-like taper: thicker at junction, thinner at tip) -->
-    <polygon points="184,268 184,308 340,392 356,392 356,360"/>
-    <!-- Small pen-nib detail at the tip of lower stroke -->
-    <circle cx="348" cy="392" r="10"/>
+  <!-- Terminal grid background (very subtle) -->
+  <g opacity="0.04" stroke="#0091FF">
+    <line x1="80" y1="120" x2="432" y2="120" stroke-width="1"/>
+    <line x1="80" y1="160" x2="432" y2="160" stroke-width="1"/>
+    <line x1="80" y1="200" x2="432" y2="200" stroke-width="1"/>
+    <line x1="80" y1="240" x2="432" y2="240" stroke-width="1"/>
+    <line x1="80" y1="280" x2="432" y2="280" stroke-width="1"/>
+    <line x1="80" y1="320" x2="432" y2="320" stroke-width="1"/>
+    <line x1="80" y1="360" x2="432" y2="360" stroke-width="1"/>
+    <line x1="80" y1="400" x2="432" y2="400" stroke-width="1"/>
   </g>
+  <!-- K letterform — bold monospace weight -->
+  <g fill="url(#icon-grad)">
+    <!-- Vertical stem -->
+    <rect x="120" y="112" width="56" height="288" rx="4"/>
+    <!-- Upper diagonal -->
+    <path d="M176,256 L176,216 L332,112 L372,112 L372,160 L224,256 Z"/>
+    <!-- Lower diagonal -->
+    <path d="M176,256 L224,256 L372,352 L372,400 L332,400 L176,296 Z"/>
+  </g>
+  <!-- CRT scanlines over the K (retro monitor effect) -->
+  <g opacity="0.08" fill="#0a0a0a">
+    <rect x="110" y="140" width="272" height="2"/>
+    <rect x="110" y="172" width="272" height="2"/>
+    <rect x="110" y="204" width="272" height="2"/>
+    <rect x="110" y="236" width="272" height="2"/>
+    <rect x="110" y="268" width="272" height="2"/>
+    <rect x="110" y="300" width="272" height="2"/>
+    <rect x="110" y="332" width="272" height="2"/>
+    <rect x="110" y="364" width="272" height="2"/>
+  </g>
+  <!-- Blinking cursor block (terminal feel) -->
+  <rect x="384" y="344" width="28" height="56" rx="3" fill="url(#icon-grad)" opacity="0.7"/>
+  <!-- Prompt marker: > -->
+  <text x="96" y="408" font-family="monospace" font-size="40" font-weight="bold" fill="#0091FF" opacity="0.2">&gt;_</text>
 </svg>
