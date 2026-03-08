@@ -38,7 +38,7 @@ interface NavItem {
 
 const userNavItems: NavItem[] = [
   { title: '대시보드', href: '/dashboard', icon: LayoutDashboard },
-  { title: '글 목록', href: '/posts', icon: FileText },
+  { title: '포스트', href: '/posts', icon: FileText },
   { title: '랭킹', href: '/ranking', icon: Trophy },
   { title: '큐레이션', href: '/curation', icon: Newspaper },
   { title: '게시판', href: '/board', icon: MessageSquare },

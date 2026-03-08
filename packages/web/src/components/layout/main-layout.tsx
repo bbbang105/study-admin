@@ -81,7 +81,7 @@ export function MainLayout({
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header user={user} isAdmin={isAdmin} onLogout={handleLogout} />
-      <NoticeBanner />
+      {!isAdmin && <NoticeBanner />}
       <PullToRefresh>
         <div className="flex flex-1">
           {showSidebar && (
