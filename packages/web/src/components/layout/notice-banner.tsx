@@ -93,10 +93,7 @@ export function NoticeBanner() {
             href={`/board/${notice.id}`}
             className="group flex-1 min-w-0"
           >
-            <p className={cn(
-              'truncate font-semibold text-sky-900 dark:text-sky-100 group-hover:underline',
-              isOpen ? 'text-sm' : 'text-xs'
-            )}>
+            <p className="truncate text-sm font-semibold text-sky-900 dark:text-sky-100 group-hover:underline">
               {notice.title}
             </p>
             {isOpen && (
