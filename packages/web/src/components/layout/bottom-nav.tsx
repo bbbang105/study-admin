@@ -2,18 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Banknote,
-  CalendarCheck,
-  CalendarRange,
-  FileText,
-  MessageSquare,
-  Newspaper,
-  Star,
-  Trophy,
-  Users,
-  UsersRound,
-} from 'lucide-react';
+import { FileText, MessageSquare, Newspaper, Trophy, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -22,21 +11,12 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const userNavItems: NavItem[] = [
+const navItems: NavItem[] = [
   { title: '글 목록', href: '/posts', icon: FileText },
   { title: '랭킹', href: '/ranking', icon: Trophy },
   { title: '큐레이션', href: '/curation', icon: Newspaper },
   { title: '게시판', href: '/board', icon: MessageSquare },
   { title: '스터디원', href: '/members', icon: UsersRound },
-];
-
-const adminNavItems: NavItem[] = [
-  { title: '멤버', href: '/admin/members', icon: Users },
-  { title: '회차', href: '/admin/rounds', icon: CalendarRange },
-  { title: '출석', href: '/admin/attendance', icon: CalendarCheck },
-  { title: '벌금', href: '/admin/fines', icon: Banknote },
-  { title: '점수', href: '/admin/scores', icon: Star },
-  { title: '큐레이션', href: '/admin/curation', icon: Newspaper },
 ];
 
 interface BottomNavProps {
@@ -45,7 +25,9 @@ interface BottomNavProps {
 
 export function BottomNav({ isAdmin = false }: BottomNavProps) {
   const pathname = usePathname();
-  const navItems = isAdmin ? adminNavItems : userNavItems;
+
+  // 관리자 모드에서는 하단 탭 바 미표시
+  if (isAdmin) return null;
 
   return (
     <nav
