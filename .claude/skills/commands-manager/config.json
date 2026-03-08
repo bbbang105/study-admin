@@ -1,0 +1,9 @@
+{
+  "name": "commands-manager",
+  "description": "Discord.js 커맨드 시스템 설계 전문 스킬",
+  "icon": "🎯",
+  "author": "your-username",
+  "version": "1.0.0",
+  "tags": ["discord", "commands", "slash", "handler"],
+  "keywords": ["discord.js", "commands", "slash-commands", "interactions"]
+}

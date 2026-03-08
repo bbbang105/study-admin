@@ -1,0 +1,9 @@
+{
+  "name": "music-bot",
+  "description": "Discord 뮤직 봇 기능 설계 전문 스킬",
+  "icon": "🎵",
+  "author": "your-username",
+  "version": "1.0.0",
+  "tags": ["discord", "music", "bot", "audio", "youtube"],
+  "keywords": ["discord.js", "music", "youtube", "spotify", "voice"]
+}

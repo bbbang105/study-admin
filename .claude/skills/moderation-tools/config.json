@@ -1,0 +1,9 @@
+{
+  "name": "moderation-tools",
+  "description": "Discord 관리 도구(경고, 밴 등) 설계 전문 스킬",
+  "icon": "🛡️",
+  "author": "your-username",
+  "version": "1.0.0",
+  "tags": ["discord", "moderation", "ban", "warning", "admin"],
+  "keywords": ["discord.js", "moderation", "ban", "kick", "admin-tools"]
+}

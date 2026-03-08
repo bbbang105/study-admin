@@ -1,0 +1,9 @@
+{
+  "name": "events-handler",
+  "description": "Discord.js 이벤트 시스템 설계 전문 스킬",
+  "icon": "⚡",
+  "author": "your-username",
+  "version": "1.0.0",
+  "tags": ["discord", "events", "handler", "architecture"],
+  "keywords": ["discord.js", "events", "event-handling", "bot-events"]
+}
