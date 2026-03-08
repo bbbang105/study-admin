@@ -2,7 +2,7 @@
   "name": "@blog-study/bot",
   "version": "1.0.0",
   "private": true,
-  "description": "블로그 스터디 디스코드 봇",
+  "description": "큐스팅 4th 디스코드 봇",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsup",

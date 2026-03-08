@@ -13,15 +13,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: '블로그 스터디',
-    template: '%s | 블로그 스터디',
+    default: '큐스팅 4th',
+    template: '%s | 큐스팅 4th',
   },
-  description: '블로그 글쓰기 스터디 자동화 플랫폼',
+  description: '큐스팅 4th · 스터디 자동화 플랫폼',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '블로그 스터디',
+    title: '큐스팅 4th',
   },
   other: {
     'mobile-web-app-capable': 'yes',

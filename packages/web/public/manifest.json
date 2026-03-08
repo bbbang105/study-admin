@@ -1,7 +1,7 @@
 {
-  "name": "블로그 스터디",
-  "short_name": "블로그 스터디",
-  "description": "블로그 글쓰기 스터디 자동화 플랫폼",
+  "name": "큐스팅 4th",
+  "short_name": "큐스팅 4th",
+  "description": "큐스팅 4th · 스터디 자동화 플랫폼",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0a0a0a",

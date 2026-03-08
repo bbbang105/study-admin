@@ -1,5 +1,5 @@
 // @blog-study/bot
-// 블로그 스터디 디스코드 봇 엔트리포인트
+// 큐스팅 4th 디스코드 봇 엔트리포인트
 
 import { loadBotEnv } from '@blog-study/shared';
 import { createBotClient, setupEventHandlers, setupGracefulShutdown, startBot } from './bot';

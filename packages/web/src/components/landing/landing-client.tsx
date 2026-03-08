@@ -111,7 +111,7 @@ function Hero() {
         <FadeUp delay={0}>
           <div className="mb-8 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-zinc-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            블로그 스터디 자동화 플랫폼
+            큐스팅 4th 관리 플랫폼
           </div>
         </FadeUp>
 

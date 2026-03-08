@@ -87,7 +87,7 @@ export default function DashboardPage() {
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           Overview
         </p>
-        <h1 className="text-lg font-semibold tracking-tight">블로그 스터디 현황</h1>
+        <h1 className="text-lg font-semibold tracking-tight">큐스팅 4th 현황</h1>
       </div>
 
       {/* Current Round Card */}
