@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-08 (v2)
+> 최종 업데이트: 2026-03-08 (v3)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -82,6 +82,7 @@ mindmap
       shadcn/ui + Radix UI
       Tiptap Rich Editor
       sonner Toast
+      Framer Motion 애니메이션
       PWA 홈 화면 추가
       Supabase Auth
         Discord OAuth
@@ -213,7 +214,7 @@ flowchart TD
 
 | 그룹 | 경로 | 설명 | 보호 |
 |------|------|------|------|
-| Public | `/` | 랜딩 페이지 (인증 시 → `/dashboard` 리다이렉트) | 서버 사이드 세션 체크 |
+| Public | `/` | 랜딩 페이지 (다크 모드, Framer Motion, DB 스탯 ISR 60s, 인증 시 → `/dashboard`) | 서버 사이드 세션 체크 |
 | Auth | `/login` | Discord OAuth 로그인 | 인증 시 /dashboard 리다이렉트 |
 | User | `/dashboard` | 대시보드 | 로그인 필수 |
 | User | `/posts` | 글 목록 | 로그인 필수 |
@@ -384,11 +385,12 @@ erDiagram
 | Mobile 사용자 (<md) | 하단 고정 탭 바 (5개: 글 목록/랭킹/큐레이션/게시판/스터디원) | `BottomNav` |
 | Mobile 관리자 (<md) | 하단 고정 탭 바 (6개: 멤버/회차/출석/벌금/점수/큐레이션) | `BottomNav` |
 
-- **Header**: 로고(사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
+- **Header**: 로고(커스텀 SVG 픽토그램, 사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
+- **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (7섹션: Nav/Hero/Stats/Bento/HowItWorks/Marquee/CTA). 큐시즘 블루 그라디언트 (`#0091FF→#004DFF`), Framer Motion 애니메이션, DB 스탯 ISR 60s
 - **공지 배너**: 전역 상단 스카이블루 배너 (`NoticeBanner`), 관리자가 공지 글에서 활성화 (1개만), 접기/닫기 localStorage 유지
 - **Dialog/AlertDialog**: Safari PWA 스크롤 대응 — `flex flex-col` + `inset-y-0 my-auto` 센터링 + `overflow-y-auto` (grid/transform 방식은 Safari에서 클리핑 발생)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
-- **PWA**: `manifest.json` + 아이콘 (192/512) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
+- **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
 
 ## 스케줄러 (pg-boss)
 
@@ -471,3 +473,4 @@ graph LR
 | @supabase/ssr | 0.8 | Auth SSR |
 | Tiptap | 3.20 | Rich text editor |
 | shadcn/ui | latest | UI components |
+| Framer Motion | 12.x | Landing page animations |

@@ -5,7 +5,10 @@ import './globals.css';
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
-  themeColor: '#0ea5e9',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -17,7 +20,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: '블로그 스터디',
   },
   other: {

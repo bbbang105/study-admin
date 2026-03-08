@@ -1,11 +1,11 @@
 {
   "name": "블로그 스터디",
-  "short_name": "BS",
+  "short_name": "블로그 스터디",
   "description": "블로그 글쓰기 스터디 자동화 플랫폼",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0055FF",
   "icons": [
     {
       "src": "/icon.svg",
@@ -21,7 +21,8 @@
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

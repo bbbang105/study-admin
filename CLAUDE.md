@@ -19,7 +19,7 @@ packages/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
-| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트) |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | 배포 | AWS EC2 (bot), Vercel (web), Supabase (DB + Auth) |
@@ -99,6 +99,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
 | `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation 채널) |
+| `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
+| `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |
+| `packages/web/public/logo.svg` | 풀 로고 SVG (픽토그램 + 텍스트) |
 
 ## 인증 구조
 
@@ -136,7 +139,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **다이얼로그**: Safari PWA 스크롤 대응 (flex 레이아웃, `inset-y-0 my-auto` 센터링, `overflow-y-auto`, `data-scroll-locked` 가드)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 → `window.location.reload()` (Safari PWA 최적화, 다이얼로그 열림 시 비활성화)
 - **PWA**: 홈 화면 추가 지원 (manifest.json, 서비스 워커 없음)
-- **랜딩 페이지**: 인증 유저 자동 리다이렉트 (`/` → `/dashboard`)
+- **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (큐시즘 블루 그라디언트 `#0091FF→#004DFF`, Framer Motion 풀 애니메이션, DB 스탯 ISR 60s, 인증 유저 `/dashboard` 리다이렉트)
+- **로고**: 커스텀 SVG 픽토그램 (펜촉+화살표, 큐시즘 블루 그라디언트), `icon.svg`/`icon-192.png`/`icon-512.png`
 - **토스트**: sonner (`<Toaster />` in root layout, `position="bottom-center"`, `richColors`)
 - **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — 리셋 버튼 포함
 - **404 페이지**: `not-found.tsx` — 대시보드 링크 포함
@@ -210,6 +214,8 @@ npx drizzle-kit push --force
 | `docs/26-03-06-patterns.md` | API 패턴 & 코드 규칙 |
 | `docs/ONBOARDING.md` | 팀 온보딩 가이드 |
 | `docs/26-03-08-discord-channel-setup.md` | 디스코드 채널 세팅 가이드 (큐스팅) |
+| `docs/plans/26-03-08-landing-page-redesign-design.md` | 랜딩 페이지 리디자인 디자인 문서 |
+| `docs/plans/26-03-08-landing-page-redesign.md` | 랜딩 페이지 구현 플랜 |
 
 ## docs 파일명 컨벤션
 
