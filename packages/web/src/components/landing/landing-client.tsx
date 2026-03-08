@@ -191,83 +191,23 @@ function FeaturesBento() {
           </div>
         </FadeUp>
 
-        {/*
-          Bento grid layout:
-          [RSS (tall, row-span-2)] [랭킹]
-          [RSS continues...]       [출석]
-          [커뮤니티]                [큐레이션 (tall, row-span-2)]
-          [벌금]                    [큐레이션 continues...]
-        */}
-        <StaggerContainer className="grid grid-cols-1 gap-4 md:grid-cols-2 md:grid-rows-4">
-          {/* Card 1: RSS 자동 수집 — tall */}
-          <StaggerItem className="md:row-span-2">
-            <div className="bento-card flex h-full min-h-[200px] flex-col justify-between rounded-2xl p-6">
-              <Rss className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <div className="mt-6">
-                <h3 className="mb-2 text-lg font-semibold text-white">RSS 자동 수집</h3>
-                <p className="text-sm leading-relaxed text-zinc-400">
-                  블로그 글 발행 시 자동 감지 및 수집
-                </p>
+        <StaggerContainer className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: Rss, title: 'RSS 자동 수집', desc: '블로그 글 발행 시 자동 감지 및 수집' },
+            { icon: Trophy, title: '랭킹 & 활동 점수', desc: '글 작성·댓글·출석 등 활동 기반 점수 시스템' },
+            { icon: CalendarCheck, title: '출석 자동화', desc: '2주 1회차, 지각·결석 자동 판정' },
+            { icon: MessageSquare, title: '커뮤니티 게시판', desc: 'Tiptap 에디터, 댓글, 비밀글 지원' },
+            { icon: Banknote, title: '벌금 관리', desc: '자동 부과, DM 알림, 납부 확인' },
+            { icon: Newspaper, title: '큐레이션', desc: '관심 키워드 기반 아티클·컨퍼런스 추천' },
+          ].map(({ icon: Icon, title, desc }) => (
+            <StaggerItem key={title}>
+              <div className="bento-card rounded-2xl p-6">
+                <Icon className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
+                <h3 className="mt-4 mb-2 text-base font-semibold text-white">{title}</h3>
+                <p className="text-sm leading-relaxed text-zinc-400">{desc}</p>
               </div>
-            </div>
-          </StaggerItem>
-
-          {/* Card 2: 랭킹 & 활동 점수 */}
-          <StaggerItem>
-            <div className="bento-card rounded-2xl p-6">
-              <Trophy className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <h3 className="mt-4 mb-2 text-base font-semibold text-white">랭킹 & 활동 점수</h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                글 작성·댓글·출석 등 활동 기반 점수 시스템
-              </p>
-            </div>
-          </StaggerItem>
-
-          {/* Card 3: 출석 자동화 */}
-          <StaggerItem>
-            <div className="bento-card rounded-2xl p-6">
-              <CalendarCheck className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <h3 className="mt-4 mb-2 text-base font-semibold text-white">출석 자동화</h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                2주 1회차, 지각·결석 자동 판정
-              </p>
-            </div>
-          </StaggerItem>
-
-          {/* Card 4: 커뮤니티 게시판 */}
-          <StaggerItem>
-            <div className="bento-card rounded-2xl p-6">
-              <MessageSquare className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <h3 className="mt-4 mb-2 text-base font-semibold text-white">커뮤니티 게시판</h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                Tiptap 에디터, 댓글, 비밀글 지원
-              </p>
-            </div>
-          </StaggerItem>
-
-          {/* Card 5: 벌금 관리 */}
-          <StaggerItem>
-            <div className="bento-card rounded-2xl p-6">
-              <Banknote className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <h3 className="mt-4 mb-2 text-base font-semibold text-white">벌금 관리</h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                자동 부과, DM 알림, 납부 확인
-              </p>
-            </div>
-          </StaggerItem>
-
-          {/* Card 6: 큐레이션 — tall */}
-          <StaggerItem className="md:row-span-2">
-            <div className="bento-card flex h-full min-h-[200px] flex-col justify-between rounded-2xl p-6">
-              <Newspaper className="h-8 w-8 text-blue-400" strokeWidth={1.5} />
-              <div className="mt-6">
-                <h3 className="mb-2 text-lg font-semibold text-white">큐레이션</h3>
-                <p className="text-sm leading-relaxed text-zinc-400">
-                  관심 키워드 기반 아티클·컨퍼런스 추천
-                </p>
-              </div>
-            </div>
-          </StaggerItem>
+            </StaggerItem>
+          ))}
         </StaggerContainer>
       </div>
     </section>
