@@ -17,10 +17,14 @@ import { common, createLowlight } from 'lowlight';
 import {
   Bold,
   Code,
+  Heading1,
+  Heading2,
+  Heading3,
   Italic,
   Link as LinkIcon,
   List,
   ListOrdered,
+  Minus,
   Quote,
   Redo,
   Strikethrough,
@@ -202,6 +206,35 @@ export function TiptapEditor({
         {editable && (
           <div className="flex flex-wrap items-center gap-0.5 border-b border-zinc-200 dark:border-zinc-800 p-1.5">
             <ToolbarButton
+              onClick={() => editor.chain().focus().setParagraph().run()}
+              active={editor.isActive('paragraph') && !editor.isActive('heading')}
+              title="본문"
+            >
+              <span className="text-xs font-semibold w-4 h-4 flex items-center justify-center">T</span>
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              active={editor.isActive('heading', { level: 1 })}
+              title="제목 1"
+            >
+              <Heading1 className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              active={editor.isActive('heading', { level: 2 })}
+              title="제목 2"
+            >
+              <Heading2 className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              active={editor.isActive('heading', { level: 3 })}
+              title="제목 3"
+            >
+              <Heading3 className="h-4 w-4" />
+            </ToolbarButton>
+            <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
+            <ToolbarButton
               onClick={() => editor.chain().focus().toggleBold().run()}
               active={editor.isActive('bold')}
               title="굵게"
@@ -250,6 +283,12 @@ export function TiptapEditor({
               title="코드 블록"
             >
               <Code className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              title="구분선"
+            >
+              <Minus className="h-4 w-4" />
             </ToolbarButton>
             <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
             {isLinkActive ? (
