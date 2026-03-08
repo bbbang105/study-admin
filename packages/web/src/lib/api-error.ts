@@ -172,6 +172,21 @@ export function validateRequired(
 }
 
 /**
+ * Set Cache-Control header on a NextResponse
+ * @param response - NextResponse to modify
+ * @param maxAge - Cache duration in seconds (0 = no-store)
+ * @param scope - 'private' for user-specific data (default), 'public' for shared data
+ */
+export function withCache<T>(response: NextResponse<T>, maxAge: number, scope: 'private' | 'public' = 'private'): NextResponse<T> {
+  if (maxAge <= 0) {
+    response.headers.set('Cache-Control', 'no-store');
+  } else {
+    response.headers.set('Cache-Control', `${scope}, max-age=${maxAge}, stale-while-revalidate=${maxAge * 2}`);
+  }
+  return response;
+}
+
+/**
  * Parse pagination parameters from URL search params
  */
 export function parsePagination(searchParams: URLSearchParams): {

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { errorResponse, successResponse } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
 
 const { members, posts, attendance, rounds, activityScores, MemberStatus, AttendanceStatus } =
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+      return Errors.unauthorized().toResponse();
     }
 
     const { searchParams } = new URL(request.url);
@@ -364,14 +364,17 @@ export async function GET(request: NextRequest) {
       currentUserId = currentMember[0]?.id ?? null;
     }
 
-    return successResponse({
-      rankings: rankingsWithDelta,
-      totalMembers: rankingsWithDelta.length,
-      currentUserId,
-      currentRound: currentRound[0]
-        ? { id: currentRound[0].id, roundNumber: currentRound[0].roundNumber }
-        : null,
-    });
+    return withCache(
+      successResponse({
+        rankings: rankingsWithDelta,
+        totalMembers: rankingsWithDelta.length,
+        currentUserId,
+        currentRound: currentRound[0]
+          ? { id: currentRound[0].id, roundNumber: currentRound[0].roundNumber }
+          : null,
+      }),
+      30
+    );
   } catch (error) {
     console.error('Ranking API error:', error);
     return errorResponse(error);

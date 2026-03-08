@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import { eq, count } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { Errors, successResponse, errorResponse } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { createClient } from '@/lib/supabase/server';
 
 const { rounds, attendance, posts, AttendanceStatus } = sharedDb;
 
@@ -14,11 +15,17 @@ interface RouteParams {
  * GET /api/rounds/[id]
  * Get a single round with statistics
  */
-export async function GET(
-  _request: NextRequest,
-  { params }: RouteParams
-) {
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Errors.unauthorized().toResponse();
+    }
+
     const { id } = await params;
 
     if (!id) {
@@ -29,7 +36,7 @@ export async function GET(
 
     // Get round by ID (can be numeric ID or round number)
     let roundData;
-    
+
     // Try to parse as number for round number lookup
     const roundNumber = parseInt(id, 10);
     if (!isNaN(roundNumber)) {
@@ -81,10 +88,10 @@ export async function GET(
     const endDate = new Date(roundData.endDate);
     const graceEndDate = new Date(roundData.graceEndDate);
     const startDate = new Date(roundData.startDate);
-    
+
     const timeDiff = endDate.getTime() - now.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-    
+
     const isGracePeriod = now > endDate && now <= graceEndDate;
     const isCompleted = now > graceEndDate;
     const isUpcoming = now < startDate;

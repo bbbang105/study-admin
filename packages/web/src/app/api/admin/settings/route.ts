@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { config, members, rounds } from '@blog-study/shared/db';
 import { getAdminDiscordIds, getEnvAdminIds, withAdminAuth } from '@/lib/admin';
 import { generateAllRoundDates, getPreviousMonday, isMonday } from '@blog-study/shared/utils';
+import { errorResponse } from '@/lib/api-error';
 
 function formatDateToString(date: Date): string {
   return date.toISOString().split('T')[0]!;
@@ -81,7 +82,7 @@ export const GET = withAdminAuth(async (_request: NextRequest, adminAuth) => {
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
-    return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+    return errorResponse(error);
   }
 });
 
@@ -161,6 +162,6 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     return NextResponse.json({ success: true, roundsCreated });
   } catch (error) {
     console.error('Error updating settings:', error);
-    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
+    return errorResponse(error);
   }
 });

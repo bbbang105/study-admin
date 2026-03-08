@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { eq, count, sql } from 'drizzle-orm';
+import { count, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
+import { errorResponse, Errors } from '@/lib/api-error';
 
 const { members, posts, attendance, fines, AttendanceStatus, FineStatus } = sharedDb;
 
@@ -13,18 +14,16 @@ const { members, posts, attendance, fines, AttendanceStatus, FineStatus } = shar
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return NextResponse.json(
-        { message: '인증이 필요합니다.' },
-        { status: 401 }
-      );
+      return Errors.unauthorized().toResponse();
     }
 
-    const discordIdentity = user.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id as string | undefined;
     let memberData = null;
     let stats = null;
@@ -72,9 +71,8 @@ export async function GET() {
           submittedRounds: attStats.submitted,
           lateRounds: attStats.late,
           absentRounds: attStats.absent,
-          attendanceRate: attStats.total > 0
-            ? Math.round((attStats.submitted / attStats.total) * 100)
-            : 0,
+          attendanceRate:
+            attStats.total > 0 ? Math.round((attStats.submitted / attStats.total) * 100) : 0,
           totalFines: fStats.totalFines,
           unpaidFines: fStats.unpaidFines,
         };
@@ -89,35 +87,34 @@ export async function GET() {
         avatarUrl: user.user_metadata?.avatar_url,
         memberId: memberData?.id ?? null,
       },
-      member: memberData ? {
-        id: memberData.id,
-        discordId: memberData.discordId,
-        discordUsername: memberData.discordUsername,
-        name: memberData.name,
-        nickname: memberData.nickname,
-        part: memberData.part,
-        blogUrl: memberData.blogUrl,
-        rssUrl: memberData.rssUrl,
-        profileImageUrl: memberData.profileImageUrl,
-        bio: memberData.bio,
-        interests: memberData.interests,
-        resolution: memberData.resolution,
-        rssConsent: memberData.rssConsent ?? true,
-        onboardingCompleted: memberData.onboardingCompleted,
-        status: memberData.status,
-        dormantUsed: memberData.dormantUsed,
-        joinedAt: memberData.joinedAt,
-        githubUrl: memberData.githubUrl,
-        linkedinUrl: memberData.linkedinUrl,
-        instagramUrl: memberData.instagramUrl,
-      } : null,
+      member: memberData
+        ? {
+            id: memberData.id,
+            discordId: memberData.discordId,
+            discordUsername: memberData.discordUsername,
+            name: memberData.name,
+            nickname: memberData.nickname,
+            part: memberData.part,
+            blogUrl: memberData.blogUrl,
+            rssUrl: memberData.rssUrl,
+            profileImageUrl: memberData.profileImageUrl,
+            bio: memberData.bio,
+            interests: memberData.interests,
+            resolution: memberData.resolution,
+            rssConsent: memberData.rssConsent ?? true,
+            onboardingCompleted: memberData.onboardingCompleted,
+            status: memberData.status,
+            dormantUsed: memberData.dormantUsed,
+            joinedAt: memberData.joinedAt,
+            githubUrl: memberData.githubUrl,
+            linkedinUrl: memberData.linkedinUrl,
+            instagramUrl: memberData.instagramUrl,
+          }
+        : null,
       stats,
     });
   } catch (error) {
     console.error('Profile API error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
+import { sanitizeTiptapContent } from '@/lib/sanitize';
 
 const { boardPosts, members } = sharedDb;
 
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
           memberId: auth.memberId,
           category,
           title: title.trim(),
-          content,
+          content: sanitizeTiptapContent(content),
           contentText: contentText.trim(),
           isSecret: isSecret || false,
           isPinned: category === 'notice',

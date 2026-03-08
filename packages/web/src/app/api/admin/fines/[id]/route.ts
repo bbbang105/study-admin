@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
+import { errorResponse, Errors } from '@/lib/api-error';
 
 const { fines, FineStatus } = sharedDb;
 
@@ -17,10 +18,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     const id = url.pathname.split('/').pop();
 
     if (!id) {
-      return NextResponse.json(
-        { message: '벌금 ID가 필요합니다.' },
-        { status: 400 }
-      );
+      return Errors.badRequest('벌금 ID가 필요합니다.').toResponse();
     }
 
     const body = await request.json();
@@ -28,31 +26,21 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     // Validate status
     if (!status || ![FineStatus.PAID, FineStatus.WAIVED].includes(status)) {
-      return NextResponse.json(
-        { message: '유효하지 않은 상태입니다. (paid 또는 waived만 가능)' },
-        { status: 400 }
-      );
+      return Errors.badRequest('유효하지 않은 상태입니다. (paid 또는 waived만 가능)').toResponse();
     }
 
     const database = db();
 
     // Check if fine exists
-    const [existingFine] = await database
-      .select()
-      .from(fines)
-      .where(eq(fines.id, id))
-      .limit(1);
+    const [existingFine] = await database.select().from(fines).where(eq(fines.id, id)).limit(1);
 
     if (!existingFine) {
-      return NextResponse.json(
-        { message: '벌금을 찾을 수 없습니다.' },
-        { status: 404 }
-      );
+      return Errors.notFound('벌금을 찾을 수 없습니다.').toResponse();
     }
 
     // Update fine status
     const updateData: { status: string; paidAt?: Date } = { status };
-    
+
     // Set paidAt timestamp if marking as paid
     if (status === FineStatus.PAID) {
       updateData.paidAt = new Date();
@@ -65,10 +53,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       .returning();
 
     if (!updatedFine) {
-      return NextResponse.json(
-        { message: '벌금 업데이트에 실패했습니다.' },
-        { status: 500 }
-      );
+      return Errors.internalError('벌금 업데이트에 실패했습니다.').toResponse();
     }
 
     return NextResponse.json({
@@ -81,9 +66,6 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     });
   } catch (error) {
     console.error('Admin fine update API error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 });

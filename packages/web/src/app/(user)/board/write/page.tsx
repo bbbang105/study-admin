@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Lock, Megaphone } from 'lucide-react';
 import { TiptapEditor } from '@/components/board/tiptap-editor';
 import { BOARD_CATEGORIES } from '@/lib/board-config';
@@ -85,10 +86,11 @@ export default function BoardWritePage() {
       const result = await res.json();
 
       if (!res.ok) {
-        setError(result.message || '게시글 작성에 실패했습니다.');
+        setError(result.message || result.error?.message || '게시글 작성에 실패했습니다.');
         return;
       }
 
+      toast.success('게시글이 작성되었습니다.');
       router.push(`/board/${result.data.id}`);
     } catch {
       setError('서버 오류가 발생했습니다. 다시 시도해주세요.');

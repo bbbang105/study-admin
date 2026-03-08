@@ -13,7 +13,7 @@ const HTTP_TIMEOUT = 10000;
  * SSRF 방지: 안전한 외부 URL인지 검증
  * 로컬호스트, 프라이빗 네트워크, 메타데이터 엔드포인트 차단
  */
-function isSafeUrl(urlString: string): boolean {
+export function isSafeUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     const hostname = url.hostname.replace(/^\[|\]$/g, ''); // strip IPv6 brackets

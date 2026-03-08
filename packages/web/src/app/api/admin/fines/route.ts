@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { eq, desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
+import { errorResponse } from '@/lib/api-error';
 
 const { members, rounds, fines, FineStatus } = sharedDb;
 
@@ -61,16 +62,19 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
     };
 
     // Group by member for summary view
-    const byMember = new Map<string, {
-      memberId: string;
-      memberName: string;
-      memberDiscordUsername: string;
-      memberPart: string;
-      unpaidCount: number;
-      unpaidAmount: number;
-      totalCount: number;
-      totalAmount: number;
-    }>();
+    const byMember = new Map<
+      string,
+      {
+        memberId: string;
+        memberName: string;
+        memberDiscordUsername: string;
+        memberPart: string;
+        unpaidCount: number;
+        unpaidAmount: number;
+        totalCount: number;
+        totalAmount: number;
+      }
+    >();
 
     for (const fine of allFines) {
       const existing = byMember.get(fine.memberId);
@@ -115,9 +119,6 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
     });
   } catch (error) {
     console.error('Admin fines API error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 });

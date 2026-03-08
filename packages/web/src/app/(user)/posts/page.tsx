@@ -1,13 +1,14 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { FileText, ExternalLink, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, Loader2, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PostsListSkeleton, PageError } from '@/components/ui/page-state';
+import { PageError, PostsListSkeleton } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
 import {
   Dialog,
@@ -65,44 +66,26 @@ function PostsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/posts?page=${currentPage}&pageSize=10`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch posts');
-        }
-        const result = await response.json();
-        setData(result.data);
-      } catch (err) {
-        setError('포스트 목록을 불러오는데 실패했습니다.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/posts?page=${currentPage}&pageSize=10`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch posts');
       }
-    };
-
-    fetchPosts();
+      const result = await response.json();
+      setData(result.data);
+    } catch (err) {
+      setError('포스트 목록을 불러오는데 실패했습니다.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [currentPage]);
 
-  const refetchPosts = () => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/posts?page=${currentPage}&pageSize=10`);
-        if (!response.ok) throw new Error('Failed to fetch posts');
-        const result = await response.json();
-        setData(result.data);
-      } catch (err) {
-        setError('포스트 목록을 불러오는데 실패했습니다.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(() => {
     fetchPosts();
-  };
+  }, [fetchPosts]);
 
   const handlePageChange = (page: number) => {
     router.push(`/posts?page=${page}`);
@@ -150,9 +133,10 @@ function PostsContent() {
       }
 
       // 성공 → 모달 닫기 + 목록 새로고침
+      toast.success('글이 등록되었습니다.');
       setDialogOpen(false);
       resetDialog();
-      refetchPosts();
+      fetchPosts();
     } catch {
       setSubmitError('서버 오류가 발생했습니다.');
     } finally {
@@ -180,11 +164,16 @@ function PostsContent() {
             <span className="text-xs text-muted-foreground">
               총 {data?.pagination.totalCount ?? 0}개
             </span>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDialog(); }}>
+            <Dialog
+              open={dialogOpen}
+              onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) resetDialog();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                  <Plus className="h-3.5 w-3.5" />
-                  글 등록
+                  <Plus className="h-3.5 w-3.5" />글 등록
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -220,9 +209,7 @@ function PostsContent() {
                       </p>
                     </div>
                   )}
-                  {submitError && (
-                    <p className="text-sm text-destructive">{submitError}</p>
-                  )}
+                  {submitError && <p className="text-sm text-destructive">{submitError}</p>}
                 </div>
                 <DialogFooter>
                   <Button
@@ -281,69 +268,86 @@ function PostsContent() {
 
             {/* Desktop: table */}
             <div className="hidden md:block overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/60">
-                  <TableHead className="w-[40%] text-xs font-medium text-muted-foreground h-9">제목</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">작성자</TableHead>
-                  <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">파트</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">회차</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">작성일</TableHead>
-                  <TableHead className="text-right text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">링크</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.posts.map((post) => (
-                  <TableRow key={post.id} className="border-border/40 hover:bg-muted/30">
-                    <TableCell className="py-2.5">
-                      <a
-                        href={post.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium"
-                        onClick={() => trackPostView(post.id)}
-                      >
-                        {post.title}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground/80 py-2.5 whitespace-nowrap">
-                      {post.memberNickname || post.memberDiscordUsername}
-                    </TableCell>
-                    <TableCell className="text-center py-2.5 whitespace-nowrap">
-                      {post.memberPart ? (
-                        <PartBadge part={post.memberPart} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2.5 whitespace-nowrap">
-                      {post.roundNumber ? (
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                          {post.roundNumber}회차
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-2.5 whitespace-nowrap">
-                      {new Date(post.publishedAt).toLocaleDateString('ko-KR')}
-                    </TableCell>
-                    <TableCell className="text-right py-2.5 whitespace-nowrap">
-                      <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/60">
+                    <TableHead className="w-[40%] text-xs font-medium text-muted-foreground h-9">
+                      제목
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
+                      작성자
+                    </TableHead>
+                    <TableHead className="text-center text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
+                      파트
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
+                      회차
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
+                      작성일
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
+                      링크
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.posts.map((post) => (
+                    <TableRow key={post.id} className="border-border/40 hover:bg-muted/30">
+                      <TableCell className="py-2.5">
                         <a
                           href={post.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium"
                           onClick={() => trackPostView(post.id)}
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          {post.title}
                         </a>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/80 py-2.5 whitespace-nowrap">
+                        {post.memberNickname || post.memberDiscordUsername}
+                      </TableCell>
+                      <TableCell className="text-center py-2.5 whitespace-nowrap">
+                        {post.memberPart ? (
+                          <PartBadge part={post.memberPart} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 whitespace-nowrap">
+                        {post.roundNumber ? (
+                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                            {post.roundNumber}회차
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground py-2.5 whitespace-nowrap">
+                        {new Date(post.publishedAt).toLocaleDateString('ko-KR')}
+                      </TableCell>
+                      <TableCell className="text-right py-2.5 whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <a
+                            href={post.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => trackPostView(post.id)}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
             {/* Pagination */}
@@ -415,9 +419,7 @@ export default function PostsPage() {
       <div className="space-y-0.5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Posts</p>
         <h1 className="text-xl font-semibold tracking-tight">포스트</h1>
-        <p className="text-sm text-muted-foreground">
-          스터디원들이 작성한 블로그 글 목록입니다.
-        </p>
+        <p className="text-sm text-muted-foreground">스터디원들이 작성한 블로그 글 목록입니다.</p>
       </div>
 
       <Suspense fallback={<PostsListSkeleton />}>
