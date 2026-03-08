@@ -5,17 +5,18 @@
  */
 
 import {
-  Client,
-  EmbedBuilder,
-  TextChannel,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  Client,
+  EmbedBuilder,
   type MessageCreateOptions,
+  TextChannel,
 } from 'discord.js';
-import type { Member, Post, Round, AttendanceStatusType } from '@blog-study/shared/db';
-import { AttendanceStatus } from '@blog-study/shared/db';
-import { getConfigValue, ConfigKeys } from './round.service';
+import type { AttendanceStatusType, Member, Post, Round } from '@blog-study/shared/db';
+import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
+import { eq } from 'drizzle-orm';
+import { ConfigKeys, getConfigValue } from './round.service';
 
 /**
  * Error codes for notification operations
@@ -243,11 +244,14 @@ export function buildRoundReportMessage(data: RoundReportData): MessageCreateOpt
  * Build round start announcement embed
  * Requirements: 10.4 - Send round start announcement with deadline info
  */
-export function buildRoundStartEmbed(round: Round): EmbedBuilder {
+export function buildRoundStartEmbed(round: Round, activeCount: number): EmbedBuilder {
   return new EmbedBuilder()
     .setColor(0x5865F2) // Discord blurple
     .setTitle(`🚀 ${round.roundNumber}회차 시작!`)
-    .setDescription('새로운 회차가 시작되었습니다. 열심히 글을 작성해주세요!')
+    .setDescription([
+      `이번 회차에 **${activeCount}명**이 함께합니다.`,
+      '이번 회차도 화이팅! 좋은 글 기대하고 있을게요 🔥',
+    ].join('\n'))
     .addFields(
       {
         name: '📅 기간',
@@ -272,13 +276,15 @@ export function buildRoundStartEmbed(round: Round): EmbedBuilder {
 }
 
 /**
- * Build round start announcement message
+ * Build round start announcement message with active member mentions
  * Requirements: 10.4 - Send round start announcement
  */
-export function buildRoundStartMessage(round: Round): MessageCreateOptions {
+export function buildRoundStartMessage(round: Round, activeMembers: { discordId: string }[]): MessageCreateOptions {
+  const mentions = activeMembers.map((m) => `<@${m.discordId}>`).join(' ');
+
   return {
-    content: '@everyone 새로운 회차가 시작되었습니다! 📝',
-    embeds: [buildRoundStartEmbed(round)],
+    content: `📢 **${round.roundNumber}회차가 시작되었습니다!**\n\n${mentions}\n\n이번 회차도 함께 달려봐요! 💪`,
+    embeds: [buildRoundStartEmbed(round, activeMembers.length)],
   };
 }
 
@@ -336,14 +342,29 @@ export class NotificationService {
   }
 
   /**
-   * Get the announcement channel
+   * Get the announcement channel (#새-글-알림)
    * Requirements: 7.3 - Check if announcement channel is configured
    */
   async getAnnouncementChannel(): Promise<TextChannel | null> {
-    const channelId = await getConfigValue(ConfigKeys.ANNOUNCEMENT_CHANNEL);
-    
+    return this.fetchTextChannel(ConfigKeys.ANNOUNCEMENT_CHANNEL, 'Announcement');
+  }
+
+  /**
+   * Get the notice channel (#공지사항)
+   * 회차 시작/종료 등 공지성 메시지 전용
+   */
+  async getNoticeChannel(): Promise<TextChannel | null> {
+    // notice_channel 미설정 시 announcement_channel로 폴백
+    const channel = await this.fetchTextChannel(ConfigKeys.NOTICE_CHANNEL, 'Notice');
+    if (channel) return channel;
+    return this.getAnnouncementChannel();
+  }
+
+  private async fetchTextChannel(configKey: string, label: string): Promise<TextChannel | null> {
+    const channelId = await getConfigValue(configKey);
+
     if (!channelId) {
-      console.warn('[NotificationService] Announcement channel not configured');
+      console.warn(`[NotificationService] ${label} channel not configured`);
       return null;
     }
 
@@ -352,10 +373,10 @@ export class NotificationService {
       if (channel instanceof TextChannel) {
         return channel;
       }
-      console.warn('[NotificationService] Announcement channel is not a text channel');
+      console.warn(`[NotificationService] ${label} channel is not a text channel`);
       return null;
     } catch (error) {
-      console.error('[NotificationService] Failed to fetch announcement channel:', error);
+      console.error(`[NotificationService] Failed to fetch ${label} channel:`, error);
       return null;
     }
   }
@@ -385,11 +406,11 @@ export class NotificationService {
   }
 
   /**
-   * Send a round report
+   * Send a round report to notice channel (#공지사항)
    * Requirements: 10.1 - Send round report to designated channel
    */
   async sendRoundReport(data: RoundReportData): Promise<boolean> {
-    const channel = await this.getAnnouncementChannel();
+    const channel = await this.getNoticeChannel();
     
     if (!channel) {
       console.error('[NotificationService] Cannot send round report: channel not configured');
@@ -408,21 +429,28 @@ export class NotificationService {
   }
 
   /**
-   * Send a round start announcement
+   * Send a round start announcement with active member mentions
    * Requirements: 10.4 - Send round start announcement
    */
   async sendRoundStartAnnouncement(round: Round): Promise<boolean> {
-    const channel = await this.getAnnouncementChannel();
-    
+    const channel = await this.getNoticeChannel();
+
     if (!channel) {
       console.error('[NotificationService] Cannot send round start: channel not configured');
       return false;
     }
 
     try {
-      const message = buildRoundStartMessage(round);
+      // active 상태 멤버만 조회
+      const db = getDb();
+      const activeMembers = await db
+        .select({ discordId: members.discordId })
+        .from(members)
+        .where(eq(members.status, MemberStatus.ACTIVE));
+
+      const message = buildRoundStartMessage(round, activeMembers);
       await channel.send(message);
-      console.log(`[NotificationService] Sent round start announcement for round ${round.roundNumber}`);
+      console.log(`[NotificationService] Sent round start announcement for round ${round.roundNumber} (${activeMembers.length} active members)`);
       return true;
     } catch (error) {
       console.error('[NotificationService] Failed to send round start announcement:', error);

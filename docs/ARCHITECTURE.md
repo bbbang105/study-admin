@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-06
+> 최종 업데이트: 2026-03-08
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -8,11 +8,27 @@
 
 ```mermaid
 graph TB
-    subgraph Discord["Discord Server"]
-        CH1["#글-등록"]
-        CH2["#새글-알림"]
-        CH3["#스터디-현황"]
-        CH4["#큐레이션"]
+    subgraph Discord["Discord Server · 큐스팅"]
+        subgraph DCH_INFO["📋 정보"]
+            CH_NOTICE["#공지사항<br/>(읽기 전용)"]
+            CH_RULES["#규칙-벌금<br/>(읽기 전용)"]
+        end
+        subgraph DCH_BOT["🤖 봇-알림"]
+            CH_RSS["#새-글-알림<br/>announcement_channel"]
+            CH_CURA["#큐레이션-브리핑<br/>curation_channel"]
+            CH_RANK["#주간-랭킹"]
+        end
+        subgraph DCH_COMM["💬 커뮤니티"]
+            CH_CHAT["#잡담"]
+            CH_SHARE["#정보-공유"]
+        end
+        subgraph DCH_OPS["🔧 운영 (관리자)"]
+            CH_OPS["#운영-논의"]
+            CH_LOG["#봇-로그"]
+            CH_PR["#github-pr"]
+            CH_ERR["#서버-에러"]
+            CH_SUGGEST["#건의사항-알림"]
+        end
     end
 
     subgraph Bot["Discord Bot · AWS EC2"]
@@ -375,7 +391,8 @@ erDiagram
 | Fine Reminder | 매일 10:00 | 미납 벌금 DM 리마인드 |
 | Curation Crawler | 매일 09:00 | 외부 컨텐츠 크롤링 |
 | Daily Content | 매일 10:00 | 큐레이션 컨텐츠 공유 |
-| Round Reporter | 회차 종료 시 | 회차 리포트 자동 생성 |
+| Round Reporter | 회차 종료 시 | 회차 리포트 자동 생성 → #공지사항 |
+| Round Start | 매주 월 00:00 | 회차 시작 안내 + active 멤버 멘션 → #공지사항 |
 
 ## 배포 구조
 
