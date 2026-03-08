@@ -385,7 +385,8 @@ erDiagram
 
 - **Header**: 로고(사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
 - **공지 배너**: 전역 상단 스카이블루 배너 (`NoticeBanner`), 관리자가 공지 글에서 활성화 (1개만), 접기/닫기 localStorage 유지
-- **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화
+- **Dialog/AlertDialog**: Safari PWA 스크롤 대응 — `flex flex-col` + `inset-y-0 my-auto` 센터링 + `overflow-y-auto` (grid/transform 방식은 Safari에서 클리핑 발생)
+- **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
 - **PWA**: `manifest.json` + 아이콘 (192/512) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
 
 ## 스케줄러 (pg-boss)
