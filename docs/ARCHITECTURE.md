@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-08
+> 최종 업데이트: 2026-03-08 (v2)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -81,6 +81,7 @@ mindmap
       Tailwind CSS v4
       shadcn/ui + Radix UI
       Tiptap Rich Editor
+      sonner Toast
       PWA 홈 화면 추가
       Supabase Auth
         Discord OAuth
@@ -400,6 +401,30 @@ erDiagram
 | Daily Content | 매일 10:00 | 큐레이션 컨텐츠 공유 |
 | Round Reporter | 회차 종료 시 | 회차 리포트 자동 생성 → #공지사항 |
 | Round Start | 매주 월 00:00 | 회차 시작 안내 + active 멤버 멘션 → #공지사항 |
+
+## 보안
+
+| 레이어 | 방어 | 구현 위치 |
+|--------|------|----------|
+| **인증** | Supabase Auth (Discord OAuth PKCE) + 미들웨어 세션 검증 | `middleware.ts`, `lib/supabase/` |
+| **인가** | Discord ID 기반 관리자 체크 (`ADMIN_DISCORD_IDS`) | `lib/admin.ts` |
+| **XSS** | Tiptap JSON content 새니타이즈 (`javascript:`, `data:`, `vbscript:` 프로토콜 차단) | `lib/sanitize.ts` → `api/board/` |
+| **SSRF** | 외부 URL fetch 전 `isSafeUrl()` 체크 (private IP, localhost 차단) | `lib/rss-detect.ts` → `api/posts/manual/`, `api/admin/curation/crawl/` |
+| **CSP** | Content-Security-Policy 헤더 (`frame-ancestors 'none'`, 허용 도메인 화이트리스트) | `next.config.js` |
+| **SQL Injection** | Drizzle ORM 파라미터화 쿼리 (raw SQL 사용 안 함) | 전체 API Routes |
+| **CSRF** | Supabase Auth 쿠키 `SameSite=Lax` | Supabase 기본 설정 |
+| **입력 검증** | description 새니타이즈 (제어 문자/제로 너비 유니코드 제거, 300자 제한) | `lib/sanitize.ts` |
+
+### 에러 처리
+
+| 레이어 | 처리 | 구현 |
+|--------|------|------|
+| **API 에러** | 표준 `ApiError` 클래스 + `Errors` 팩토리 (`401`/`403`/`404`/`400`) | `lib/api-error.ts` |
+| **API 성공** | `successResponse(data, message?, status?)` 통일 | `lib/api-error.ts` |
+| **캐시** | `withCache(response, maxAge, scope?)` — 읽기 API에 Cache-Control 적용 | `lib/api-error.ts` |
+| **클라이언트 에러** | Error Boundary (`error.tsx`) — 사용자/관리자 그룹별 | `(user)/error.tsx`, `(admin)/error.tsx` |
+| **404** | 커스텀 Not Found 페이지 | `not-found.tsx` |
+| **사용자 피드백** | sonner 토스트 (`toast.success()`, `toast.error()`) | `layout.tsx` (`<Toaster />`) |
 
 ## 배포 구조
 

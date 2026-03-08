@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
+import { errorResponse, Errors } from '@/lib/api-error';
 
 const { members } = sharedDb;
 
@@ -13,18 +14,16 @@ const { members } = sharedDb;
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return NextResponse.json(
-        { message: '인증이 필요합니다.' },
-        { status: 401 }
-      );
+      return Errors.unauthorized().toResponse();
     }
 
-    const discordIdentity = user.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id as string | undefined;
 
     if (!discordId) {
@@ -62,9 +61,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Get user error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

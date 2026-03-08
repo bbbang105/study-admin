@@ -6,6 +6,7 @@ import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
+import { sanitizeTiptapContent } from '@/lib/sanitize';
 
 const { boardPosts, boardComments, members } = sharedDb;
 
@@ -172,7 +173,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .set({
           ...(category && { category }),
           ...(title && { title: title.trim() }),
-          ...(content && { content }),
+          ...(content && { content: sanitizeTiptapContent(content) }),
           ...(contentText && { contentText: contentText.trim() }),
           ...(isSecret !== undefined && { isSecret }),
           isPinned: effectiveCategory === 'notice',

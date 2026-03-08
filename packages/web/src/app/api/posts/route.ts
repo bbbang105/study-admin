@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { desc, count, eq } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import {
-  successResponse,
+  createPaginationMeta,
   errorResponse,
+  Errors,
   parsePagination,
-  createPaginationMeta
+  successResponse,
 } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
 
@@ -20,9 +21,12 @@ const { posts, members, rounds } = sharedDb;
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+      return Errors.unauthorized().toResponse();
     }
 
     const { searchParams } = new URL(request.url);
@@ -31,9 +35,7 @@ export async function GET(request: NextRequest) {
     const database = db();
 
     // Get total count
-    const totalCountResult = await database
-      .select({ count: count() })
-      .from(posts);
+    const totalCountResult = await database.select({ count: count() }).from(posts);
     const totalCount = totalCountResult[0]?.count ?? 0;
 
     // Get paginated posts with member and round info

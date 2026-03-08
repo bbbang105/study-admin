@@ -1,14 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  CreditCard,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Search,
-  Ban,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { AlertCircle, Ban, CheckCircle, CreditCard, Search, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,13 +89,7 @@ export default function AdminFinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [waiveTarget, setWaiveTarget] = useState<string | null>(null);
-
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const fetchFines = useCallback(async () => {
     try {
@@ -138,10 +126,10 @@ export default function AdminFinesPage() {
       }
 
       await fetchFines();
-      showToast('success', '납부 처리되었습니다.');
+      toast.success('납부 처리되었습니다.');
     } catch (err) {
       console.error('Error marking fine as paid:', err);
-      showToast('error', '납부 처리에 실패했습니다.');
+      toast.error('납부 처리에 실패했습니다.');
     } finally {
       setUpdatingId(null);
     }
@@ -162,10 +150,10 @@ export default function AdminFinesPage() {
       }
 
       await fetchFines();
-      showToast('success', '면제 처리되었습니다.');
+      toast.success('면제 처리되었습니다.');
     } catch (err) {
       console.error('Error waiving fine:', err);
-      showToast('error', '면제 처리에 실패했습니다.');
+      toast.error('면제 처리에 실패했습니다.');
     } finally {
       setUpdatingId(null);
     }
@@ -175,31 +163,30 @@ export default function AdminFinesPage() {
   if (error) return <PageError message={error} />;
 
   // Filter fines
-  const filteredFines = data?.fines.filter((fine) => {
-    // Status filter
-    if (statusFilter !== 'all' && fine.status !== statusFilter) {
-      return false;
-    }
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        fine.memberName.toLowerCase().includes(query) ||
-        fine.memberDiscordUsername.toLowerCase().includes(query) ||
-        fine.memberPart.toLowerCase().includes(query)
-      );
-    }
-    return true;
-  }) || [];
+  const filteredFines =
+    data?.fines.filter((fine) => {
+      // Status filter
+      if (statusFilter !== 'all' && fine.status !== statusFilter) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          fine.memberName.toLowerCase().includes(query) ||
+          fine.memberDiscordUsername.toLowerCase().includes(query) ||
+          fine.memberPart.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    }) || [];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">벌금 관리</h1>
-          <p className="text-muted-foreground">
-            벌금 현황을 확인하고 납부/면제 처리를 하세요.
-          </p>
+          <p className="text-muted-foreground">벌금 현황을 확인하고 납부/면제 처리를 하세요.</p>
         </div>
       </div>
 
@@ -217,9 +204,7 @@ export default function AdminFinesPage() {
             <div className="text-2xl font-bold">
               {(data?.summary.total.amount ?? 0).toLocaleString()}원
             </div>
-            <p className="text-xs text-muted-foreground">
-              {data?.summary.total.count ?? 0}건
-            </p>
+            <p className="text-xs text-muted-foreground">{data?.summary.total.count ?? 0}건</p>
           </CardContent>
         </Card>
         <Card
@@ -234,9 +219,7 @@ export default function AdminFinesPage() {
             <div className="text-2xl font-bold text-destructive">
               {(data?.summary.unpaid.amount ?? 0).toLocaleString()}원
             </div>
-            <p className="text-xs text-muted-foreground">
-              {data?.summary.unpaid.count ?? 0}건
-            </p>
+            <p className="text-xs text-muted-foreground">{data?.summary.unpaid.count ?? 0}건</p>
           </CardContent>
         </Card>
         <Card
@@ -251,9 +234,7 @@ export default function AdminFinesPage() {
             <div className="text-2xl font-bold text-success">
               {(data?.summary.paid.amount ?? 0).toLocaleString()}원
             </div>
-            <p className="text-xs text-muted-foreground">
-              {data?.summary.paid.count ?? 0}건
-            </p>
+            <p className="text-xs text-muted-foreground">{data?.summary.paid.count ?? 0}건</p>
           </CardContent>
         </Card>
         <Card
@@ -268,9 +249,7 @@ export default function AdminFinesPage() {
             <div className="text-2xl font-bold text-muted-foreground">
               {(data?.summary.waived.amount ?? 0).toLocaleString()}원
             </div>
-            <p className="text-xs text-muted-foreground">
-              {data?.summary.waived.count ?? 0}건
-            </p>
+            <p className="text-xs text-muted-foreground">{data?.summary.waived.count ?? 0}건</p>
           </CardContent>
         </Card>
       </div>
@@ -316,7 +295,8 @@ export default function AdminFinesPage() {
             <div>
               <CardTitle>벌금 목록</CardTitle>
               <CardDescription>
-                {statusFilter === 'all' ? '전체' : statusConfig[statusFilter]?.label} 벌금 {filteredFines.length}건
+                {statusFilter === 'all' ? '전체' : statusConfig[statusFilter]?.label} 벌금{' '}
+                {filteredFines.length}건
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -343,7 +323,10 @@ export default function AdminFinesPage() {
                       <p className="font-medium truncate">{fine.memberName}</p>
                       <p className="text-xs text-muted-foreground">{fine.memberPart}</p>
                     </div>
-                    <Badge variant={statusConfig[fine.status]?.variant || 'secondary'} className="shrink-0">
+                    <Badge
+                      variant={statusConfig[fine.status]?.variant || 'secondary'}
+                      className="shrink-0"
+                    >
                       {statusConfig[fine.status]?.label || fine.status}
                     </Badge>
                   </div>
@@ -354,7 +337,9 @@ export default function AdminFinesPage() {
                       {typeConfig[fine.type]?.label || fine.type}
                     </span>
                     <span>·</span>
-                    <span className="font-medium text-foreground">{fine.amount.toLocaleString()}원</span>
+                    <span className="font-medium text-foreground">
+                      {fine.amount.toLocaleString()}원
+                    </span>
                     <span>·</span>
                     <span>{new Date(fine.createdAt).toLocaleDateString('ko-KR')}</span>
                   </div>
@@ -418,9 +403,7 @@ export default function AdminFinesPage() {
                       <TableCell>
                         <div>
                           <div className="font-medium whitespace-nowrap">{fine.memberName}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {fine.memberPart}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{fine.memberPart}</div>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{fine.roundNumber}회차</TableCell>
@@ -506,24 +489,6 @@ export default function AdminFinesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg transition-all ${
-            toast.type === 'success'
-              ? 'border-success/30 bg-success/10 text-success'
-              : 'border-destructive/30 bg-destructive/10 text-destructive'
-          }`}
-        >
-          {toast.type === 'success' ? (
-            <CheckCircle className="h-4 w-4" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
-          {toast.message}
-        </div>
-      )}
     </div>
   );
 }

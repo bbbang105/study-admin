@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -51,6 +52,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           {children}
+          <Toaster
+            position="bottom-center"
+            toastOptions={{
+              className: 'font-sans',
+              style: {
+                fontFamily: '"Pretendard Variable", Pretendard, sans-serif',
+              },
+            }}
+            richColors
+            closeButton
+          />
         </ThemeProvider>
       </body>
     </html>

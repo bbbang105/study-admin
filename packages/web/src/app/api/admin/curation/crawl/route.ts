@@ -2,8 +2,13 @@ import { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { parseFeed } from 'feedsmith';
 import { getDb } from '@/lib/db';
-import { curationSources, curationItems } from '@blog-study/shared/db';
-import { verifyAdminAccess, createUnauthorizedResponse, createForbiddenResponse } from '@/lib/admin';
+import { curationItems, curationSources } from '@blog-study/shared/db';
+import {
+  createForbiddenResponse,
+  createUnauthorizedResponse,
+  verifyAdminAccess,
+} from '@/lib/admin';
+import { isSafeUrl } from '@/lib/rss-detect';
 
 interface CrawlSourceResult {
   sourceId: string;
@@ -44,7 +49,9 @@ function extractFeedItems(result: ReturnType<typeof parseFeed>): NormalizedFeedI
       link: item.link,
       pubDate: item.pubDate ? String(item.pubDate) : undefined,
       description: item.description,
-      categories: item.categories?.map((c) => typeof c === 'string' ? c : c.name).filter(Boolean) as string[],
+      categories: item.categories
+        ?.map((c) => (typeof c === 'string' ? c : c.name))
+        .filter(Boolean) as string[],
     }));
   }
 
@@ -86,14 +93,16 @@ function sanitizeDescription(html: string | undefined): string | null {
  */
 async function extractOgImage(url: string): Promise<string | null> {
   try {
+    if (!isSafeUrl(url)) return null;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
       signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) return null;
     const html = await response.text();
-    const match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
     return match?.[1] ?? null;
   } catch {
     return null;
@@ -174,6 +183,21 @@ export async function POST(request: NextRequest) {
         });
 
         try {
+          // SSRF 방지: RSS URL 검증
+          if (!isSafeUrl(source.rssUrl!)) {
+            const result: CrawlSourceResult = {
+              sourceId: source.id,
+              sourceName: source.name,
+              success: false,
+              itemsFound: 0,
+              newItemsAdded: 0,
+              error: '안전하지 않은 URL입니다.',
+            };
+            results.push(result);
+            send('progress', { index: i, result });
+            continue;
+          }
+
           // Fetch RSS feed
           const response = await fetch(source.rssUrl!, {
             headers: { 'User-Agent': 'BlogStudyBot/1.0' },

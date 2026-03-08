@@ -3,6 +3,8 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { isSafeUrl } from '@/lib/rss-detect';
 
 const { posts, members, rounds, ActivityScoreType } = sharedDb;
 
@@ -18,7 +20,9 @@ function getTodayDateString(): string {
 /**
  * OG 태그에서 제목과 발행일 추출
  */
-async function fetchOgData(url: string): Promise<{ title: string | null; publishedAt: string | null }> {
+async function fetchOgData(
+  url: string
+): Promise<{ title: string | null; publishedAt: string | null }> {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
@@ -30,14 +34,18 @@ async function fetchOgData(url: string): Promise<{ title: string | null; publish
     const html = await response.text();
 
     // title: og:title > <title>
-    const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
-      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+    const ogTitleMatch =
+      html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     const title = ogTitleMatch?.[1] || titleMatch?.[1] || null;
 
     // publishedAt: article:published_time
-    const pubMatch = html.match(/<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i)
-      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']article:published_time["']/i);
+    const pubMatch =
+      html.match(
+        /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i
+      ) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']article:published_time["']/i);
     const publishedAt = pubMatch?.[1] || null;
 
     return { title: title?.trim() || null, publishedAt };
@@ -53,35 +61,31 @@ async function fetchOgData(url: string): Promise<{ title: string | null; publish
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
+      return Errors.unauthorized().toResponse();
     }
 
-    const discordIdentity = user.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id;
     if (!discordId) {
-      return NextResponse.json({ message: 'Discord 계정이 필요합니다.' }, { status: 400 });
+      return Errors.badRequest('Discord 계정이 필요합니다.').toResponse();
     }
 
     const body = await request.json();
     const { url, title: manualTitle } = body;
 
     if (!url || typeof url !== 'string') {
-      return NextResponse.json({ message: 'URL은 필수입니다.' }, { status: 400 });
+      return Errors.badRequest('URL은 필수입니다.').toResponse();
     }
 
-    // URL 형식 검증
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return NextResponse.json({ message: 'http 또는 https URL만 허용됩니다.' }, { status: 400 });
-      }
-    } catch {
-      return NextResponse.json({ message: '유효하지 않은 URL입니다.' }, { status: 400 });
+    // URL 형식 및 SSRF 검증
+    if (!isSafeUrl(url)) {
+      return Errors.badRequest('유효하지 않은 URL입니다.').toResponse();
     }
 
     const database = db();
@@ -94,7 +98,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!member) {
-      return NextResponse.json({ message: '멤버 정보를 찾을 수 없습니다.' }, { status: 404 });
+      return Errors.notFound('멤버 정보를 찾을 수 없습니다.').toResponse();
     }
 
     // 중복 URL 체크
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ message: '이미 등록된 URL입니다.' }, { status: 409 });
+      return Errors.conflict('이미 등록된 URL입니다.').toResponse();
     }
 
     // OG 크롤링 시도
@@ -122,7 +126,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 크롤링 실패 + 수동 제목 없음
+    // 크롤링 실패 + 수동 제목 없음 → 422로 클라이언트에 제목 입력 요청
+    // 의도적으로 표준 에러 엔벨로프 대신 { needsTitle: true } 사용 (posts/page.tsx에서 분기 처리)
     if (!title) {
       return NextResponse.json(
         { message: '제목을 자동으로 가져올 수 없습니다. 직접 입력해주세요.', needsTitle: true },
@@ -168,12 +173,9 @@ export async function POST(request: NextRequest) {
       RETURNING points
     `);
 
-    return NextResponse.json({
-      message: '글이 등록되었습니다.',
-      post: newPost,
-    });
+    return successResponse({ post: newPost }, '글이 등록되었습니다.');
   } catch (error) {
     console.error('Manual post API error:', error);
-    return NextResponse.json({ message: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return errorResponse(error);
   }
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, asc, desc } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { successResponse, errorResponse } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { createClient } from '@/lib/supabase/server';
 
 const { rounds } = sharedDb;
 
@@ -12,6 +13,15 @@ const { rounds } = sharedDb;
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Errors.unauthorized().toResponse();
+    }
+
     const { searchParams } = new URL(request.url);
     const current = searchParams.get('current');
     const sortOrder = searchParams.get('sort') || 'asc';
@@ -37,11 +47,11 @@ export async function GET(request: NextRequest) {
       const now = new Date();
       const endDate = new Date(currentRound.endDate);
       const graceEndDate = new Date(currentRound.graceEndDate);
-      
+
       // Calculate days remaining
       const timeDiff = endDate.getTime() - now.getTime();
       const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-      
+
       // Check if in grace period
       const isGracePeriod = now > endDate && now <= graceEndDate;
 

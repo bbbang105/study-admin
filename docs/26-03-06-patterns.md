@@ -50,24 +50,23 @@ const database = db();
 
 ```ts
 // packages/web/src/app/api/admin/{resource}/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
+import { errorResponse, successResponse } from '@/lib/api-error';
 
-const { members, MemberStatus } = sharedDb;
+const { members } = sharedDb;
 
 // GET — 목록 조회
 export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
-    const { searchParams } = new URL(request.url);
     const database = db();
     const result = await database.select().from(members);
-    return NextResponse.json({ data: result });
+    return successResponse({ data: result });
   } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json({ message: '서버 오류' }, { status: 500 });
+    return errorResponse(error);
   }
 });
 
@@ -76,9 +75,9 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
     const body = await request.json();
     // validation → insert → returning
-    return NextResponse.json({ message: '성공', data: newItem });
+    return successResponse(newItem, '생성되었습니다.', 201);
   } catch (error) {
-    return NextResponse.json({ message: '서버 오류' }, { status: 500 });
+    return errorResponse(error);
   }
 });
 ```
@@ -104,14 +103,20 @@ export const DELETE = withAdminAuth(async (request: NextRequest, _adminAuth) => 
 ```ts
 // 인증만 필요, 관리자 권한 불필요
 import { createClient } from '@/lib/supabase/server';
+import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 });
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return Errors.unauthorized().toResponse();
 
-  const discordId = user.identities?.find(i => i.provider === 'discord')?.id;
-  // discordId로 members 테이블 조회
+    const discordId = user.identities?.find(i => i.provider === 'discord')?.id;
+    // discordId로 members 테이블 조회
+    return withCache(successResponse(data), 60); // 읽기 전용은 캐시 적용
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 ```
 
@@ -206,6 +211,62 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 | `Errors.forbidden(msg)` | 403 |
 | `Errors.notFound(msg)` | 404 |
 | `Errors.badRequest(msg)` | 400 |
+| `withCache(response, maxAge, scope?)` | Cache-Control 헤더 설정 (`private` 기본) |
+
+## Cache-Control 패턴
+
+```ts
+import { withCache, successResponse } from '@/lib/api-error';
+
+// 읽기 전용 API에 캐시 적용
+return withCache(successResponse(data), 60);           // private, 60s, swr 120s
+return withCache(successResponse(data), 30, 'public'); // public, 30s, swr 60s
+```
+
+| API | maxAge | scope |
+|-----|--------|-------|
+| `GET /api/members` | 60s | private |
+| `GET /api/members/[id]` | 60s | private |
+| `GET /api/ranking` | 30s | private |
+
+## 입력 새니타이즈 패턴
+
+```ts
+import { sanitizeDescription, sanitizeTiptapContent } from '@/lib/sanitize';
+
+// description 필드: 제어 문자 + 제로 너비 유니코드 제거, 300자 제한
+const desc = sanitizeDescription(input);
+
+// Tiptap JSON content: javascript:/data:/vbscript: 프로토콜 링크 제거
+const safeContent = sanitizeTiptapContent(content);
+```
+
+**적용 위치**: `api/board/route.ts` (POST), `api/board/[id]/route.ts` (PATCH)
+
+## SSRF 방어 패턴
+
+```ts
+import { isSafeUrl } from '@/lib/rss-detect';
+
+// 외부 URL fetch 전 반드시 체크
+if (!isSafeUrl(url)) {
+  return Errors.badRequest('허용되지 않은 URL입니다.').toResponse();
+}
+```
+
+**적용 위치**: `api/posts/manual/route.ts`, `api/admin/curation/crawl/route.ts`
+
+## 토스트 패턴
+
+```tsx
+import { toast } from 'sonner';
+
+// 성공/에러 피드백 (inline 상태 관리 금지)
+toast.success('저장되었습니다.');
+toast.error('오류가 발생했습니다.');
+```
+
+`<Toaster />` 는 root `layout.tsx`에 설정됨 (`position="bottom-center"`, `richColors`)
 
 ## 공지 배너 패턴
 

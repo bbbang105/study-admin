@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Image, FileText, Heart, Target, User, Link2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowLeft, FileText, Heart, Image, Link2, Save, Target, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,17 +16,45 @@ import { FormPageSkeleton } from '@/components/ui/page-state';
 
 const INTEREST_OPTIONS = [
   // 개발
-  '프론트엔드', '백엔드', '풀스택', '모바일', 'DevOps', '클라우드',
-  '데이터 엔지니어링', '보안', '시스템 설계', '데이터베이스', '테스팅',
+  '프론트엔드',
+  '백엔드',
+  '풀스택',
+  '모바일',
+  'DevOps',
+  '클라우드',
+  '데이터 엔지니어링',
+  '보안',
+  '시스템 설계',
+  '데이터베이스',
+  '테스팅',
   // AI/트렌드
-  'AI', 'LLM', '데이터 사이언스', 'Web3',
+  'AI',
+  'LLM',
+  '데이터 사이언스',
+  'Web3',
   // 디자인/기획
-  'UX/UI', '프로덕트 매니지먼트', '서비스 기획', '브랜딩', '디자인 시스템',
+  'UX/UI',
+  '프로덕트 매니지먼트',
+  '서비스 기획',
+  '브랜딩',
+  '디자인 시스템',
   // 커리어/성장
-  '커리어 성장', '사이드 프로젝트', '스타트업', '오픈소스', '기술 블로그',
+  '커리어 성장',
+  '사이드 프로젝트',
+  '스타트업',
+  '오픈소스',
+  '기술 블로그',
   // 인문/일상
-  '독서', '글쓰기', '생산성', '자기계발', '인문학', '심리학',
-  '경제/재테크', '건강/운동', '여행', '일상 기록',
+  '독서',
+  '글쓰기',
+  '생산성',
+  '자기계발',
+  '인문학',
+  '심리학',
+  '경제/재테크',
+  '건강/운동',
+  '여행',
+  '일상 기록',
 ];
 
 interface ProfileData {
@@ -79,7 +108,7 @@ export default function ProfileEditPage() {
           return;
         }
         const data: ProfileData = await response.json();
-        
+
         if (!data.member) {
           router.push('/profile');
           return;
@@ -105,7 +134,8 @@ export default function ProfileEditPage() {
         if (data.member.githubUrl) setGithubUrl(data.member.githubUrl);
         if (data.member.linkedinUrl) setLinkedinUrl(data.member.linkedinUrl);
         if (data.member.instagramUrl) setInstagramUrl(data.member.instagramUrl);
-        if (data.member.rssConsent !== undefined && data.member.rssConsent !== null) setRssConsent(data.member.rssConsent);
+        if (data.member.rssConsent !== undefined && data.member.rssConsent !== null)
+          setRssConsent(data.member.rssConsent);
       } catch (err) {
         console.error(err);
         router.push('/profile');
@@ -156,11 +186,12 @@ export default function ProfileEditPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        setError(result.message || '저장에 실패했습니다.');
+        setError(result.message || result.error?.message || '저장에 실패했습니다.');
         return;
       }
 
       setSuccess(true);
+      toast.success('프로필이 저장되었습니다.');
       setTimeout(() => {
         router.push('/profile');
       }, 1000);
@@ -184,9 +215,7 @@ export default function ProfileEditPage() {
         </Button>
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">프로필 수정</h1>
-          <p className="text-muted-foreground text-sm">
-            프로필 정보를 수정하세요.
-          </p>
+          <p className="text-muted-foreground text-sm">프로필 정보를 수정하세요.</p>
         </div>
       </div>
 
@@ -271,9 +300,7 @@ export default function ProfileEditPage() {
               <Image className="h-5 w-5" />
               <CardTitle>프로필 이미지</CardTitle>
             </div>
-            <CardDescription>
-              프로필에 표시될 이미지 URL을 입력하세요.
-            </CardDescription>
+            <CardDescription>프로필에 표시될 이미지 URL을 입력하세요.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <AvatarUpload
@@ -298,9 +325,7 @@ export default function ProfileEditPage() {
           <CardContent className="space-y-2">
             <Label htmlFor="bio">
               자기소개 <span className="text-destructive">*</span>
-              <span className="text-xs text-muted-foreground ml-2">
-                (최소 100자, 최대 200자)
-              </span>
+              <span className="text-xs text-muted-foreground ml-2">(최소 100자, 최대 200자)</span>
             </Label>
             <textarea
               id="bio"
@@ -311,9 +336,11 @@ export default function ProfileEditPage() {
               rows={4}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
             />
-            <p className={`text-xs text-right ${
-              bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
-            }`}>
+            <p
+              className={`text-xs text-right ${
+                bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
+              }`}
+            >
               {bio.trim().length}/100자 이상 (최대 200자)
             </p>
           </CardContent>
@@ -369,9 +396,7 @@ export default function ProfileEditPage() {
               onChange={(e) => setResolution(e.target.value)}
               maxLength={300}
             />
-            <p className="text-xs text-muted-foreground text-right">
-              {resolution.length}/300
-            </p>
+            <p className="text-xs text-muted-foreground text-right">{resolution.length}/300</p>
           </CardContent>
         </Card>
 
@@ -382,9 +407,7 @@ export default function ProfileEditPage() {
               <FileText className="h-5 w-5" />
               <CardTitle>RSS 설정</CardTitle>
             </div>
-            <CardDescription>
-              블로그 글 자동 수집 설정을 관리하세요.
-            </CardDescription>
+            <CardDescription>블로그 글 자동 수집 설정을 관리하세요.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -398,11 +421,7 @@ export default function ProfileEditPage() {
                   </p>
                 )}
               </div>
-              <Switch
-                id="rssConsent"
-                checked={rssConsent}
-                onCheckedChange={setRssConsent}
-              />
+              <Switch id="rssConsent" checked={rssConsent} onCheckedChange={setRssConsent} />
             </div>
           </CardContent>
         </Card>
@@ -453,19 +472,24 @@ export default function ProfileEditPage() {
         </Card>
 
         {/* Messages */}
-        {error && (
-          <p className="text-sm text-destructive text-center">{error}</p>
-        )}
-        {success && (
-          <p className="text-sm text-success text-center">프로필이 수정되었습니다!</p>
-        )}
+        {error && <p className="text-sm text-destructive text-center">{error}</p>}
+        {success && <p className="text-sm text-success text-center">프로필이 수정되었습니다!</p>}
 
         {/* Submit Button */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             취소
           </Button>
-          <Button type="submit" disabled={saving || !name.trim() || !nickname.trim() || interests.length < 3 || bio.trim().length < 100}>
+          <Button
+            type="submit"
+            disabled={
+              saving ||
+              !name.trim() ||
+              !nickname.trim() ||
+              interests.length < 3 ||
+              bio.trim().length < 100
+            }
+          >
             <Save className="h-4 w-4 mr-2" />
             {saving ? '저장 중...' : '저장'}
           </Button>

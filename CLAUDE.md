@@ -19,7 +19,7 @@ packages/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
-| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터) |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | 배포 | AWS EC2 (bot), Vercel (web), Supabase (DB + Auth) |
@@ -54,6 +54,10 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **커밋**: 기존 git log 스타일 따름, Co-Authored-By 포함
 - **Drizzle SQL**: `packages/shared/drizzle/*.sql` 마이그레이션 파일은 로컬 전용 (`.gitignore`에 등록됨, 커밋 금지)
 - **다이얼로그**: `window.confirm()`, `window.alert()`, `window.prompt()` 사용 금지 → 커스텀 다이얼로그 컴포넌트 사용 (기존 `DeletePostDialog` 패턴 참고)
+- **토스트**: `sonner` 라이브러리 사용 (`toast.success()`, `toast.error()`) — inline 상태 관리 토스트 금지
+- **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
+- **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
+- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 외부 URL fetch 시 `isSafeUrl()` SSRF 체크
 
 ## 핵심 파일 위치
 
@@ -77,7 +81,11 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 |
 | `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
-| `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`) |
+| `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`, `withCache`) |
+| `packages/web/src/lib/sanitize.ts` | 입력 새니타이즈 (`sanitizeDescription`, `sanitizeTiptapContent`, `getTodayKST`) |
+| `packages/web/src/app/not-found.tsx` | 커스텀 404 페이지 |
+| `packages/web/src/app/(user)/error.tsx` | 사용자 에러 바운더리 |
+| `packages/web/src/app/(admin)/error.tsx` | 관리자 에러 바운더리 |
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
 | `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (H1-H3, 구분선, 코드블록, 링크, 한글 IME 대응) |
 | `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자 5개, 관리자 모드 미표시) |
@@ -129,6 +137,10 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 → `window.location.reload()` (Safari PWA 최적화, 다이얼로그 열림 시 비활성화)
 - **PWA**: 홈 화면 추가 지원 (manifest.json, 서비스 워커 없음)
 - **랜딩 페이지**: 인증 유저 자동 리다이렉트 (`/` → `/dashboard`)
+- **토스트**: sonner (`<Toaster />` in root layout, `position="bottom-center"`, `richColors`)
+- **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — 리셋 버튼 포함
+- **404 페이지**: `not-found.tsx` — 대시보드 링크 포함
+- **CSP**: `next.config.js`에 Content-Security-Policy 헤더 설정
 - **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
 ## 에이전트 활용 가이드
