@@ -33,7 +33,7 @@ export async function GET() {
       .limit(1);
 
     const response = successResponse(banner || null);
-    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
+    response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error) {
     return errorResponse(error);
