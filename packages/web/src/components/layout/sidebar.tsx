@@ -13,14 +13,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Shield,
   Star,
   Trophy,
   Users,
   UsersRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,59 +153,30 @@ function SidebarContent({
       </nav>
 
       {/* ── Bottom section ───────────────────────────────────────────── */}
-      <div className={cn('shrink-0', collapsed ? 'px-2' : 'px-3')}>
-        <Separator className="mb-3" />
-
-        {/* User / Admin page toggle link */}
-        <div className="mb-2">
-          <Link
-            href={isAdmin ? '/dashboard' : '/admin'}
-            title={collapsed ? (isAdmin ? '사용자' : '관리자') : undefined}
-            className={cn(
-              'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-              collapsed && 'justify-center px-0',
-              'text-zinc-500 dark:text-zinc-400',
-              'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
-              'hover:text-zinc-900 dark:hover:text-zinc-100',
-              'transition-colors duration-200'
-            )}
-          >
-            {isAdmin ? (
-              <LayoutDashboard className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200" />
-            ) : (
-              <Shield className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200" />
-            )}
-            {!collapsed && (
-              <span className="truncate leading-none">{isAdmin ? '사용자' : '관리자'}</span>
-            )}
-          </Link>
-        </div>
-
+      <div className={cn('shrink-0 pb-3', collapsed ? 'px-2' : 'px-3')}>
         {/* Collapse toggle */}
-        <div className="mb-3">
-          <button
-            onClick={toggleCollapsed}
-            title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-            aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-              collapsed && 'justify-center px-0',
-              'text-zinc-400 dark:text-zinc-500',
-              'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
-              'hover:text-zinc-700 dark:hover:text-zinc-300',
-              'transition-colors duration-200'
-            )}
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="h-4 w-4 shrink-0" />
-            ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4 shrink-0" />
-                <span className="truncate leading-none">접기</span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+          aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+            collapsed && 'justify-center px-0',
+            'text-zinc-400 dark:text-zinc-500',
+            'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
+            'hover:text-zinc-700 dark:hover:text-zinc-300',
+            'transition-colors duration-200'
+          )}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4 shrink-0" />
+          ) : (
+            <>
+              <PanelLeftClose className="h-4 w-4 shrink-0" />
+              <span className="truncate leading-none">접기</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
