@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Calendar,
   FileText,
-  Clock,
   Users,
   CreditCard,
   TrendingUp,
@@ -343,39 +341,6 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-1">
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/admin/members">
-            <Users className="h-4 w-4 mr-1.5" />
-            <span className="text-sm">참가자 관리</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/admin/attendance">
-            <Calendar className="h-4 w-4 mr-1.5" />
-            <span className="text-sm">출석 현황</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/admin/fines">
-            <CreditCard className="h-4 w-4 mr-1.5" />
-            <span className="text-sm">벌금 관리</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/admin/settings">
-            <Clock className="h-4 w-4 mr-1.5" />
-            <span className="text-sm">설정</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/admin/curation">
-            <FileText className="h-4 w-4 mr-1.5" />
-            <span className="text-sm">큐레이션</span>
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 }

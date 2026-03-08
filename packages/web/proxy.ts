@@ -2,13 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { isAdminDiscordId } from '@/lib/admin';
 
-const protectedRoutes = [
-  '/dashboard',
-  '/posts',
-  '/curation',
-  '/ranking',
-  '/profile',
-];
+const protectedRoutes = ['/dashboard', '/posts', '/curation', '/ranking', '/profile'];
 
 const adminRoutes = ['/admin'];
 
@@ -46,12 +40,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    const discordIdentity = user?.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user?.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id;
 
-    if (!discordId || !isAdminDiscordId(discordId)) {
+    if (!discordId || !(await isAdminDiscordId(discordId))) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
@@ -62,7 +54,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)'],
 };

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { LogOut, Moon, Shield, Sun, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LogOut, Moon, Shield, Sun, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +15,7 @@ interface HeaderProps {
     email: string;
     imageUrl?: string;
   } | null;
+  isAdmin?: boolean;
   onLogout?: () => void;
 }
 
@@ -58,7 +59,7 @@ function DarkModeToggle() {
   );
 }
 
-export function Header({ user, onLogout }: HeaderProps) {
+export function Header({ user, isAdmin = false, onLogout }: HeaderProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,7 +88,7 @@ export function Header({ user, onLogout }: HeaderProps) {
       <div className="flex h-14 items-center px-4 lg:px-6">
         {/* Logo */}
         <Link
-          href="/dashboard"
+          href={isAdmin ? '/admin' : '/dashboard'}
           className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity"
         >
           <span className="text-lg font-black tracking-tight text-foreground">BS</span>
@@ -141,17 +142,21 @@ export function Header({ user, onLogout }: HeaderProps) {
                     프로필
                   </button>
 
-                  {/* Admin */}
+                  {/* Admin / User toggle */}
                   <button
                     type="button"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                     onClick={() => {
                       setMenuOpen(false);
-                      router.push('/admin');
+                      router.push(isAdmin ? '/dashboard' : '/admin');
                     }}
                   >
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    관리자
+                    {isAdmin ? (
+                      <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {isAdmin ? '사용자' : '관리자'}
                   </button>
 
                   {/* Logout */}

@@ -1,13 +1,8 @@
 import Link from 'next/link';
-import {
-  Rss,
-  Activity,
-  CalendarCheck,
-  Banknote,
-  Trophy,
-  Newspaper,
-} from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { Activity, Banknote, CalendarCheck, Newspaper, Rss, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createClient } from '@/lib/supabase/server';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -50,7 +45,17 @@ const features = [
 // Page
 // ---------------------------------------------------------------------------
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (!error && user) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* ------------------------------------------------------------------ */}
@@ -60,12 +65,8 @@ export default function Home() {
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="text-lg font-bold tracking-tight text-primary">
-              BS
-            </span>
-            <span className="text-sm font-medium text-foreground/80">
-              블로그 스터디
-            </span>
+            <span className="text-lg font-bold tracking-tight text-primary">BS</span>
+            <span className="text-sm font-medium text-foreground/80">블로그 스터디</span>
           </Link>
 
           {/* Right actions */}
@@ -96,8 +97,7 @@ export default function Home() {
 
         {/* Subtext */}
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          봇이 글을 수집하고, 출석을 관리하고, 대시보드에서 한눈에
-          확인하세요.
+          봇이 글을 수집하고, 출석을 관리하고, 대시보드에서 한눈에 확인하세요.
         </p>
 
         {/* CTA */}
@@ -105,9 +105,7 @@ export default function Home() {
           <Button size="lg" asChild className="h-11 px-8 text-sm font-semibold">
             <Link href="/login">Discord로 시작하기</Link>
           </Button>
-          <p className="text-xs text-muted-foreground">
-            무료로 시작 · 설정 5분
-          </p>
+          <p className="text-xs text-muted-foreground">무료로 시작 · 설정 5분</p>
         </div>
       </section>
 
@@ -134,12 +132,8 @@ export default function Home() {
                 className="group rounded-lg border border-border bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
               >
                 <Icon className="mb-4 h-10 w-10 text-primary" strokeWidth={1.5} />
-                <h3 className="mb-1.5 text-sm font-semibold text-foreground">
-                  {title}
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {description}
-                </p>
+                <h3 className="mb-1.5 text-sm font-semibold text-foreground">{title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
               </div>
             ))}
           </div>
@@ -152,10 +146,7 @@ export default function Home() {
       <footer className="mt-auto border-t border-border px-6 py-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between text-xs text-muted-foreground">
           <span>© 2026 블로그 스터디</span>
-          <Link
-            href="#"
-            className="transition-colors hover:text-foreground"
-          >
+          <Link href="#" className="transition-colors hover:text-foreground">
             GitHub
           </Link>
         </div>

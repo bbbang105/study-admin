@@ -207,6 +207,60 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 | `Errors.notFound(msg)` | 404 |
 | `Errors.badRequest(msg)` | 400 |
 
+## 공지 배너 패턴
+
+게시판 공지 글 중 1개를 전역 배너로 표시. 관리자만 설정 가능.
+
+### API: `GET /api/notice-banner`
+- 인증 필수 (`getBoardAuth`)
+- `isNoticeBanner: true` + `isPinned: true` + `deletedAt IS NULL`인 글 1개 반환
+- `title`, `contentText`, `memberName` 포함
+- `Cache-Control: no-store` (새 공지 즉시 반영)
+
+### 배너 활성화 로직 (POST/PATCH)
+- `isNoticeBanner` 설정 시 기존 배너 자동 비활성화 (트랜잭션)
+- 관리자 전용: `category === 'notice'` 또는 `isNoticeBanner` 설정 시 `auth.isAdmin` 필수
+
+```ts
+// 트랜잭션 패턴 (배너 clear + set 원자적 처리)
+const [result] = await database.transaction(async (tx) => {
+  if (bannerEnabled) {
+    await tx.update(boardPosts).set({ isNoticeBanner: false }).where(eq(boardPosts.isNoticeBanner, true));
+  }
+  return tx.insert(boardPosts).values({ ... }).returning();
+});
+```
+
+### 클라이언트 (`NoticeBanner` 컴포넌트)
+- localStorage로 상태 유지 (공지 ID별, 새 공지 시 자동 리셋)
+- 상태: `open` (제목+내용 미리보기) → `collapsed` (제목만) → `closed` (숨김)
+- 관리자 페이지에서는 미표시 (`{!isAdmin && <NoticeBanner />}`)
+
+### Tiptap 에디터 한글 IME 대응
+
+```ts
+// compositionstart/end로 IME 조합 중 onUpdate 차단
+editorProps: {
+  handleDOMEvents: {
+    compositionstart: () => { composingRef.current = true; return false; },
+    compositionend: (_view) => {
+      composingRef.current = false;
+      requestAnimationFrame(() => onChange(...));
+      return false;
+    },
+  },
+},
+```
+
+## 카테고리 서버사이드 검증
+
+```ts
+import { isValidCategory } from '@/lib/board-config';
+if (!isValidCategory(category)) {
+  return Errors.badRequest('유효하지 않은 카테고리입니다.').toResponse();
+}
+```
+
 ## MemberAvatar 재사용 컴포넌트
 
 프로필 아바타 + 이름 + 멤버 상세 링크 + 관리자 뱃지를 통합 제공:

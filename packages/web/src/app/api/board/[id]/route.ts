@@ -1,17 +1,15 @@
 import { NextRequest } from 'next/server';
-import { eq, and, isNull, asc } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
-import { successResponse, errorResponse, Errors } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
+import { isValidCategory } from '@/lib/board-config';
 
 const { boardPosts, boardComments, members } = sharedDb;
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -32,6 +30,7 @@ export async function GET(
         contentText: boardPosts.contentText,
         isSecret: boardPosts.isSecret,
         isPinned: boardPosts.isPinned,
+        isNoticeBanner: boardPosts.isNoticeBanner,
         commentCount: boardPosts.commentCount,
         createdAt: boardPosts.createdAt,
         updatedAt: boardPosts.updatedAt,
@@ -122,10 +121,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -145,25 +141,47 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { category, title, content, contentText, isSecret } = body;
+    const { category, title, content, contentText, isSecret, isNoticeBanner } = body;
 
-    if (category === 'notice' && !auth.isAdmin) {
-      return Errors.forbidden('공지는 관리자만 작성할 수 있습니다.').toResponse();
+    if (category && !isValidCategory(category)) {
+      return Errors.badRequest('유효하지 않은 카테고리입니다.').toResponse();
     }
 
-    const [updated] = await database
-      .update(boardPosts)
-      .set({
-        ...(category && { category }),
-        ...(title && { title: title.trim() }),
-        ...(content && { content }),
-        ...(contentText && { contentText: contentText.trim() }),
-        ...(isSecret !== undefined && { isSecret }),
-        isPinned: (category || existing.category) === 'notice',
-        updatedAt: new Date(),
-      })
-      .where(eq(boardPosts.id, id))
-      .returning();
+    // Admin-only: notice category or banner toggle
+    if (
+      (category === 'notice' || existing.category === 'notice' || isNoticeBanner) &&
+      !auth.isAdmin
+    ) {
+      return Errors.forbidden('공지 관련 설정은 관리자만 변경할 수 있습니다.').toResponse();
+    }
+
+    const effectiveCategory = category || existing.category;
+    const effectiveBanner = effectiveCategory === 'notice' ? Boolean(isNoticeBanner) : false;
+
+    const [updated] = await database.transaction(async (tx) => {
+      // If enabling banner, disable all existing banners first
+      if (effectiveBanner) {
+        await tx
+          .update(boardPosts)
+          .set({ isNoticeBanner: false })
+          .where(eq(boardPosts.isNoticeBanner, true));
+      }
+
+      return tx
+        .update(boardPosts)
+        .set({
+          ...(category && { category }),
+          ...(title && { title: title.trim() }),
+          ...(content && { content }),
+          ...(contentText && { contentText: contentText.trim() }),
+          ...(isSecret !== undefined && { isSecret }),
+          isPinned: effectiveCategory === 'notice',
+          isNoticeBanner: effectiveBanner,
+          updatedAt: new Date(),
+        })
+        .where(eq(boardPosts.id, id))
+        .returning();
+    });
 
     return successResponse(updated, '게시글이 수정되었습니다.');
   } catch (error) {
@@ -193,10 +211,7 @@ export async function DELETE(
       return Errors.forbidden('삭제 권한이 없습니다.').toResponse();
     }
 
-    await database
-      .update(boardPosts)
-      .set({ deletedAt: new Date() })
-      .where(eq(boardPosts.id, id));
+    await database.update(boardPosts).set({ deletedAt: new Date() }).where(eq(boardPosts.id, id));
 
     return successResponse(null, '게시글이 삭제되었습니다.');
   } catch (error) {

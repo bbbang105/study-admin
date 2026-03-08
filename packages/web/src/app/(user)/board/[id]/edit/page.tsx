@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Loader2, Lock, Megaphone } from 'lucide-react';
 import { TiptapEditor } from '@/components/board/tiptap-editor';
 import { BOARD_CATEGORIES } from '@/lib/board-config';
 import {
@@ -37,6 +37,7 @@ export default function BoardEditPage() {
   const [contentText, setContentText] = useState('');
   const [initialContent, setInitialContent] = useState<object | null>(null);
   const [isSecret, setIsSecret] = useState(false);
+  const [isNoticeBanner, setIsNoticeBanner] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +85,7 @@ export default function BoardEditPage() {
         setCategory(post.category);
         setTitle(post.title);
         setIsSecret(post.isSecret);
+        setIsNoticeBanner(post.isNoticeBanner ?? false);
 
         // Set initial content for TiptapEditor (JSON object from DB)
         if (post.content && typeof post.content === 'object') {
@@ -101,9 +103,7 @@ export default function BoardEditPage() {
     loadData();
   }, [id, router]);
 
-  const visibleCategories = BOARD_CATEGORIES.filter(
-    (cat) => cat.value !== 'notice' || isAdmin
-  );
+  const visibleCategories = BOARD_CATEGORIES.filter((cat) => cat.value !== 'notice' || isAdmin);
 
   const handleEditorChange = (json: object, text: string) => {
     setContent(json);
@@ -137,6 +137,7 @@ export default function BoardEditPage() {
           content,
           contentText: contentText.trim(),
           isSecret,
+          isNoticeBanner: category === 'notice' ? isNoticeBanner : false,
         }),
       });
 
@@ -235,9 +236,7 @@ export default function BoardEditPage() {
               </Label>
               <span
                 className={`text-xs tabular-nums ${
-                  titleCharCount >= titleLimit
-                    ? 'text-destructive'
-                    : 'text-muted-foreground'
+                  titleCharCount >= titleLimit ? 'text-destructive' : 'text-muted-foreground'
                 }`}
               >
                 {titleCharCount}/{titleLimit}
@@ -267,6 +266,28 @@ export default function BoardEditPage() {
             )}
           </div>
 
+          {/* Notice Banner Toggle (admin + notice only) */}
+          {isAdmin && category === 'notice' && (
+            <div className="flex items-center justify-between rounded-lg border border-sky-200/60 dark:border-sky-800/40 bg-sky-50/50 dark:bg-sky-950/20 px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <Megaphone className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                <div className="space-y-0.5">
+                  <Label htmlFor="isNoticeBanner" className="text-sm font-medium cursor-pointer">
+                    상단 배너에 표시
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    모든 페이지 상단에 공지 배너로 표시됩니다. 기존 배너는 자동 해제됩니다.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="isNoticeBanner"
+                checked={isNoticeBanner}
+                onCheckedChange={setIsNoticeBanner}
+              />
+            </div>
+          )}
+
           {/* Divider */}
           <div className="border-t border-border/40" />
 
@@ -283,11 +304,7 @@ export default function BoardEditPage() {
                 </p>
               </div>
             </div>
-            <Switch
-              id="isSecret"
-              checked={isSecret}
-              onCheckedChange={setIsSecret}
-            />
+            <Switch id="isSecret" checked={isSecret} onCheckedChange={setIsSecret} />
           </div>
         </CardContent>
       </Card>

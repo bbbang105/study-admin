@@ -517,10 +517,7 @@ export default function AdminScoresPage() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Star className="h-5 w-5 text-sky-500" />
-            <h1 className="text-3xl font-bold tracking-tight">점수 관리</h1>
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight">점수 관리</h1>
           <p className="text-muted-foreground">멤버에게 활동 점수를 직접 부여하거나 차감하세요.</p>
         </div>
       </div>

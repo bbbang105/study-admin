@@ -46,6 +46,8 @@ graph TB
     subgraph Web["Web Dashboard · Vercel"]
         MW["Middleware<br/>세션 검증"]
         PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Curation · Board<br/>Admin (Members · Rounds · Attendance<br/>Fines · Scores · Curation · Settings)"]
+        PTR["Pull-to-Refresh<br/>커스텀 터치 제스처"]
+        BANNER["Notice Banner<br/>글로벌 공지 배너"]
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
         API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board · ..."]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
@@ -210,7 +212,7 @@ flowchart TD
 
 | 그룹 | 경로 | 설명 | 보호 |
 |------|------|------|------|
-| Public | `/` | 랜딩 페이지 | - |
+| Public | `/` | 랜딩 페이지 (인증 시 → `/dashboard` 리다이렉트) | 서버 사이드 세션 체크 |
 | Auth | `/login` | Discord OAuth 로그인 | 인증 시 /dashboard 리다이렉트 |
 | User | `/dashboard` | 대시보드 | 로그인 필수 |
 | User | `/posts` | 글 목록 | 로그인 필수 |
@@ -340,6 +342,7 @@ erDiagram
         varchar category
         varchar title
         jsonb content
+        boolean is_notice_banner
         integer comment_count
     }
 
@@ -377,9 +380,12 @@ erDiagram
 | 뷰포트 | 내비게이션 | 컴포넌트 |
 |--------|-----------|---------|
 | Desktop (md+) | 좌측 고정 사이드바 (접기/펼치기) | `Sidebar` |
-| Mobile (<md) | 하단 고정 탭 바 (5개 메뉴) | `BottomNav` |
+| Mobile 사용자 (<md) | 하단 고정 탭 바 (5개: 글 목록/랭킹/큐레이션/게시판/스터디원) | `BottomNav` |
+| Mobile 관리자 (<md) | 하단 고정 탭 바 (6개: 멤버/회차/출석/벌금/점수/큐레이션) | `BottomNav` |
 
-- **Header**: 로고 + 다크모드 토글 + 프로필 드롭다운 (관리자 링크 포함)
+- **Header**: 로고(사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
+- **공지 배너**: 전역 상단 스카이블루 배너 (`NoticeBanner`), 관리자가 공지 글에서 활성화 (1개만), 접기/닫기 localStorage 유지
+- **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화
 - **PWA**: `manifest.json` + 아이콘 (192/512) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
 
 ## 스케줄러 (pg-boss)

@@ -79,8 +79,12 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`) |
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
-| `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (코드블록 언어선택, 링크 다이얼로그) |
-| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (5개 메뉴) |
+| `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (H1-H3, 구분선, 코드블록, 링크, 한글 IME 대응) |
+| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자 5개, 관리자 모드 미표시) |
+| `packages/web/src/components/layout/notice-banner.tsx` | 글로벌 공지 배너 (제목+내용 미리보기, 접기/닫기) |
+| `packages/web/src/components/layout/pull-to-refresh.tsx` | Pull-to-Refresh 컴포넌트 (PWA 터치 제스처) |
+| `packages/web/src/hooks/use-pull-to-refresh.ts` | Pull-to-Refresh 훅 (`window.location.reload()` 기반) |
+| `packages/web/src/app/api/notice-banner/route.ts` | 활성 공지 배너 조회 API |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
@@ -96,6 +100,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **관리자**: `ADMIN_DISCORD_IDS` 환경변수로 Discord ID 기반 권한 체크
 - **API Route**: `createClient()` → `getUser()` → `identities` 배열에서 Discord ID 추출
 - **상태 리다이렉트**: `auth/callback` + `(user)/layout.tsx`에서 이중 체크 → 상태별 차단 페이지로 리다이렉트
+- **랜딩 페이지**: 서버 사이드 `getUser()` 체크 → 인증 유저는 `/dashboard`로 redirect
 
 ## 멤버 상태 규칙
 
@@ -117,8 +122,12 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **폰트**: Pretendard Variable
 - **기본 아바타**: DiceBear `fun-emoji` 스타일 (`getDefaultAvatar()` in `utils.ts`)
 - **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
-- **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (BottomNav)
+- **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (사용자 전용, 관리자 모드 미표시)
+- **사이드바**: 모드 전환은 헤더 프로필 드롭다운에서만 가능 (사이드바에 토글 없음)
+- **공지 배너**: 글로벌 상단 배너 (제목+내용 미리보기, 접기→제목만, 닫기→숨김, 관리자 페이지 미표시)
+- **Pull-to-Refresh**: 커스텀 터치 제스처 → `window.location.reload()` (Safari PWA 최적화)
 - **PWA**: 홈 화면 추가 지원 (manifest.json, 서비스 워커 없음)
+- **랜딩 페이지**: 인증 유저 자동 리다이렉트 (`/` → `/dashboard`)
 - **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
 ## 에이전트 활용 가이드

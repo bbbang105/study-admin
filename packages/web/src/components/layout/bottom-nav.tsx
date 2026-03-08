@@ -2,7 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, LayoutDashboard, MessageSquare, Newspaper, Trophy } from 'lucide-react';
+import {
+  Banknote,
+  CalendarCheck,
+  CalendarRange,
+  FileText,
+  MessageSquare,
+  Newspaper,
+  Star,
+  Trophy,
+  Users,
+  UsersRound,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -11,16 +22,30 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const navItems: NavItem[] = [
-  { title: '대시보드', href: '/dashboard', icon: LayoutDashboard },
-  { title: '글 목록', href: '/posts', icon: FileText },
+const userNavItems: NavItem[] = [
+  { title: '포스트', href: '/posts', icon: FileText },
   { title: '랭킹', href: '/ranking', icon: Trophy },
   { title: '큐레이션', href: '/curation', icon: Newspaper },
   { title: '게시판', href: '/board', icon: MessageSquare },
+  { title: '스터디원', href: '/members', icon: UsersRound },
 ];
 
-export function BottomNav() {
+const adminNavItems: NavItem[] = [
+  { title: '멤버', href: '/admin/members', icon: Users },
+  { title: '회차', href: '/admin/rounds', icon: CalendarRange },
+  { title: '출석', href: '/admin/attendance', icon: CalendarCheck },
+  { title: '벌금', href: '/admin/fines', icon: Banknote },
+  { title: '점수', href: '/admin/scores', icon: Star },
+  { title: '큐레이션', href: '/admin/curation', icon: Newspaper },
+];
+
+interface BottomNavProps {
+  isAdmin?: boolean;
+}
+
+export function BottomNav({ isAdmin = false }: BottomNavProps) {
   const pathname = usePathname();
+  const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
     <nav
