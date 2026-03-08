@@ -1,4 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0ea5e9"/>
-  <text x="256" y="340" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="280" fill="white">BS</text>
+  <defs>
+    <linearGradient id="g" x1="0.5" y1="1" x2="0.5" y2="0">
+      <stop offset="0%" stop-color="#0091FF"/>
+      <stop offset="100%" stop-color="#004DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="#0a0a0a"/>
+  <!--
+    Minimal geometric pen-arrow pictogram.
+
+    Concept: A tall, narrow diamond/rhombus shape that reads as both
+    a pen nib (pointed at bottom for writing) and an upward arrow
+    (pointed at top for growth). The shape has:
+    - Sharp point at top (arrow tip / growth direction)
+    - Wider middle (pen nib shoulders)
+    - Sharp point at bottom (pen writing tip)
+    - A vertical slit from bottom (classic nib detail)
+    - A small breather hole
+
+    The gradient flows bottom-to-top reinforcing the "growth" direction.
+  -->
+  <g transform="translate(256, 256)">
+    <!-- Main shape: elongated hexagonal pen-nib/arrow -->
+    <path d="
+      M 0 -180
+      L 52 -60
+      L 60 0
+      L 52 60
+      L 20 148
+      L 0 188
+      L -20 148
+      L -52 60
+      L -60 0
+      L -52 -60
+      Z
+    " fill="url(#g)"/>
+    <!-- Nib slit -->
+    <rect x="-3.5" y="68" width="7" height="112" rx="3.5" fill="#0a0a0a"/>
+    <!-- Breather hole -->
+    <circle cx="0" cy="52" r="9" fill="#0a0a0a"/>
+  </g>
 </svg>

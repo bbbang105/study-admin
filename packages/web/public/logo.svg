@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80">
+  <defs>
+    <linearGradient id="lg" x1="0.5" y1="1" x2="0.5" y2="0">
+      <stop offset="0%" stop-color="#0091FF"/>
+      <stop offset="100%" stop-color="#004DFF"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon (scaled down from 512 to fit 80x80) -->
+  <g transform="translate(40, 40) scale(0.15)">
+    <rect x="-256" y="-256" width="512" height="512" rx="108" fill="#0a0a0a"/>
+    <path d="
+      M 0 -180
+      L 52 -60
+      L 60 0
+      L 52 60
+      L 20 148
+      L 0 188
+      L -20 148
+      L -52 60
+      L -60 0
+      L -52 -60
+      Z
+    " fill="url(#lg)"/>
+    <rect x="-3.5" y="68" width="7" height="112" rx="3.5" fill="#0a0a0a"/>
+    <circle cx="0" cy="52" r="9" fill="#0a0a0a"/>
+  </g>
+  <!-- Text: 블로그 스터디 -->
+  <text x="96" y="50" font-family="'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif" font-weight="700" font-size="28" fill="currentColor" letter-spacing="-0.02em">블로그 스터디</text>
+</svg>

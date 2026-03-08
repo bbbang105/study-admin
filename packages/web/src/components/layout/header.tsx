@@ -91,9 +91,10 @@ export function Header({ user, isAdmin = false, onLogout }: HeaderProps) {
           href={isAdmin ? '/admin' : '/dashboard'}
           className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity"
         >
-          <span className="text-lg font-black tracking-tight text-foreground">BS</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="블로그 스터디" width={24} height={24} className="rounded-md" />
           <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase hidden sm:inline">
-            Blog Study
+            블로그 스터디
           </span>
         </Link>
 
