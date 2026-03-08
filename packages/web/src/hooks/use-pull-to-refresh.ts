@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 
 const THRESHOLD = 70;
 const MAX_PULL = 120;
@@ -10,7 +9,6 @@ const RESISTANCE = 0.45;
 type PullState = 'idle' | 'pulling' | 'ready' | 'refreshing';
 
 export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const router = useRouter();
   const startY = useRef(0);
   const pullDistance = useRef(0);
   const state = useRef<PullState>('idle');
@@ -169,7 +167,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
         updateIconState('refreshing');
         applyTransform(THRESHOLD * 0.6, true);
 
-        router.refresh();
+        window.location.reload();
 
         resetTimer.current = setTimeout(() => {
           applyTransform(0, true);
@@ -196,7 +194,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
       if (resetTimer.current) clearTimeout(resetTimer.current);
       if (innerTimer.current) clearTimeout(innerTimer.current);
     };
-  }, [applyTransform, updateIconState, clearAllStyles, router]);
+  }, [applyTransform, updateIconState, clearAllStyles]);
 
   return { setIndicatorRef, setIconRef };
 }
