@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { NodeViewProps } from '@tiptap/react';
 import {
   EditorContent,
@@ -163,6 +163,7 @@ export function TiptapEditor({
 }: TiptapEditorProps) {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const composingRef = useRef(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -179,7 +180,27 @@ export function TiptapEditor({
     content: content || '',
     editable,
     onUpdate: ({ editor: e }) => {
+      if (composingRef.current) return;
       onChange(e.getJSON(), e.getText());
+    },
+    editorProps: {
+      handleDOMEvents: {
+        compositionstart: () => { composingRef.current = true; return false; },
+        compositionend: (_view, event) => {
+          composingRef.current = false;
+          // event.target is the editor element; trigger deferred update
+          const target = event.target as HTMLElement;
+          requestAnimationFrame(() => {
+            if (target.closest('.ProseMirror')) {
+              const e = _view;
+              const json = e.state.doc.toJSON();
+              const text = e.state.doc.textContent;
+              onChange({ type: 'doc', content: json.content }, text);
+            }
+          });
+          return false;
+        },
+      },
     },
   });
 
