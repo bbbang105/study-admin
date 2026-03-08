@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
+import { NoticeBanner } from './notice-banner';
+import { PullToRefresh } from './pull-to-refresh';
 import { cn } from '@/lib/utils';
 
 const STORAGE_KEY = 'study-sidebar-collapsed';
@@ -78,20 +80,23 @@ export function MainLayout({
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      <Header user={user} onLogout={handleLogout} />
-      <div className="flex flex-1">
-        {showSidebar && (
-          <Sidebar
-            isAdmin={isAdmin}
-            collapsed={collapsed}
-            onToggleCollapsed={handleToggleCollapsed}
-          />
-        )}
-        <MainContent showSidebar={showSidebar} collapsed={collapsed}>
-          {children}
-        </MainContent>
-      </div>
-      {showSidebar && <BottomNav />}
+      <Header user={user} isAdmin={isAdmin} onLogout={handleLogout} />
+      <NoticeBanner />
+      <PullToRefresh>
+        <div className="flex flex-1">
+          {showSidebar && (
+            <Sidebar
+              isAdmin={isAdmin}
+              collapsed={collapsed}
+              onToggleCollapsed={handleToggleCollapsed}
+            />
+          )}
+          <MainContent showSidebar={showSidebar} collapsed={collapsed}>
+            {children}
+          </MainContent>
+        </div>
+      </PullToRefresh>
+      {showSidebar && <BottomNav isAdmin={isAdmin} />}
     </div>
   );
 }

@@ -112,6 +112,7 @@
 | `content_text` | text | 검색용 평문, not null |
 | `is_secret` | boolean | default false |
 | `is_pinned` | boolean | default false |
+| `is_notice_banner` | boolean | default false, 글로벌 배너 활성화 (1개만) |
 | `comment_count` | integer | default 0 |
 | `created_at`, `updated_at` | timestamptz | defaultNow |
 | `deleted_at` | timestamptz | nullable (soft delete) |

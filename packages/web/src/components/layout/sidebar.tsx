@@ -160,47 +160,27 @@ function SidebarContent({
 
         {/* User / Admin page toggle link */}
         <div className="mb-2">
-          {isAdmin ? (
-            <Link
-              href="/dashboard"
-              title={collapsed ? '사용자 페이지' : undefined}
-              className={cn(
-                'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                collapsed && 'justify-center px-0',
-                'text-zinc-500 dark:text-zinc-400',
-                'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
-                'hover:text-zinc-900 dark:hover:text-zinc-100',
-                'transition-colors duration-200'
-              )}
-            >
-              <LayoutDashboard
-                className={cn(
-                  'h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200'
-                )}
-              />
-              {!collapsed && <span className="truncate leading-none">사용자 페이지</span>}
-            </Link>
-          ) : (
-            <Link
-              href="/admin"
-              title={collapsed ? '관리자' : undefined}
-              className={cn(
-                'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                collapsed && 'justify-center px-0',
-                'text-zinc-500 dark:text-zinc-400',
-                'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
-                'hover:text-zinc-900 dark:hover:text-zinc-100',
-                'transition-colors duration-200'
-              )}
-            >
-              <Shield
-                className={cn(
-                  'h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200'
-                )}
-              />
-              {!collapsed && <span className="truncate leading-none">관리자</span>}
-            </Link>
-          )}
+          <Link
+            href={isAdmin ? '/dashboard' : '/admin'}
+            title={collapsed ? (isAdmin ? '사용자' : '관리자') : undefined}
+            className={cn(
+              'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+              collapsed && 'justify-center px-0',
+              'text-zinc-500 dark:text-zinc-400',
+              'hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
+              'hover:text-zinc-900 dark:hover:text-zinc-100',
+              'transition-colors duration-200'
+            )}
+          >
+            {isAdmin ? (
+              <LayoutDashboard className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200" />
+            ) : (
+              <Shield className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors duration-200" />
+            )}
+            {!collapsed && (
+              <span className="truncate leading-none">{isAdmin ? '사용자' : '관리자'}</span>
+            )}
+          </Link>
         </div>
 
         {/* Collapse toggle */}

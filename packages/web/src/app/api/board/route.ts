@@ -1,16 +1,17 @@
 import { NextRequest } from 'next/server';
-import { eq, desc, and, isNull, count } from 'drizzle-orm';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import {
-  successResponse,
+  createPaginationMeta,
   errorResponse,
   Errors,
   parsePagination,
-  createPaginationMeta,
+  successResponse,
 } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
+import { isValidCategory } from '@/lib/board-config';
 
 const { boardPosts, members } = sharedDb;
 
@@ -47,17 +48,15 @@ export async function GET(request: NextRequest) {
     };
 
     // Pinned notices (when no category filter, or filtering by notice)
-    const pinnedPosts = !category || category === 'notice'
-      ? await database
-          .select(selectFields)
-          .from(boardPosts)
-          .innerJoin(members, eq(boardPosts.memberId, members.id))
-          .where(and(
-            isNull(boardPosts.deletedAt),
-            eq(boardPosts.isPinned, true),
-          ))
-          .orderBy(desc(boardPosts.createdAt))
-      : [];
+    const pinnedPosts =
+      !category || category === 'notice'
+        ? await database
+            .select(selectFields)
+            .from(boardPosts)
+            .innerJoin(members, eq(boardPosts.memberId, members.id))
+            .where(and(isNull(boardPosts.deletedAt), eq(boardPosts.isPinned, true)))
+            .orderBy(desc(boardPosts.createdAt))
+        : [];
 
     // Normal posts (pinned excluded)
     const normalConditions = [...baseConditions, eq(boardPosts.isPinned, false)];
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
     const adminDiscordIds = await getAdminDiscordIds();
 
     // Mask secret posts for non-owner non-admin
-    const maskSecret = (post: typeof normalPosts[number]) => {
+    const maskSecret = (post: (typeof normalPosts)[number]) => {
       if (post.isSecret && post.memberId !== auth.memberId && !auth.isAdmin) {
         return {
           ...post,
@@ -116,32 +115,48 @@ export async function POST(request: NextRequest) {
     if (!auth) return Errors.unauthorized().toResponse();
 
     const body = await request.json();
-    const { category, title, content, contentText, isSecret } = body;
+    const { category, title, content, contentText, isSecret, isNoticeBanner } = body;
 
     // Validation
     if (!category || !title?.trim() || !content || !contentText?.trim()) {
       return Errors.badRequest('필수 항목을 입력해주세요.').toResponse();
     }
 
-    // Only admins can create notices
-    if (category === 'notice' && !auth.isAdmin) {
+    if (!isValidCategory(category)) {
+      return Errors.badRequest('유효하지 않은 카테고리입니다.').toResponse();
+    }
+
+    // Only admins can create notices or set banner
+    if ((category === 'notice' || isNoticeBanner) && !auth.isAdmin) {
       return Errors.forbidden('공지는 관리자만 작성할 수 있습니다.').toResponse();
     }
 
     const database = getDb();
+    const bannerEnabled = category === 'notice' && Boolean(isNoticeBanner);
 
-    const [newPost] = await database
-      .insert(boardPosts)
-      .values({
-        memberId: auth.memberId,
-        category,
-        title: title.trim(),
-        content,
-        contentText: contentText.trim(),
-        isSecret: isSecret || false,
-        isPinned: category === 'notice',
-      })
-      .returning();
+    const [newPost] = await database.transaction(async (tx) => {
+      // If enabling banner, disable all existing banners first
+      if (bannerEnabled) {
+        await tx
+          .update(boardPosts)
+          .set({ isNoticeBanner: false })
+          .where(eq(boardPosts.isNoticeBanner, true));
+      }
+
+      return tx
+        .insert(boardPosts)
+        .values({
+          memberId: auth.memberId,
+          category,
+          title: title.trim(),
+          content,
+          contentText: contentText.trim(),
+          isSecret: isSecret || false,
+          isPinned: category === 'notice',
+          isNoticeBanner: bannerEnabled,
+        })
+        .returning();
+    });
 
     return successResponse(newPost, '게시글이 작성되었습니다.', 201);
   } catch (error) {

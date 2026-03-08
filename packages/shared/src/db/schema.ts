@@ -305,10 +305,7 @@ export const postViews = pgTable(
     viewedAt: timestamp('viewed_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    memberPostUnique: uniqueIndex('post_views_member_post_unique').on(
-      table.memberId,
-      table.postId
-    ),
+    memberPostUnique: uniqueIndex('post_views_member_post_unique').on(table.memberId, table.postId),
     memberIdIdx: index('idx_post_views_member_id').on(table.memberId),
   })
 );
@@ -349,6 +346,7 @@ export const boardPosts = pgTable(
     contentText: text('content_text').notNull(),
     isSecret: boolean('is_secret').default(false),
     isPinned: boolean('is_pinned').default(false),
+    isNoticeBanner: boolean('is_notice_banner').default(false),
     commentCount: integer('comment_count').default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

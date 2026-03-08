@@ -16,6 +16,12 @@ export const categoryBadgeConfig: Record<string, { label: string; className: str
   etc: { label: '기타', className: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400' },
 };
 
+export const VALID_CATEGORY_VALUES = BOARD_CATEGORIES.map((c) => c.value) as readonly string[];
+
+export function isValidCategory(value: string): boolean {
+  return VALID_CATEGORY_VALUES.includes(value);
+}
+
 export function getCategoryLabel(value: string): string {
   return categoryBadgeConfig[value]?.label || value;
 }
