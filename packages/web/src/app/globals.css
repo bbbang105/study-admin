@@ -191,6 +191,17 @@
     letter-spacing: -0.014em;
   }
 
+  /*
+   * Safari PWA: Radix Dialog가 body에 data-scroll-locked을 설정하면
+   * overscroll-behavior: none이 inline style로 적용됨.
+   * Safari는 이를 fixed 자식(다이얼로그) 내부 스크롤까지 차단하므로
+   * auto로 복원. !important는 inline style 우선순위 때문에 필수.
+   * pull-to-refresh는 use-pull-to-refresh.ts에서 별도 가드.
+   */
+  body[data-scroll-locked] {
+    overscroll-behavior-y: auto !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.025em;
   }

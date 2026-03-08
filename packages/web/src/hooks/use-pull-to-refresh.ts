@@ -112,6 +112,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
     function onTouchStart(e: TouchEvent) {
       if (state.current === 'refreshing') return;
       if (window.scrollY > 5) return;
+      if (document.body.hasAttribute('data-scroll-locked')) return;
 
       const target = e.target as HTMLElement;
       if (findScrollableParent(target)) return;

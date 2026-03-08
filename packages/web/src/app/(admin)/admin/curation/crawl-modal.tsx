@@ -1,13 +1,13 @@
 'use client';
 
-import { Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -58,7 +58,7 @@ export function CrawlModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[520px] max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {status === 'crawling' && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
@@ -71,9 +71,7 @@ export function CrawlModal({
                 : '크롤링 완료'}
           </DialogTitle>
           <DialogDescription>
-            {status === 'crawling' && processingName && (
-              <span>{processingName} 처리 중...</span>
-            )}
+            {status === 'crawling' && processingName && <span>{processingName} 처리 중...</span>}
             {status === 'done' && summary && (
               <span>
                 {summary.totalSources}개 소스에서{' '}
