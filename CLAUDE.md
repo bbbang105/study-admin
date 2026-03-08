@@ -84,6 +84,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
+| `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
+| `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
+| `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation 채널) |
 
 ## 인증 구조
 
@@ -183,6 +186,8 @@ npx drizzle-kit push --force
 | `docs/26-03-06-checklist.md` | 구현 체크리스트 |
 | `docs/26-03-06-schema-summary.md` | DB 스키마 요약 (테이블/Enum/FK) |
 | `docs/26-03-06-patterns.md` | API 패턴 & 코드 규칙 |
+| `docs/ONBOARDING.md` | 팀 온보딩 가이드 |
+| `docs/26-03-08-discord-channel-setup.md` | 디스코드 채널 세팅 가이드 (큐스팅) |
 
 ## docs 파일명 컨벤션
 

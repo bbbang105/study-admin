@@ -4,19 +4,13 @@
  * Requirements: 5.1, 5.4, 15.1, 15.2
  */
 
-import { eq, and, lte, gte, desc, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { config, getDb, type NewRound, type Round, rounds, } from '@blog-study/shared/db';
 import {
-  getDb,
-  rounds,
-  config,
-  type Round,
-  type NewRound,
-} from '@blog-study/shared/db';
-import {
-  isGracePeriod as checkIsGracePeriod,
-  isDeadlinePassed as checkIsDeadlinePassed,
-  isGracePeriodEnded as checkIsGracePeriodEnded,
   generateAllRoundDates,
+  isDeadlinePassed as checkIsDeadlinePassed,
+  isGracePeriod as checkIsGracePeriod,
+  isGracePeriodEnded as checkIsGracePeriodEnded,
   type RoundDates,
 } from '@blog-study/shared/utils';
 
@@ -54,6 +48,7 @@ export const ConfigKeys = {
   STUDY_START_DATE: 'study_start_date',
   TOTAL_ROUNDS: 'total_rounds',
   ANNOUNCEMENT_CHANNEL: 'announcement_channel',
+  NOTICE_CHANNEL: 'notice_channel',
   CURATION_CHANNEL: 'curation_channel',
 } as const;
 
