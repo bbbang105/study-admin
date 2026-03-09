@@ -1,9 +1,0 @@
-{
-  "name": "webhooks-manager",
-  "description": "Discord 웹훅 관리 기능 설계 전문 스킬",
-  "icon": "🪝",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "webhooks", "integration", "notifications"],
-  "keywords": ["discord.js", "webhooks", "notifications", "integration", "api"]
-}

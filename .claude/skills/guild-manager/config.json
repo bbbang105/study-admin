@@ -1,9 +1,0 @@
-{
-  "name": "guild-manager",
-  "description": "Discord 길드(서버) 관리 기능 설계 전문 스킬",
-  "icon": "🏛️",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "guild", "server", "management"],
-  "keywords": ["discord.js", "guild", "server", "management", "roles"]
-}

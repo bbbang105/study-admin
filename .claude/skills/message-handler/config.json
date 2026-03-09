@@ -1,9 +1,0 @@
-{
-  "name": "message-handler",
-  "description": "Discord 메시지 처리 시스템 설계 전문 스킬",
-  "icon": "💭",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "message", "handler", "processing"],
-  "keywords": ["discord.js", "message", "parsing", "filtering", "nlp"]
-}

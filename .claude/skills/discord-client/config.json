@@ -1,9 +1,0 @@
-{
-  "name": "discord-client",
-  "description": "Discord.js 클라이언트 설정 및 기본 기능 전문 스킬",
-  "icon": "🤖",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "client", "setup", "configuration"],
-  "keywords": ["discord.js", "client", "intents", "bot-setup"]
-}

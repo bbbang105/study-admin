@@ -1,9 +1,0 @@
-{
-  "name": "channel-manager",
-  "description": "Discord 채널 관리 기능 설계 전문 스킬",
-  "icon": "💬",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "channel", "management", "voice"],
-  "keywords": ["discord.js", "channel", "voice", "category", "permissions"]
-}
