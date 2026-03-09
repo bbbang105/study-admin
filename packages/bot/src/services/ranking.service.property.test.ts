@@ -11,14 +11,6 @@ import * as fc from 'fast-check';
 import type { RankingData } from './ranking.service';
 
 /**
- * Generate valid Discord IDs (snowflake format - 17-19 digit numbers)
- */
-const discordIdArb = fc.stringOf(fc.constantFrom('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'), {
-  minLength: 17,
-  maxLength: 19,
-});
-
-/**
  * Generate valid Discord usernames
  */
 const discordUsernameArb = fc.stringMatching(/^[\w.-]{2,32}$/);
