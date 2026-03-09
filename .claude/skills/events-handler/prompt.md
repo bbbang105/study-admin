@@ -1,86 +1,149 @@
-# Events Handler Architect
+# Events Handler Reference
 
-Discord.js v14.25.1 이벤트 시스템을 설계하는 전문 스킬.
+Discord.js v14 이벤트 처리 예시 모음 - 현재 프로젝트 패턴 기반
 
 ## 사용 방법
-`/events-handler [봇 유형/요구사항]`으로 호출
+새로운 이벤트 핸들러 구현 시 참고
 
-## 제공하는 코드 템플릿
+## 기본 패턴 (현재 프로젝트 방식)
 
-### 1. 이벤트 핸들러 베이스 (src/handlers/BaseHandler.ts)
 ```typescript
-import { Client } from 'discord.js';
+import type { Client, Message } from 'discord.js';
+import { Events } from 'discord.js';
 
-export abstract class BaseHandler {
-  protected client: Client;
+/**
+ * 커스텀 이벤트 핸들러 등록
+ */
+export function setupCustomHandler(client: Client): void {
+  // 메시지 생성 이벤트
+  client.on(Events.MessageCreate, async (message: Message) => {
+    try {
+      // 봇 메시지 무시
+      if (message.author.bot) return;
 
-  constructor(client: Client) {
-    this.client = client;
-  }
+      // DM 무시
+      if (!message.guild) return;
 
-  abstract execute(...args: any[]): Promise<void>;
-
-  protected handleError(error: Error): void {
-    console.error(`[${this.constructor.name}] Error:`, error);
-  }
-}
-```
-
-### 2. 이벤트 로더 (src/events/EventLoader.ts)
-```typescript
-import { readdirSync } from 'fs';
-import { join } from 'path';
-import { Client } from 'discord.js';
-
-export class EventLoader {
-  constructor(private client: Client) {}
-
-  loadEvents(): void {
-    const eventsPath = join(__dirname, '../events');
-    const eventFiles = readdirSync(eventsPath).filter(file => file.endsWith('.ts'));
-
-    for (const file of eventFiles) {
-      const event = require(join(eventsPath, file)).default;
-      this.client.on(event.name, (...args) => event.execute(...args));
+      // 처리 로직
+      console.log(`[CustomHandler] Message from ${message.author.id}`);
+    } catch (error) {
+      console.error('[CustomHandler] Error:', error);
     }
-  }
+  });
+
+  console.log('✅ Custom handler registered');
 }
 ```
 
-### 3. 이벤트 등록 예시 (src/events/ready.ts)
-```typescript
-import { Event } from '../types/Event';
-import { Client } from 'discord.js';
+## 주요 이벤트 타입
 
-export const ready: Event = {
-  name: 'ready',
-  once: true,
-  execute: async (client: Client) => {
-    console.log(`Ready! ${client.user?.tag} has logged in.`);
-    console.log(`Serving ${client.guilds.cache.size} guilds`);
-  }
-};
+### 1. 봇 시작 (ClientReady)
+```typescript
+client.once(Events.ClientReady, (readyClient) => {
+  console.log(`✅ Bot logged in as ${readyClient.user.tag}`);
+  console.log(`📊 Serving ${readyClient.guilds.cache.size} guild(s)`);
+});
 ```
 
-### 4. 이벤트 타입 정의 (src/types/Event.ts)
+### 2. 메시지 생성 (MessageCreate)
 ```typescript
-export interface Event {
-  name: string;
-  once?: boolean;
-  execute: (...args: any[]) => Promise<void> | void;
+client.on(Events.MessageCreate, async (message: Message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+
+  // 메시지 처리
+});
+```
+
+### 3. 리액션 추가 (MessageReactionAdd)
+```typescript
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+  if (user.bot) return;
+
+  // partial인 경우 fetch
+  if (reaction.partial) {
+    await reaction.fetch();
+  }
+
+  // 리액션 처리
+});
+```
+
+### 4. 리액션 제거 (MessageReactionRemove)
+```typescript
+client.on(Events.MessageReactionRemove, async (reaction, user) => {
+  if (user.bot) return;
+
+  // 리액션 제거 처리
+});
+```
+
+### 5. 음성 상태 변경 (VoiceStateUpdate)
+```typescript
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+  // 음성 채널 입장/퇴장 처리
+});
+```
+
+### 6. 멤버 입장 (GuildMemberAdd)
+```typescript
+client.on(Events.GuildMemberAdd, (member) => {
+  // 새 멤버 환영
+});
+```
+
+### 7. 에러 처리 (Error)
+```typescript
+client.on(Events.Error, (error) => {
+  console.error('❌ Discord client error:', error);
+});
+```
+
+## 등록 방법 (index.ts)
+
+```typescript
+import { createBotClient, setupEventHandlers } from './bot';
+import { setupActivityHandler } from './handlers/activity-handler';
+import { setupCustomHandler } from './handlers/custom-handler';
+
+async function main(): Promise<void> {
+  const client = createBotClient();
+
+  // 기본 이벤트 핸들러
+  setupEventHandlers(client);
+
+  // 활동 점수 핸들러
+  setupActivityHandler(client);
+
+  // 커스텀 핸들러
+  setupCustomHandler(client);
+
+  await startBot(client, env.DISCORD_TOKEN);
 }
 ```
 
-## 지원하는 이벤트 타입
-- ready: 봇 시작 시
-- guildCreate/guildDelete: 서버 입/퇴장
-- messageCreate: 메시지 생성
-- interactionCreate: 인터랙션 (슬래시 명령어)
-- voiceStateUpdate: 음성 상태 변경
-- reactionAdd/reactionRemove: 리액션 이벤트
+## 에러 처리 패턴
 
-## 아키텍처 패턴
-- Event-driven 설계
-- Middleware 체인
-- 이벤트 버스 패턴
-- 에러 경계 설정
+모든 이벤트 핸들러는 try-catch로 감싸야 합니다:
+
+```typescript
+client.on(Events.SomeEvent, async (...args) => {
+  try {
+    // 이벤트 처리 로직
+  } catch (error) {
+    console.error('[HandlerName] Error:', error);
+    // 필요시 로깅 또는 알림
+  }
+});
+```
+
+## 프로젝트에서 사용 중인 핸들러
+
+- `setupEventHandlers()` - 기본 이벤트 (ready, error, warn)
+- `setupActivityHandler()` - 활동 점수 (message, reaction)
+- `setupDMHandler()` - DM 처리 (벌금 납부 확인)
+
+## 참고
+
+- Discord.js v14.25.1 Events: https://discord.js.org/docs/packages/discord.js/14.25.1/Classes/Client
+- 현재 프로젝트: `packages/bot/src/handlers/` 참고

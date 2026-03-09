@@ -1,9 +1,0 @@
-{
-  "name": "member-manager",
-  "description": "Discord 멤버 관리 기능 설계 전문 스킬",
-  "icon": "👥",
-  "author": "your-username",
-  "version": "1.0.0",
-  "tags": ["discord", "member", "management", "cache"],
-  "keywords": ["discord.js", "member", "cache", "tracking", "profile"]
-}

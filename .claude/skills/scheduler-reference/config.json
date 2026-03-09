@@ -1,0 +1,15 @@
+{
+  "name": "scheduler-reference",
+  "description": "pg-boss 스케줄러 구현 참고 (현재 프로젝트 패턴 기반)",
+  "version": "1.0.0",
+  "author": "Blog Study",
+  "tags": ["scheduler", "pg-boss", "cron", "jobs", "reference"],
+  "keywords": ["pg-boss", "scheduler", "cron", "worker", "singleton"],
+  "category": "reference",
+  "patterns": [
+    "singleton-pattern",
+    "isRunning-flag",
+    "cron-scheduling",
+    "worker-registration"
+  ]
+}
