@@ -1,0 +1,16 @@
+{
+  "name": "service-pattern",
+  "description": "DB 서비스 계층 구현 참고 (현재 프로젝트 패턴 기반)",
+  "version": "1.0.0",
+  "author": "Blog Study",
+  "tags": ["service", "database", "drizzle", "orm", "reference"],
+  "keywords": ["drizzle-orm", "service-layer", "crud", "singleton", "repository"],
+  "category": "reference",
+  "patterns": [
+    "singleton-pattern",
+    "error-handling",
+    "crud-operations",
+    "complex-queries",
+    "transactions"
+  ]
+}

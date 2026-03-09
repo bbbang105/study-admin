@@ -1,0 +1,15 @@
+{
+  "name": "events-handler",
+  "description": "Discord.js 이벤트 처리 참고 (현재 프로젝트 패턴 기반)",
+  "version": "1.0.0",
+  "author": "Blog Study",
+  "tags": ["discord", "events", "handlers", "reference"],
+  "keywords": ["discord.js", "events", "handlers", "patterns", "examples"],
+  "category": "reference",
+  "patterns": [
+    "event-handler-registration",
+    "error-handling",
+    "message-handling",
+    "reaction-handling"
+  ]
+}
