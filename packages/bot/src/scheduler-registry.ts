@@ -197,7 +197,6 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   });
 
   // Create weekly-ranking queue explicitly using pg-boss internal API
-  // @ts-expect-error - internal API for queue creation
   await boss.createQueue('weekly-ranking');
 
   await boss.work('weekly-ranking', { batchSize: 1 }, async () => {
