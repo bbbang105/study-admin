@@ -14,6 +14,11 @@ import {
 } from '@blog-study/shared/db';
 
 /**
+ * 블로그 포스트 점수 (포스트 1개당 부여되는 점수)
+ */
+const BLOG_POST_SCORE_POINTS = 30;
+
+/**
  * 랭킹 데이터 구조
  */
 export interface RankingData {
@@ -118,7 +123,7 @@ export class RankingService {
     const rankings: RankingData[] = activeMembers.map((member) => {
       const postCount = postCounts.get(member.id) ?? 0;
       const activityScore = activityScoresMap.get(member.id) ?? 0;
-      const totalScore = postCount * 30 + activityScore; // 포스트 1개 = 30점
+      const totalScore = postCount * BLOG_POST_SCORE_POINTS + activityScore;
 
       return {
         memberId: member.id,

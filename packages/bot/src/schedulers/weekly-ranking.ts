@@ -11,6 +11,7 @@ import {
   posts,
   activityScores,
   MemberStatus,
+  ActivityScoreType,
 } from '@blog-study/shared/db';
 import { getConfigValue, ConfigKeys } from '../services/round.service';
 
@@ -22,6 +23,7 @@ export interface WeeklyRankingResult {
   rankingSent: boolean;
   totalMembers: number;
   errors: string[];
+  warnings?: string[];
 }
 
 /**
@@ -36,6 +38,15 @@ interface MemberRanking {
   postCount: number;
   discordScore: number;
   rank: number;
+}
+
+/**
+ * Format KST date to ISO date string (YYYY-MM-DD)
+ */
+function formatKSTDate(date: Date): string {
+  const kstOffset = 9 * 60 * 60 * 1000;
+  const kstDate = new Date(date.getTime() + kstOffset);
+  return kstDate.toISOString().split('T')[0]!;
 }
 
 /**
@@ -58,9 +69,9 @@ function getWeekDates(): { startDate: string; endDate: string } {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
 
-  // Convert back to UTC for database comparison
-  const startDate = monday.toISOString().split('T')[0]!;
-  const endDate = sunday.toISOString().split('T')[0]!;
+  // Format dates directly from KST time
+  const startDate = formatKSTDate(monday);
+  const endDate = formatKSTDate(sunday);
 
   return { startDate, endDate };
 }
@@ -69,10 +80,7 @@ function getWeekDates(): { startDate: string; endDate: string } {
  * Get KST current date string
  */
 function getKSTDateString(): string {
-  const now = new Date();
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstNow = new Date(now.getTime() + kstOffset);
-  return kstNow.toISOString().split('T')[0]!;
+  return formatKSTDate(new Date());
 }
 
 /**
@@ -100,7 +108,7 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     .select({
       memberId: activityScores.memberId,
       totalScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-      discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN ('discord_message','discord_thread','discord_reaction') THEN ${activityScores.points} ELSE 0 END), 0)`,
+      discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.DISCORD_MESSAGE}, ${ActivityScoreType.DISCORD_THREAD}, ${ActivityScoreType.DISCORD_REACTION}) THEN ${activityScores.points} ELSE 0 END), 0)`,
     })
     .from(activityScores)
     .groupBy(activityScores.memberId);
@@ -211,7 +219,7 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
  * Weekly Ranking class for scheduling weekly ranking announcements
  */
 export class WeeklyRanking {
-  private isRunning = false;
+  private runningLock = Promise.resolve();
   private client: Client | null = null;
 
   /**
@@ -232,26 +240,28 @@ export class WeeklyRanking {
    * Check if the scheduler is currently running
    */
   isSending(): boolean {
-    return this.isRunning;
+    // Check if there's an active lock
+    return this.runningLock !== Promise.resolve();
   }
 
   /**
    * Send weekly ranking report
    */
   async sendWeeklyRanking(): Promise<WeeklyRankingResult> {
-    if (this.isRunning) {
-      console.log('[WeeklyRanking] Ranking already in progress, skipping');
-      return {
-        timestamp: new Date(),
-        rankingSent: false,
-        totalMembers: 0,
-        errors: ['Ranking already in progress'],
-      };
-    }
+    // Wait for any existing run to complete
+    await this.runningLock;
 
-    this.isRunning = true;
+    // Create new lock
+    let resolveLock: (() => void) | undefined;
+    const currentLock = new Promise<void>(resolve => {
+      resolveLock = resolve;
+    });
+    const previousLock = this.runningLock;
+    this.runningLock = currentLock;
+
     const startTime = new Date();
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     try {
       if (!this.client) {
@@ -265,11 +275,14 @@ export class WeeklyRanking {
 
       if (rankings.length === 0) {
         console.log('[WeeklyRanking] No active members found');
+        warnings.push('랭킹 기간에 활성 멤버가 없습니다');
+
         return {
           timestamp: startTime,
           rankingSent: false,
           totalMembers: 0,
           errors: [],
+          warnings,
         };
       }
 
@@ -301,6 +314,7 @@ export class WeeklyRanking {
         rankingSent: true,
         totalMembers: rankings.length,
         errors,
+        warnings,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -312,9 +326,19 @@ export class WeeklyRanking {
         rankingSent: false,
         totalMembers: 0,
         errors,
+        warnings,
       };
     } finally {
-      this.isRunning = false;
+      // Release current lock
+      if (resolveLock) {
+        resolveLock();
+      }
+      // Restore previous lock state if it was different
+      if (previousLock !== Promise.resolve()) {
+        this.runningLock = previousLock;
+      } else {
+        this.runningLock = Promise.resolve();
+      }
     }
   }
 }

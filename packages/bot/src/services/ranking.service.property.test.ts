@@ -474,7 +474,7 @@ describe('RankingService Property Tests', () => {
 
   /**
    * **Feature: blog-study-discord-bot, Property 8: Total Score Calculation**
-   * *For any* ranking data, total score SHALL equal post count * 30 + activity score.
+   * *For any* ranking data, total score SHALL equal post count * BLOG_POST_SCORE_POINTS + activity score.
    * **Validates: Correctness of score calculation**
    */
   describe('Property 8: Total Score Calculation', () => {
@@ -484,7 +484,8 @@ describe('RankingService Property Tests', () => {
           fc.integer({ min: 0, max: 100 }),
           fc.integer({ min: 0, max: 5000 }),
           (postCount, activityScore) => {
-            const expectedTotalScore = postCount * 30 + activityScore;
+            const BLOG_POST_SCORE_POINTS = 30;
+            const expectedTotalScore = postCount * BLOG_POST_SCORE_POINTS + activityScore;
 
             const ranking: RankingData = {
               memberId: fc.uuid(),
