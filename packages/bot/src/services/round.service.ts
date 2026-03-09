@@ -50,6 +50,7 @@ export const ConfigKeys = {
   ANNOUNCEMENT_CHANNEL: 'announcement_channel',
   NOTICE_CHANNEL: 'notice_channel',
   CURATION_CHANNEL: 'curation_channel',
+  RANKING_CHANNEL: 'ranking_channel',
 } as const;
 
 /**

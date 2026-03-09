@@ -6,3 +6,4 @@ export * from './attendance-checker';
 export * from './fine-reminder';
 export * from './round-reporter';
 export * from './curation-crawler';
+export * from './weekly-ranking';

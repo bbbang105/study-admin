@@ -6,6 +6,7 @@ import { createBotClient, setupEventHandlers, setupGracefulShutdown, startBot } 
 import { startJobQueue, stopJobQueue } from './job-queue';
 import { registerAllJobs } from './scheduler-registry';
 import { setupActivityHandler } from './handlers/activity-handler';
+import { initNotificationService } from './services/notification.service';
 
 async function main(): Promise<void> {
   console.log('🚀 Blog Study Discord Bot starting...');
@@ -22,6 +23,10 @@ async function main(): Promise<void> {
   setupEventHandlers(client);
   setupActivityHandler(client);
   console.log('✅ Event handlers configured');
+
+  // Initialize notification service
+  initNotificationService(client);
+  console.log('✅ Notification service initialized');
 
   // Start pg-boss job queue and register all scheduled jobs
   const boss = await startJobQueue(env.DATABASE_URL_DIRECT);

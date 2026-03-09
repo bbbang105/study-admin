@@ -10,3 +10,5 @@ export * from './fine.service';
 export * from './notification.service';
 export * from './keyword.service';
 export * from './curation.service';
+export * from './ranking.service';
+export * from './score.service';

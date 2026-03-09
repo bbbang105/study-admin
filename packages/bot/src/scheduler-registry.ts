@@ -12,6 +12,7 @@ import { getAttendanceChecker } from './schedulers/attendance-checker';
 import { getFineReminder } from './schedulers/fine-reminder';
 import { getRoundReporter } from './schedulers/round-reporter';
 import { getCurationCrawler } from './schedulers/curation-crawler';
+import { getWeeklyRanking } from './schedulers/weekly-ranking';
 import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
@@ -29,8 +30,9 @@ const JOB_DEFINITIONS = [
   { name: 'fine-reminder', cron: '0 10 * * *' },
   { name: 'round-report', cron: '5 0 * * 2' },
   { name: 'round-start', cron: '0 0 * * 1' },
-  { name: 'curation-crawl', cron: '0 23 * * *' },  // UTC 23시 = KST 8시(+1일)
+  { name: 'curation-crawl', cron: '0 23 * * *' },
   { name: 'curation-share', cron: '0 10 * * *' },
+  { name: 'weekly-ranking', cron: '0 13 * * 0' },  // 매주 일요일 22:00 KST
 ] as const;
 
 /**
@@ -45,10 +47,12 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   const fineReminder = getFineReminder();
   const roundReporter = getRoundReporter();
   const curationCrawler = getCurationCrawler();
+  const weeklyRanking = getWeeklyRanking();
 
   fineReminder.setClient(client);
   roundReporter.setClient(client);
   curationCrawler.setClient(client);
+  weeklyRanking.setClient(client);
 
   // Set up RSS poller callback: new post → save to DB + send notification + grant score
   const postService = getPostService();
@@ -163,13 +167,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       }));
   });
 
-  // Schedule all cron jobs
-  for (const job of JOB_DEFINITIONS) {
-    await boss.schedule(job.name, job.cron);
-    console.log(`  📅 Scheduled: ${job.name} (${job.cron})`);
-  }
-
-  // Register workers
+  // Register workers FIRST (this creates the queues in the queue table)
   await boss.work('rss-poll', { batchSize: 1 }, async () => {
     await rssPoller.poll();
   });
@@ -197,6 +195,22 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   await boss.work('curation-share', { batchSize: 1 }, async () => {
     await curationCrawler.shareDailyContent();
   });
+
+  // Create weekly-ranking queue explicitly using pg-boss internal API
+  await boss.createQueue('weekly-ranking');
+
+  await boss.work('weekly-ranking', { batchSize: 1 }, async () => {
+    await weeklyRanking.sendWeeklyRanking();
+  });
+
+  // Wait for queues to be created in the database
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // THEN schedule all cron jobs (after queues are created)
+  for (const job of JOB_DEFINITIONS) {
+    await boss.schedule(job.name, job.cron);
+    console.log(`  📅 Scheduled: ${job.name} (${job.cron})`);
+  }
 
   console.log(`✅ All ${JOB_DEFINITIONS.length} scheduled jobs registered`);
 }

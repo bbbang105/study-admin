@@ -13,9 +13,14 @@ let boss: PgBoss | null = null;
  */
 export async function startJobQueue(connectionString: string): Promise<PgBoss> {
   boss = new PgBoss(connectionString);
+
   boss.on('error', (error: Error) => console.error('[pg-boss] Error:', error));
   await boss.start();
   console.log('[pg-boss] Started');
+
+  // Wait for pg-boss to initialize tables
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   return boss;
 }
 
