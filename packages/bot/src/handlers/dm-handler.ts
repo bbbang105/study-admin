@@ -5,7 +5,7 @@
  * MessageContent Intent 없이 동작하도록 버튼/인터랙션 방식 사용
  */
 
-import { Client, Events, ButtonBuilder, ButtonStyle, ActionRowBuilder, Interaction } from 'discord.js';
+import { Client, Events, ButtonBuilder, ButtonStyle, ActionRowBuilder, Interaction, ChannelType } from 'discord.js';
 import {
   getFineService,
   formatFineReason,
@@ -68,7 +68,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
   }
 
   // Only handle interactions in DMs
-  if (!interaction.channel || interaction.channel.type !== 1) { // 1 = DM
+  if (!interaction.channel || interaction.channel.type !== ChannelType.DM) {
     return;
   }
 
