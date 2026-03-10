@@ -9,8 +9,8 @@ export function createBotClient(): Client {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.DirectMessages,
-      // MessageContent Intent는 Discord Developer Portal에서 활성화 필요
-      // 임시로 비활성화 (활성화 후 아래 주석 제거)
+      // MessageContent Intent 없이 버튼/인터랙션 방식으로 동작
+      // 봇이 100개 미만 서버라 Intent 활성화 불가능
       // GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildMessageReactions,
     ],

@@ -27,6 +27,8 @@ export const FineAmounts = {
 
 /**
  * Confirmation words for payment (Korean and English)
+ * @deprecated 버튼 기반으로 변경되어 더 이상 사용되지 않음 (26-03-10)
+ * 이전 텍스트 파싱 방식에서 사용되던 상수로, 테스트 호환성을 위해 유지
  */
 export const PaymentConfirmationWords = [
   'yes',
@@ -68,11 +70,12 @@ export class FineError extends Error {
 
 /**
  * Check if a message contains payment confirmation words
+ * @deprecated 버튼 기반으로 변경되어 더 이상 사용되지 않음 (26-03-10)
  * Requirements: 8.2 - Parse confirmation words from DM reply
  */
 export function isPaymentConfirmation(message: string): boolean {
   const normalizedMessage = message.toLowerCase().trim();
-  return PaymentConfirmationWords.some(word => 
+  return PaymentConfirmationWords.some(word =>
     normalizedMessage.includes(word.toLowerCase())
   );
 }

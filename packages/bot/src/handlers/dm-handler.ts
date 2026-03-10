@@ -1,120 +1,138 @@
 /**
  * DM Handler
- * 벌금 납부 확인을 위한 DM 응답 처리
+ * 벌금 납부 확인을 위한 버튼 기반 상호작용 처리
  * Requirements: 8.2
+ * MessageContent Intent 없이 동작하도록 버튼/인터랙션 방식 사용
+ * P0 #9 해결: 인메모리 Map → DB 영속화로 변경
  */
 
-import { Message, Client, Events } from 'discord.js';
+import { Client, Events, ButtonBuilder, ButtonStyle, ActionRowBuilder, Interaction, ChannelType } from 'discord.js';
+import { getDb, fines } from '@blog-study/shared/db';
+import { eq } from 'drizzle-orm';
 import {
   getFineService,
-  isPaymentConfirmation,
   formatFineReason,
 } from '../services';
 
 /**
- * Track pending fine confirmations
- * Maps Discord user ID to their pending fine IDs
- */
-const pendingConfirmations = new Map<string, string[]>();
-
-/**
  * Add a pending fine confirmation for a user
+ * DB의 pendingConfirmation 컬럼을 true로 설정
  */
-export function addPendingConfirmation(discordId: string, fineId: string): void {
-  const existing = pendingConfirmations.get(discordId) || [];
-  if (!existing.includes(fineId)) {
-    existing.push(fineId);
-    pendingConfirmations.set(discordId, existing);
+export async function addPendingConfirmation(_discordId: string, fineId: string): Promise<void> {
+  const db = getDb();
+  try {
+    await db
+      .update(fines)
+      .set({ pendingConfirmation: true })
+      .where(eq(fines.id, fineId));
+  } catch (error) {
+    console.error(`❌ Failed to add pending confirmation for fine ${fineId}:`, error);
   }
 }
 
 /**
  * Remove a pending fine confirmation for a user
+ * DB의 pendingConfirmation 컬럼을 false로 설정
  */
-export function removePendingConfirmation(discordId: string, fineId: string): void {
-  const existing = pendingConfirmations.get(discordId) || [];
-  const filtered = existing.filter(id => id !== fineId);
-  if (filtered.length > 0) {
-    pendingConfirmations.set(discordId, filtered);
-  } else {
-    pendingConfirmations.delete(discordId);
+export async function removePendingConfirmation(_discordId: string, fineId: string): Promise<void> {
+  const db = getDb();
+  try {
+    await db
+      .update(fines)
+      .set({ pendingConfirmation: false })
+      .where(eq(fines.id, fineId));
+  } catch (error) {
+    console.error(`❌ Failed to remove pending confirmation for fine ${fineId}:`, error);
   }
 }
 
 /**
- * Get pending fine confirmations for a user
+ * Check if a fine has pending confirmation
  */
-export function getPendingConfirmations(discordId: string): string[] {
-  return pendingConfirmations.get(discordId) || [];
+async function isPendingConfirmation(fineId: string): Promise<boolean> {
+  const db = getDb();
+  const [fine] = await db
+    .select({ pendingConfirmation: fines.pendingConfirmation })
+    .from(fines)
+    .where(eq(fines.id, fineId))
+    .limit(1);
+  return fine?.pendingConfirmation || false;
 }
 
-/**
- * Clear all pending confirmations for a user
- */
-export function clearPendingConfirmations(discordId: string): void {
-  pendingConfirmations.delete(discordId);
-}
-
 
 /**
- * Handle DM message for fine payment confirmation
- * Requirements: 8.2 - Parse confirmation words and update fine status
+ * Handle button interaction for fine payment confirmation
+ * Requirements: 8.2 - Handle button click to confirm payment
+ * MessageContent Intent 없이 동작 - 버튼 인터랙션 사용
  */
-async function handleDMMessage(message: Message): Promise<void> {
-  // Ignore bot messages
-  if (message.author.bot) {
+async function handleButtonInteraction(interaction: Interaction): Promise<void> {
+  // Only handle button interactions
+  if (!interaction.isButton()) {
     return;
   }
 
-  // Only process DMs
-  if (message.guild) {
+  // Only handle interactions in DMs
+  if (!interaction.channel || interaction.channel.type !== ChannelType.DM) {
     return;
   }
 
-  const discordId = message.author.id;
-  const pendingFineIds = getPendingConfirmations(discordId);
+  const customId = interaction.customId;
 
-  // If no pending confirmations, ignore
-  if (pendingFineIds.length === 0) {
+  // Check if this is a payment confirmation button
+  if (!customId.startsWith('confirm_payment_')) {
     return;
   }
 
-  // Check if message contains confirmation words
-  if (!isPaymentConfirmation(message.content)) {
+  const fineId = customId.replace('confirm_payment_', '');
+  const discordId = interaction.user.id;
+
+  // Verify this fine is pending for this user (DB 조회)
+  const isPending = await isPendingConfirmation(fineId);
+  if (!isPending) {
+    try {
+      await interaction.reply({
+        content: '❌ 이 벌금은 이미 처리되었거나 유효하지 않습니다.',
+        ephemeral: true,
+      });
+    } catch (error) {
+      console.error('❌ Failed to send error reply:', error);
+    }
     return;
   }
 
   const fineService = getFineService();
 
-  // Mark all pending fines as paid
-  const paidFines: string[] = [];
-  for (const fineId of pendingFineIds) {
-    try {
-      await fineService.markPaid(fineId);
-      paidFines.push(fineId);
-      removePendingConfirmation(discordId, fineId);
-      
-      console.log(`✅ Fine ${fineId} marked as paid for user ${discordId}`);
-    } catch (error) {
-      console.error(`❌ Failed to mark fine ${fineId} as paid:`, error);
-    }
-  }
+  try {
+    await fineService.markPaid(fineId);
+    await removePendingConfirmation(discordId, fineId);
 
-  // Send confirmation message
-  if (paidFines.length > 0) {
+    console.log(`✅ Fine ${fineId} marked as paid for user ${discordId}`);
+
     try {
-      await message.reply({
-        content: `✅ 벌금 납부가 확인되었습니다! (${paidFines.length}건)\n감사합니다. 🙏`,
+      await interaction.reply({
+        content: '✅ 벌금 납부가 확인되었습니다! 감사합니다. 🙏',
+        ephemeral: false,
       });
     } catch (error) {
       console.error('❌ Failed to send confirmation reply:', error);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to mark fine ${fineId} as paid:`, error);
+    try {
+      await interaction.reply({
+        content: '❌ 납부 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.',
+        ephemeral: true,
+      });
+    } catch (replyError) {
+      console.error('❌ Failed to send error reply:', replyError);
     }
   }
 }
 
 /**
- * Send fine notification DM to a user
+ * Send fine notification DM to a user with payment confirmation button
  * Requirements: 8.1 - Send DM with fine amount, reason, and payment instructions
+ * MessageContent Intent 없이 동작 - 버튼 사용
  */
 export async function sendFineNotification(
   client: Client,
@@ -140,15 +158,26 @@ export async function sendFineNotification(
       `💰 **금액**: ${amount.toLocaleString()}원`,
       `📝 **사유**: ${reason}`,
       ``,
-      `납부 완료 후 이 메시지에 "납부완료" 또는 "완료"라고 답장해주세요.`,
-      `(영어로 "yes", "done", "paid"도 가능합니다)`,
+      `납부 완료 후 아래 버튼을 클릭해주세요.`,
     ].join('\n');
 
-    await user.send(message);
-    
-    // Track pending confirmation
-    addPendingConfirmation(discordId, fineId);
-    
+    // Create payment confirmation button
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`confirm_payment_${fineId}`)
+          .setLabel('✅ 납부 완료')
+          .setStyle(ButtonStyle.Success)
+      );
+
+    await user.send({
+      content: message,
+      components: [row],
+    });
+
+    // Track pending confirmation in DB
+    await addPendingConfirmation(discordId, fineId);
+
     console.log(`📤 Fine notification sent to ${discordId} for fine ${fineId}`);
     return true;
   } catch (error) {
@@ -158,8 +187,9 @@ export async function sendFineNotification(
 }
 
 /**
- * Send fine reminder DM to a user
+ * Send fine reminder DM to a user with payment confirmation button
  * Requirements: 8.4 - Send reminder for unpaid fines
+ * MessageContent Intent 없이 동작 - 버튼 사용
  */
 export async function sendFineReminder(
   client: Client,
@@ -186,14 +216,26 @@ export async function sendFineReminder(
       ``,
       `💰 **금액**: ${amount.toLocaleString()}원`,
       ``,
-      `납부 완료 후 이 메시지에 "납부완료" 또는 "완료"라고 답장해주세요.`,
+      `납부 완료 후 아래 버튼을 클릭해주세요.`,
     ].join('\n');
 
-    await user.send(message);
-    
-    // Ensure pending confirmation is tracked
-    addPendingConfirmation(discordId, fineId);
-    
+    // Create payment confirmation button
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`confirm_payment_${fineId}`)
+          .setLabel('✅ 납부 완료')
+          .setStyle(ButtonStyle.Success)
+      );
+
+    await user.send({
+      content: message,
+      components: [row],
+    });
+
+    // Ensure pending confirmation is tracked in DB
+    await addPendingConfirmation(discordId, fineId);
+
     console.log(`📤 Fine reminder sent to ${discordId} for fine ${fineId}`);
     return true;
   } catch (error) {
@@ -204,15 +246,18 @@ export async function sendFineReminder(
 
 /**
  * Setup DM handler for the bot client
+ * MessageContent Intent 없이 버튼 인터랙션으로 동작
+ * P0 #9 해결: 인메모리 Map → DB 영속화로 변경
  */
 export function setupDMHandler(client: Client): void {
-  client.on(Events.MessageCreate, async (message) => {
+  // Listen for button interactions
+  client.on(Events.InteractionCreate, async (interaction) => {
     try {
-      await handleDMMessage(message);
+      await handleButtonInteraction(interaction);
     } catch (error) {
-      console.error('❌ Error handling DM message:', error);
+      console.error('❌ Error handling button interaction:', error);
     }
   });
 
-  console.log('📬 DM handler setup complete');
+  console.log('📬 DM handler setup complete (button-based, DB-persistent)');
 }
