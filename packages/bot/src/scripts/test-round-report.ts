@@ -22,7 +22,7 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { getRoundReporter } from '../schedulers/round-reporter';
 import { initNotificationService } from '../services/notification.service';
 import { getCurrentRound } from '../services/round.service';
-import { getDb, attendance, posts, members, rounds } from '@blog-study/shared/db';
+import { getDb, attendance, posts, members } from '@blog-study/shared/db';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { loadBotEnv } from '@blog-study/shared';
 
