@@ -75,21 +75,33 @@ export class FineReminder {
 
     try {
       const fineService = getFineService();
-      
+
       // Get all unpaid fines with member info
       const finesWithInfo = await fineService.getFinesWithMemberInfo();
 
-      // Filter fines that need reminders (created more than 3 days ago)
-      // and check if today is a reminder day (every 3 days)
+      // P1 #10: 3일마다 리마인드 로직 수정
+      // lastReminderAt을 확인하여 정확히 3일 간격으로 리마인드 발송
       const now = new Date();
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
       const finesNeedingReminder = finesWithInfo.filter(({ fine }) => {
+        // 미납 벌금만 대상
+        if (fine.status !== 'PENDING') return false;
+
+        // 벌금 생성 3일 이전인지 확인
         const createdAt = fine.createdAt ? new Date(fine.createdAt) : new Date();
-        const daysSinceCreation = Math.floor(
-          (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        
-        // Send reminder if 3+ days have passed and it's a multiple of 3 days
-        return daysSinceCreation >= 3 && daysSinceCreation % 3 === 0;
+        if (createdAt < threeDaysAgo) return false;
+
+        // 마지막 리마인드가 없거나, 3일 이전인지 확인
+        const lastReminderAt = fine.lastReminderAt ? new Date(fine.lastReminderAt) : null;
+        if (!lastReminderAt) {
+          // 첫 리마인드: 생성 3일 이후
+          return true;
+        }
+
+        // 이전 리마인드로부터 3일 이상 경과했는지 확인
+        const threeDaysSinceLastReminder = new Date(lastReminderAt.getTime() + 3 * 24 * 60 * 60 * 1000);
+        return now >= threeDaysSinceLastReminder;
       });
 
       console.log(
@@ -116,6 +128,8 @@ export class FineReminder {
 
           if (success) {
             sentCount++;
+            // P1 #10: 리마인드 발송 후 lastReminderAt 업데이트
+            await fineService.updateLastReminderAt(fine.id);
           } else {
             failedCount++;
           }
