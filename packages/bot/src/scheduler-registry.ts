@@ -85,17 +85,20 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         // P0 #3: 출석 상태 업데이트 (제출 또는 지각)
         if (currentRound) {
           // 회차 기간 내 제출 여부 판단
-          const roundEndDate = new Date(currentRound.endDate);
-          roundEndDate.setHours(23, 59, 59, 999); // 마감일 23:59:59.999까지
+          // endDate는 YYYY-MM-DD 포맷이며, KST (Asia/Seoul) 기준 23:59:59.999까지를 마감으로 처리
+          const roundEndDate = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
 
           const isLate = item.pubDate > roundEndDate;
 
           if (isLate) {
             // 지각: 출석 상태 업데이트 + 벌금 부과
+            // markLate()와 fineService.create()는 내부에서 중복 방지 로직을 가짐:
+            // - markLate(): PENDING 상태일 때만 LATE로 변경 (기존 LATE/ABSENT 유지)
+            // - fineService.create(): 동일 회차 벌금이 이미 있으면 기존 벌금 반환
             await attendanceService.markLate(member.id, currentRound.id);
             console.log(`⏰ ${member.name} 지각 처리 (${currentRound.roundNumber}회차)`);
 
-            // 지각 벌금 생성
+            // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
             const fine = await fineService.create(member.id, currentRound.id, 'late');
             await sendFineNotification(
               client,
@@ -107,6 +110,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             );
           } else {
             // 정상 제출
+            // markSubmitted()는 내부에서 PENDING 상태일 때만 SUBMITTED로 변경 (기존 LATE/ABSENT 유지)
             await attendanceService.markSubmitted(member.id, currentRound.id);
             console.log(`✅ ${member.name} 제출 완료 (${currentRound.roundNumber}회차)`);
           }
