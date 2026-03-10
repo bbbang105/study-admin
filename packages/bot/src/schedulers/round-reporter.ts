@@ -28,6 +28,16 @@ import {
 } from '../services/notification.service';
 
 /**
+ * Format KST date to ISO date string (YYYY-MM-DD)
+ * P0 #6: KST 기준 날짜 포맷팅 (UTC+9)
+ */
+function formatKSTDate(date: Date): string {
+  const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
+  const kstDate = new Date(date.getTime() + kstOffset);
+  return kstDate.toISOString().split('T')[0]!;
+}
+
+/**
  * Result of a round report cycle
  */
 export interface RoundReportResult {
@@ -239,9 +249,7 @@ export class RoundReporter {
       const currentRound = await getCurrentRound();
 
       // P0 #6: KST 기준으로 오늘 날짜 구하기
-      const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
-      const today = new Date(new Date().getTime() + kstOffset);
-      const todayStr = today.toISOString().split('T')[0]!;
+      const todayStr = formatKSTDate(new Date());
 
       // 회차 시작일과 비교 (KST 기준)
       const isTodayRoundStart = todayStr === currentRound.startDate;
