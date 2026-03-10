@@ -57,13 +57,13 @@ async function main() {
 
     const today = new Date();
     const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 7); // 7일 전 시작
+    startDate.setDate(startDate.getDate() - 21); // 21일 전 시작
 
     const endDate = new Date(today);
-    endDate.setDate(endDate.getDate() + 7); // 7일 후 종료
+    endDate.setDate(endDate.getDate() - 7); // 7일 전 종료
 
-    const graceEndDate = new Date(endDate);
-    graceEndDate.setDate(graceEndDate.getDate() + 3); // 유예기간 3일
+    const graceEndDate = new Date(today);
+    graceEndDate.setDate(graceEndDate.getDate() - 3); // 3일 전 유예기간 종료
 
     const [newRound] = await db
       .insert(rounds)
