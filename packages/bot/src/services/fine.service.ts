@@ -387,6 +387,24 @@ export class FineService {
     }
     return this.markWaived(fine.id);
   }
+
+  /**
+   * Update last reminder timestamp
+   * P1 #10: 3일 간격 리마인드를 위해 마지막 리마인드 시간 저장
+   */
+  async updateLastReminderAt(fineId: string): Promise<Fine> {
+    const [updated] = await this.db
+      .update(fines)
+      .set({ lastReminderAt: new Date() })
+      .where(eq(fines.id, fineId))
+      .returning();
+
+    if (!updated) {
+      throw new Error(`Fine ${fineId} not found`);
+    }
+
+    return updated;
+  }
 }
 
 // Singleton instance
