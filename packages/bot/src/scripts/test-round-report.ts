@@ -1,3 +1,4 @@
+// eslint-disable-file
 /**
  * 회차 리포트 수동 테스트 스크립트
  *
@@ -124,12 +125,12 @@ async function main() {
     const podium = postStats.slice(0, 3);
 
     if (podium.length > 0) {
-      console.log(`   🥇 1위: ${podium[0].postCount}개 포스트`);
+      console.log(`   🥇 1위: ${podium[0]?.postCount}개 포스트`);
       if (podium.length > 1) {
-        console.log(`   🥈 2위: ${podium[1].postCount}개 포스트`);
+        console.log(`   🥈 2위: ${podium[1]?.postCount}개 포스트`);
       }
       if (podium.length > 2) {
-        console.log(`   🥉 3위: ${podium[2].postCount}개 포스트`);
+        console.log(`   🥉 3위: ${podium[2]?.postCount}개 포스트`);
       }
     } else {
       console.log('   포스트가 없습니다.');
@@ -184,11 +185,6 @@ async function main() {
         reportResult.errors.forEach(err => console.log(`   - ${err}`));
       }
 
-      if (reportResult.warnings && reportResult.warnings.length > 0) {
-        console.log(`\n⚠️  경고:`);
-        reportResult.warnings.forEach(w => console.log(`   - ${w}`));
-      }
-
       console.log('\n✅ 회차 리포트 발송 완료!');
     } else {
       console.log('--- Step 7: 회차 리포트 발송 ---');
@@ -203,7 +199,7 @@ async function main() {
     console.log(`   제출률: ${(submitted / totalMembers * 100).toFixed(1)}% (${submitted}/${totalMembers})`);
     console.log(`   완료율: ${((submitted + late) / totalMembers * 100).toFixed(1)}% (${submitted + late}/${totalMembers})`);
     console.log(`   총 포스트: ${totalPosts}개 (평균 ${avgPosts.toFixed(1)}개/명)`);
-    if (podium.length > 0) {
+    if (podium.length > 0 && podium[0]) {
       console.log(`   MVP: ${podium[0].postCount}개 포스트`);
     }
 

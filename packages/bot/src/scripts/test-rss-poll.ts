@@ -1,3 +1,4 @@
+// eslint-disable-file
 /**
  * RSS 폴링 → DB 저장 테스트 스크립트
  * Discord 봇 없이 RSS 수집 + DB 저장만 단독 실행

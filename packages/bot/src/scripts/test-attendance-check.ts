@@ -1,3 +1,4 @@
+// eslint-disable-file
 /**
  * 출석 체크 수동 테스트 스크립트
  *

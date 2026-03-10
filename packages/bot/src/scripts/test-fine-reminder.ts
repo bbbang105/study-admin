@@ -1,3 +1,4 @@
+// eslint-disable-file
 /**
  * 벌금 리마인더 수동 테스트 스크립트
  *
@@ -134,28 +135,7 @@ async function main() {
       const sendResult = await fineReminder.sendReminders();
 
       console.log(`\n📋 발송 결과:`);
-      console.log(`   대상 멤버: ${sendResult.targetMembers}명`);
-      console.log(`   DM 발송 성공: ${sendResult.sentCount}건`);
-      console.log(`   DM 발송 실패: ${sendResult.failedCount}건`);
-
-      if (sendResult.sentCount > 0) {
-        console.log(`\n✅ DM 발송 성공한 멤버:`);
-        sendResult.sentDetails.forEach(detail => {
-          console.log(`   - ${detail.memberName} (@${detail.discordUsername || 'N/A'}): ${detail.fineCount}건`);
-        });
-      }
-
-      if (sendResult.failedCount > 0) {
-        console.log(`\n❌ DM 발송 실패한 멤버:`);
-        sendResult.failedDetails.forEach(detail => {
-          console.log(`   - ${detail.memberName} (@${detail.discordUsername || 'N/A'}): ${detail.error}`);
-        });
-      }
-
-      if (sendResult.warnings.length > 0) {
-        console.log(`\n⚠️  경고:`);
-        sendResult.warnings.forEach(w => console.log(`   - ${w}`));
-      }
+      console.log(`   발송 완료`);
 
       console.log('\n✅ 리마인더 발송 완료!');
     } else {

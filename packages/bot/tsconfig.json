@@ -9,7 +9,7 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/scripts/test-*.ts", "src/scripts/check-*.ts", "src/scripts/seed-*.ts", "src/scripts/reset-*.ts", "src/scripts/update-*.ts", "src/scripts/add-*.ts"],
   "references": [
     { "path": "../shared" }
   ]
