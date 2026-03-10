@@ -47,9 +47,9 @@ export const FineType = {
 export type FineTypeValue = (typeof FineType)[keyof typeof FineType];
 
 export const FineStatus = {
-  UNPAID: 'unpaid',
-  PAID: 'paid',
-  WAIVED: 'waived',
+  UNPAID: 'PENDING',
+  PAID: 'PAID',
+  WAIVED: 'WAIVED',
 } as const;
 
 export type FineStatusType = (typeof FineStatus)[keyof typeof FineStatus];
