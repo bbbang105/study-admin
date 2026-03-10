@@ -11,6 +11,7 @@ import {
   attendance,
   members,
   posts,
+  rounds,
   type Round,
 } from '@blog-study/shared/db';
 import {
@@ -25,6 +26,16 @@ import {
   type AttendanceSummary,
   type RoundReportData,
 } from '../services/notification.service';
+
+/**
+ * Format KST date to ISO date string (YYYY-MM-DD)
+ * P0 #6: KST 기준 날짜 포맷팅 (UTC+9)
+ */
+function formatKSTDate(date: Date): string {
+  const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
+  const kstDate = new Date(date.getTime() + kstOffset);
+  return kstDate.toISOString().split('T')[0]!;
+}
 
 /**
  * Result of a round report cycle
@@ -182,12 +193,28 @@ export class RoundReporter {
 
       console.log(`[RoundReporter] Round ${currentRound.roundNumber} report ${sent ? 'sent' : 'failed'}`);
 
+      // P0 #7: 회차 종료 후 isCurrent 플래그 업데이트
+      // 다음 회차가 있으면 해당 회차를 current로 설정
+      const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
+      if (nextRound) {
+        await setCurrentRound(nextRound.roundNumber);
+        console.log(`[RoundReporter] Updated current round to ${nextRound.roundNumber}`);
+      } else {
+        // 다음 회차가 없으면 현재 회차의 isCurrent를 false로 변경
+        const db = getDb();
+        await db
+          .update(rounds)
+          .set({ isCurrent: false })
+          .where(eq(rounds.id, currentRound.id));
+        console.log(`[RoundReporter] No next round, unset isCurrent for round ${currentRound.roundNumber}`);
+      }
+
       return {
         timestamp: startTime,
         roundNumber: currentRound.roundNumber,
         reportSent: sent,
-        newRoundStarted: false,
-        newRoundNumber: null,
+        newRoundStarted: nextRound !== null,
+        newRoundNumber: nextRound?.roundNumber ?? null,
         errors,
       };
     } catch (error) {
@@ -211,6 +238,7 @@ export class RoundReporter {
   /**
    * Send round start announcement for a new round
    * Requirements: 10.4 - Send round start announcement with deadline info
+   * P0 #6: KST 타임존 기준으로 날짜 비교
    */
   async sendRoundStartAnnouncement(): Promise<RoundReportResult> {
     const startTime = new Date();
@@ -220,81 +248,68 @@ export class RoundReporter {
       // Get the current round
       const currentRound = await getCurrentRound();
 
-      // Check if this is actually the start of a new round
-      // (Monday of the round's start week)
-      const today = new Date();
-      const roundStartDate = new Date(currentRound.startDate + 'T00:00:00.000Z');
-      
-      // Check if today is the start date of the current round
-      const isSameDay = 
-        today.getUTCFullYear() === roundStartDate.getUTCFullYear() &&
-        today.getUTCMonth() === roundStartDate.getUTCMonth() &&
-        today.getUTCDate() === roundStartDate.getUTCDate();
+      // P0 #6: KST 기준으로 오늘 날짜 구하기
+      const todayStr = formatKSTDate(new Date());
 
-      if (!isSameDay) {
-        // Not a round start day, check if we need to advance to next round
-        const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
-        
-        if (nextRound) {
-          const nextRoundStartDate = new Date(nextRound.startDate + 'T00:00:00.000Z');
-          const isNextRoundStartDay =
-            today.getUTCFullYear() === nextRoundStartDate.getUTCFullYear() &&
-            today.getUTCMonth() === nextRoundStartDate.getUTCMonth() &&
-            today.getUTCDate() === nextRoundStartDate.getUTCDate();
+      // 회차 시작일과 비교 (KST 기준)
+      const isTodayRoundStart = todayStr === currentRound.startDate;
 
-          if (isNextRoundStartDay) {
-            // Advance to next round
-            await setCurrentRound(nextRound.roundNumber);
-            
-            console.log(`[RoundReporter] Starting round ${nextRound.roundNumber}`);
+      if (isTodayRoundStart) {
+        // 오늘이 현재 회차 시작일 - 알림 발송
+        console.log(`[RoundReporter] Sending start announcement for round ${currentRound.roundNumber}`);
 
-            // Send announcement
-            const notificationService = getNotificationService();
-            const sent = await notificationService.sendRoundStartAnnouncement(nextRound);
+        const notificationService = getNotificationService();
+        const sent = await notificationService.sendRoundStartAnnouncement(currentRound);
 
-            if (!sent) {
-              errors.push('Failed to send round start announcement');
-            }
-
-            return {
-              timestamp: startTime,
-              roundNumber: currentRound.roundNumber,
-              reportSent: false,
-              newRoundStarted: sent,
-              newRoundNumber: nextRound.roundNumber,
-              errors,
-            };
-          }
+        if (!sent) {
+          errors.push('Failed to send round start announcement');
         }
 
-        console.log('[RoundReporter] Not a round start day, skipping announcement');
         return {
           timestamp: startTime,
           roundNumber: currentRound.roundNumber,
           reportSent: false,
-          newRoundStarted: false,
-          newRoundNumber: null,
-          errors: ['Not a round start day'],
+          newRoundStarted: sent,
+          newRoundNumber: currentRound.roundNumber,
+          errors,
         };
       }
 
-      // Today is the start of the current round - send announcement
-      console.log(`[RoundReporter] Sending start announcement for round ${currentRound.roundNumber}`);
+      // 오늘이 현재 회차 시작일이 아니면, 다음 회차 시작일인지 확인
+      const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
 
-      const notificationService = getNotificationService();
-      const sent = await notificationService.sendRoundStartAnnouncement(currentRound);
+      if (nextRound && todayStr === nextRound.startDate) {
+        // 오늘이 다음 회차 시작일 - 회차 전환 + 알림 발송
+        await setCurrentRound(nextRound.roundNumber);
 
-      if (!sent) {
-        errors.push('Failed to send round start announcement');
+        console.log(`[RoundReporter] Starting round ${nextRound.roundNumber}`);
+
+        const notificationService = getNotificationService();
+        const sent = await notificationService.sendRoundStartAnnouncement(nextRound);
+
+        if (!sent) {
+          errors.push('Failed to send round start announcement');
+        }
+
+        return {
+          timestamp: startTime,
+          roundNumber: currentRound.roundNumber,
+          reportSent: false,
+          newRoundStarted: sent,
+          newRoundNumber: nextRound.roundNumber,
+          errors,
+        };
       }
 
+      // 회차 시작일이 아님
+      console.log('[RoundReporter] Not a round start day, skipping announcement');
       return {
         timestamp: startTime,
         roundNumber: currentRound.roundNumber,
         reportSent: false,
-        newRoundStarted: sent,
-        newRoundNumber: currentRound.roundNumber,
-        errors,
+        newRoundStarted: false,
+        newRoundNumber: null,
+        errors: ['Not a round start day'],
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
