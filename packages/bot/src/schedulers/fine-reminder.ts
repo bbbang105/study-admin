@@ -82,20 +82,21 @@ export class FineReminder {
       // P1 #10: 3일마다 리마인드 로직 수정
       // lastReminderAt을 확인하여 정확히 3일 간격으로 리마인드 발송
       const now = new Date();
-      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
       const finesNeedingReminder = finesWithInfo.filter(({ fine }) => {
         // 미납 벌금만 대상
         if (fine.status !== 'PENDING') return false;
 
-        // 벌금 생성 3일 이전인지 확인
         const createdAt = fine.createdAt ? new Date(fine.createdAt) : new Date();
-        if (createdAt < threeDaysAgo) return false;
 
-        // 마지막 리마인드가 없거나, 3일 이전인지 확인
+        // 벌금 생성 후 최소 3일 경과했는지 확인
+        const threeDaysSinceCreation = new Date(createdAt.getTime() + 3 * 24 * 60 * 60 * 1000);
+        if (now < threeDaysSinceCreation) return false;
+
+        // 마지막 리마인드가 없거나, 3일 이상 경과했는지 확인
         const lastReminderAt = fine.lastReminderAt ? new Date(fine.lastReminderAt) : null;
         if (!lastReminderAt) {
-          // 첫 리마인드: 생성 3일 이후
+          // 첫 리마인드: 생성 3일 이후 경과함 (위에서 이미 확인됨)
           return true;
         }
 
