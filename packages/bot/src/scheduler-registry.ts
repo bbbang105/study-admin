@@ -17,7 +17,9 @@ import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
 import { getScoreService } from './services/score.service';
-import { ActivityScoreType, curationSources, getDb } from '@blog-study/shared/db';
+import { getAttendanceService, getFineService } from './services';
+import { sendFineNotification } from './handlers/dm-handler';
+import { getDb, members, ActivityScoreType, curationSources } from '@blog-study/shared/db';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
 
@@ -54,10 +56,12 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   curationCrawler.setClient(client);
   weeklyRanking.setClient(client);
 
-  // Set up RSS poller callback: new post → save to DB + send notification + grant score
+  // Set up RSS poller callback: new post → save to DB + send notification + grant score + update attendance
   const postService = getPostService();
   const notificationService = getNotificationService();
   const scoreService = getScoreService();
+  const attendanceService = getAttendanceService();
+  const fineService = getFineService();
 
   // 2025-07-01 이후 발행된 글만 수집
   const POST_CUTOFF_DATE = new Date('2025-07-01T00:00:00Z');
@@ -78,6 +82,40 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       });
 
       if (result.isNew) {
+        // P0 #3: 출석 상태 업데이트 (제출 또는 지각)
+        if (currentRound) {
+          // 회차 기간 내 제출 여부 판단
+          // endDate는 YYYY-MM-DD 포맷이며, KST (Asia/Seoul) 기준 23:59:59.999까지를 마감으로 처리
+          const roundEndDate = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
+
+          const isLate = item.pubDate > roundEndDate;
+
+          if (isLate) {
+            // 지각: 출석 상태 업데이트 + 벌금 부과
+            // markLate()와 fineService.create()는 내부에서 중복 방지 로직을 가짐:
+            // - markLate(): PENDING 상태일 때만 LATE로 변경 (기존 LATE/ABSENT 유지)
+            // - fineService.create(): 동일 회차 벌금이 이미 있으면 기존 벌금 반환
+            await attendanceService.markLate(member.id, currentRound.id);
+            console.log(`⏰ ${member.name} 지각 처리 (${currentRound.roundNumber}회차)`);
+
+            // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
+            const fine = await fineService.create(member.id, currentRound.id, 'late');
+            await sendFineNotification(
+              client,
+              member.discordId,
+              fine.id,
+              fine.amount,
+              'late',
+              currentRound.roundNumber
+            );
+          } else {
+            // 정상 제출
+            // markSubmitted()는 내부에서 PENDING 상태일 때만 SUBMITTED로 변경 (기존 LATE/ABSENT 유지)
+            await attendanceService.markSubmitted(member.id, currentRound.id);
+            console.log(`✅ ${member.name} 제출 완료 (${currentRound.roundNumber}회차)`);
+          }
+        }
+
         // 블로그 포스트 점수 부여 (+30점, 일일 2편 상한)
         const safeTitle = item.title.replace(/[<>"'&]/g, '').slice(0, 200);
         await scoreService.grantScore(
@@ -92,6 +130,41 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
           roundNumber: currentRound?.roundNumber ?? null,
         });
       }
+    }
+  });
+
+  // P0 #4: 결석/지각 벌금 콜백 설정
+  // 결석 콜백: 화요일 00:00에 결석자 판정 시 자동 벌금 부과
+  attendanceChecker.setOnAbsentCallback(async (attendance, round) => {
+    try {
+      const db = getDb();
+      const [member] = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, attendance.memberId))
+        .limit(1);
+
+      if (!member) {
+        console.error(`❌ Member not found: ${attendance.memberId}`);
+        return;
+      }
+
+      // 결석 벌금 생성
+      const fine = await fineService.create(attendance.memberId, round.id, 'absent');
+
+      // DM으로 벌금 알림 발송
+      await sendFineNotification(
+        client,
+        member.discordId,
+        fine.id,
+        fine.amount,
+        'absent',
+        round.roundNumber
+      );
+
+      console.log(`❌ ${member.name} 결석 벌금 부과 (${round.roundNumber}회차, ${fine.amount}원)`);
+    } catch (error) {
+      console.error(`❌ Failed to process absent callback for ${attendance.memberId}:`, error);
     }
   });
 
