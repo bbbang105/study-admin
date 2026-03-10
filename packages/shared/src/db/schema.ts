@@ -200,10 +200,12 @@ export const fines = pgTable(
     status: varchar('status', { length: 20 }).notNull().default(FineStatus.UNPAID),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     paidAt: timestamp('paid_at', { withTimezone: true }),
+    pendingConfirmation: boolean('pending_confirmation').default(true),
   },
   (table) => ({
     memberRoundUnique: uniqueIndex('fines_member_round_unique').on(table.memberId, table.roundId),
     statusIdx: index('idx_fines_status').on(table.status),
+    pendingConfirmationIdx: index('idx_fines_pending_confirmation').on(table.pendingConfirmation),
   })
 );
 
