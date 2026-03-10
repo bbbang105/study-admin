@@ -12,7 +12,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "rss-collect": "tsx src/scripts/rss-collect.ts"
+    "rss-collect": "tsx src/scripts/rss-collect.ts",
+    "test-attendance": "tsx src/scripts/test-attendance-check.ts",
+    "test-fine-reminder": "tsx src/scripts/test-fine-reminder.ts",
+    "test-round-report": "tsx src/scripts/test-round-report.ts",
+    "test-curation": "tsx src/scripts/test-curation-crawl.ts",
+    "test-weekly-ranking": "tsx src/scripts/test-weekly-ranking.ts",
+    "test-discord-message": "tsx src/scripts/test-discord-message.ts",
+    "test-rss-poll": "tsx src/scripts/test-rss-poll.ts",
+    "seed-test-data": "tsx src/scripts/seed-test-data.ts",
+    "check-keywords": "tsx src/scripts/check-keywords.ts",
+    "seed-keywords": "tsx src/scripts/seed-keywords.ts",
+    "recalculate-relevance": "tsx src/scripts/recalculate-relevance.ts"
   },
   "dependencies": {
     "@blog-study/shared": "workspace:*",

@@ -6,6 +6,7 @@ import { createBotClient, setupEventHandlers, setupGracefulShutdown, startBot } 
 import { startJobQueue, stopJobQueue } from './job-queue';
 import { registerAllJobs } from './scheduler-registry';
 import { setupActivityHandler } from './handlers/activity-handler';
+import { setupDMHandler } from './handlers/dm-handler';
 import { initNotificationService } from './services/notification.service';
 
 async function main(): Promise<void> {
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   // Setup event handlers
   setupEventHandlers(client);
   setupActivityHandler(client);
+  setupDMHandler(client);
   console.log('✅ Event handlers configured');
 
   // Initialize notification service

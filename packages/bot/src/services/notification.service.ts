@@ -193,7 +193,7 @@ export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
   // Submitted list
   if (submitted.length > 0) {
     const submittedList = submitted
-      .map((s) => `• <@${s.discordId}>`)
+      .map((s) => `• <@${s.discordId}> (${s.name})`)
       .join('\n');
     embed.addFields({
       name: `✅ 제출 (${submitted.length}명)`,
@@ -205,7 +205,7 @@ export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
   // Late list
   if (late.length > 0) {
     const lateList = late
-      .map((l) => `• <@${l.discordId}>`)
+      .map((l) => `• <@${l.discordId}> (${l.name})`)
       .join('\n');
     embed.addFields({
       name: `⏰ 지각 (${late.length}명)`,
@@ -217,7 +217,7 @@ export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
   // Absent list
   if (absent.length > 0) {
     const absentList = absent
-      .map((a) => `• <@${a.discordId}>`)
+      .map((a) => `• <@${a.discordId}> (${a.name})`)
       .join('\n');
     embed.addFields({
       name: `❌ 결석 (${absent.length}명)`,
