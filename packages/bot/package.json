@@ -20,7 +20,8 @@
     "test-dm-handler": "tsx src/scripts/test-dm-handler.ts",
     "test-weekly-ranking": "tsx src/scripts/test-weekly-ranking.ts",
     "test-discord-message": "tsx src/scripts/test-discord-message.ts",
-    "test-rss-poll": "tsx src/scripts/test-rss-poll.ts"
+    "test-rss-poll": "tsx src/scripts/test-rss-poll.ts",
+    "seed-test-data": "tsx src/scripts/seed-test-data.ts"
   },
   "dependencies": {
     "@blog-study/shared": "workspace:*",
