@@ -13,6 +13,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { CountUp, DrawLine, FadeUp, StaggerContainer, StaggerItem } from './motion';
+import { ExternalLinkIcon } from '@/components/ui/external-link';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -354,18 +355,20 @@ function Footer() {
             href="https://github.com/bbbang105"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-500 hover:text-white transition-colors"
+            className="text-zinc-500 hover:text-white transition-colors inline-flex items-center gap-1"
           >
             @bbbang105
+            <ExternalLinkIcon />
           </a>
           {' & '}
           <a
             href="https://github.com/choihooo"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-500 hover:text-white transition-colors"
+            className="text-zinc-500 hover:text-white transition-colors inline-flex items-center gap-1"
           >
             @choihooo
+            <ExternalLinkIcon />
           </a>
         </p>
       </div>
