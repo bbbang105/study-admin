@@ -35,6 +35,8 @@ function MainContent({
 }) {
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       className={cn(
         'flex-1 min-w-0 transition-[margin-left] duration-200',
         showSidebar && (collapsed ? 'md:ml-16' : 'md:ml-60'),
@@ -80,6 +82,9 @@ export function MainLayout({
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
+      <a href="#main-content" className="skip-to-content">
+        본문으로 바로가기
+      </a>
       <Header user={user} isAdmin={isAdmin} onLogout={handleLogout} />
       {!isAdmin && <NoticeBanner />}
       <PullToRefresh>
