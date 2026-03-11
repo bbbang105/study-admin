@@ -315,7 +315,7 @@
 /* ── Skip to Content Link (Accessibility) ── */
 .skip-to-content {
   position: absolute;
-  left: -9999px;
+  left: 0;
   top: 0;
   z-index: 9999;
   padding: 1rem 2rem;
@@ -325,10 +325,13 @@
   border-radius: 0 0 0.5rem 0;
   border: 1px solid hsl(var(--border));
   border-top: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .skip-to-content:focus {
-  left: 0;
+  opacity: 1;
+  pointer-events: auto;
   outline: 2px solid hsl(var(--ring));
   outline-offset: -2px;
 }

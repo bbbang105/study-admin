@@ -41,7 +41,7 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              "img-src 'self' https://cdn.discordapp.com https://*.supabase.co https://api.dicebear.com data: blob:",
+              "img-src 'self' https: data: blob:",
               "font-src 'self' https://cdn.jsdelivr.net",
               "connect-src 'self' https://*.supabase.co",
               "frame-ancestors 'none'",

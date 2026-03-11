@@ -111,8 +111,11 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">기간</p>
-                <p className="text-sm font-medium">
+                <p className="text-xl font-bold lg:block hidden">
                   {data.currentRound.startDate} ~ {data.currentRound.endDate}
+                </p>
+                <p className="text-xl font-bold lg:hidden">
+                  {data.currentRound.startDate}<br/> ~ {data.currentRound.endDate}
                 </p>
               </div>
               <div>

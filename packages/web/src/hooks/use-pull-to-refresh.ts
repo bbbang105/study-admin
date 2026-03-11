@@ -25,6 +25,10 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
     iconRef.current = el;
   }, []);
 
+  const getScrollContainer = useCallback(() => {
+    return containerRef.current?.querySelector('[data-ptr-scroll="true"]') as HTMLElement | null;
+  }, [containerRef]);
+
   const clearAllStyles = useCallback(() => {
     const container = containerRef.current;
     const indicator = indicatorRef.current;
@@ -98,7 +102,11 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
     let isTouching = false;
 
     function findScrollableParent(el: HTMLElement | null): HTMLElement | null {
+      const scrollContainer = getScrollContainer();
       while (el && el !== document.body) {
+        if (el === scrollContainer) {
+          return null;
+        }
         const style = window.getComputedStyle(el);
         const overflowY = style.overflowY;
         if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 0) {
@@ -111,8 +119,10 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
 
     function onTouchStart(e: TouchEvent) {
       if (state.current === 'refreshing') return;
-      if (window.scrollY > 5) return;
       if (document.body.hasAttribute('data-scroll-locked')) return;
+
+      const scrollContainer = getScrollContainer();
+      if (scrollContainer && scrollContainer.scrollTop > 5) return;
 
       const target = e.target as HTMLElement;
       if (findScrollableParent(target)) return;
@@ -124,6 +134,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
 
     function onTouchMove(e: TouchEvent) {
       if (!isTouching || state.current === 'refreshing') return;
+      const scrollContainer = getScrollContainer();
 
       const diff = e.touches[0]!.clientY - startY.current;
 
@@ -137,7 +148,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
         return;
       }
 
-      if (window.scrollY <= 0) {
+      if (!scrollContainer || scrollContainer.scrollTop <= 0) {
         e.preventDefault();
       }
 
@@ -195,7 +206,7 @@ export function usePullToRefresh(containerRef: React.RefObject<HTMLDivElement | 
       if (resetTimer.current) clearTimeout(resetTimer.current);
       if (innerTimer.current) clearTimeout(innerTimer.current);
     };
-  }, [applyTransform, updateIconState, clearAllStyles]);
+  }, [applyTransform, updateIconState, clearAllStyles, getScrollContainer]);
 
   return { setIndicatorRef, setIconRef };
 }

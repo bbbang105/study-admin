@@ -37,10 +37,10 @@ interface Fine {
   status: string;
   createdAt: string;
   paidAt: string | null;
-  memberName: string;
-  memberDiscordUsername: string;
-  memberPart: string;
-  roundNumber: number;
+  memberName: string | null;
+  memberDiscordUsername: string | null;
+  memberPart: string | null;
+  roundNumber: number | null;
 }
 
 interface FineSummary {
@@ -73,15 +73,34 @@ interface StatusConfigItem {
 }
 
 const statusConfig: Record<string, StatusConfigItem> = {
-  unpaid: { label: '미납', variant: 'destructive' },
-  paid: { label: '납부', variant: 'success' },
-  waived: { label: '면제', variant: 'secondary' },
+  PENDING: { label: '미납', variant: 'destructive' },
+  PAID: { label: '납부', variant: 'success' },
+  WAIVED: { label: '면제', variant: 'secondary' },
 };
 
 const typeConfig: Record<string, { label: string; color: string }> = {
   late: { label: '지각', color: 'text-warning' },
   absent: { label: '결석', color: 'text-destructive' },
 };
+
+const STATUS_FILTERS = {
+  all: 'all',
+  pending: 'PENDING',
+  paid: 'PAID',
+  waived: 'WAIVED',
+} as const;
+
+function getMemberDisplayName(fine: Fine) {
+  return fine.memberName || fine.memberDiscordUsername || '알 수 없는 멤버';
+}
+
+function getMemberPartLabel(fine: Fine) {
+  return fine.memberPart || '-';
+}
+
+function getRoundLabel(roundNumber: number | null) {
+  return roundNumber ? `${roundNumber}회차` : '회차 정보 없음';
+}
 
 export default function AdminFinesPage() {
   const [data, setData] = useState<FinesData | null>(null);
@@ -95,6 +114,7 @@ export default function AdminFinesPage() {
   const fetchFines = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch('/api/admin/fines');
       if (!response.ok) {
         throw new Error('Failed to fetch fines data');
@@ -119,7 +139,7 @@ export default function AdminFinesPage() {
       const response = await fetch(`/api/admin/fines/${fineId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'paid' }),
+        body: JSON.stringify({ status: STATUS_FILTERS.paid }),
       });
 
       if (!response.ok) {
@@ -143,7 +163,7 @@ export default function AdminFinesPage() {
       const response = await fetch(`/api/admin/fines/${fineId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'waived' }),
+        body: JSON.stringify({ status: STATUS_FILTERS.waived }),
       });
 
       if (!response.ok) {
@@ -173,10 +193,13 @@ export default function AdminFinesPage() {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
+        const memberName = fine.memberName?.toLowerCase() || '';
+        const discordUsername = fine.memberDiscordUsername?.toLowerCase() || '';
+        const memberPart = fine.memberPart?.toLowerCase() || '';
         return (
-          fine.memberName.toLowerCase().includes(query) ||
-          fine.memberDiscordUsername.toLowerCase().includes(query) ||
-          fine.memberPart.toLowerCase().includes(query)
+          memberName.includes(query) ||
+          discordUsername.includes(query) ||
+          memberPart.includes(query)
         );
       }
       return true;
@@ -209,8 +232,8 @@ export default function AdminFinesPage() {
           </CardContent>
         </Card>
         <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'unpaid' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('unpaid')}
+          className={`cursor-pointer transition-colors ${statusFilter === STATUS_FILTERS.pending ? 'border-primary' : ''}`}
+          onClick={() => setStatusFilter(STATUS_FILTERS.pending)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">미납</CardTitle>
@@ -224,8 +247,8 @@ export default function AdminFinesPage() {
           </CardContent>
         </Card>
         <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'paid' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('paid')}
+          className={`cursor-pointer transition-colors ${statusFilter === STATUS_FILTERS.paid ? 'border-primary' : ''}`}
+          onClick={() => setStatusFilter(STATUS_FILTERS.paid)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">납부</CardTitle>
@@ -239,8 +262,8 @@ export default function AdminFinesPage() {
           </CardContent>
         </Card>
         <Card
-          className={`cursor-pointer transition-colors ${statusFilter === 'waived' ? 'border-primary' : ''}`}
-          onClick={() => setStatusFilter('waived')}
+          className={`cursor-pointer transition-colors ${statusFilter === STATUS_FILTERS.waived ? 'border-primary' : ''}`}
+          onClick={() => setStatusFilter(STATUS_FILTERS.waived)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">면제</CardTitle>
@@ -325,8 +348,8 @@ export default function AdminFinesPage() {
                 <div key={fine.id} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{fine.memberName}</p>
-                      <p className="text-xs text-muted-foreground">{fine.memberPart}</p>
+                      <p className="font-medium truncate">{getMemberDisplayName(fine)}</p>
+                      <p className="text-xs text-muted-foreground">{getMemberPartLabel(fine)}</p>
                     </div>
                     <Badge
                       variant={statusConfig[fine.status]?.variant || 'secondary'}
@@ -336,7 +359,7 @@ export default function AdminFinesPage() {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                    <span>{fine.roundNumber}회차</span>
+                    <span>{getRoundLabel(fine.roundNumber)}</span>
                     <span>·</span>
                     <span className={typeConfig[fine.type]?.color || ''}>
                       {typeConfig[fine.type]?.label || fine.type}
@@ -348,7 +371,7 @@ export default function AdminFinesPage() {
                     <span>·</span>
                     <span>{new Date(fine.createdAt).toLocaleDateString('ko-KR')}</span>
                   </div>
-                  {fine.status === 'unpaid' && (
+                  {fine.status === STATUS_FILTERS.pending && (
                     <div className="flex items-center gap-2 pt-1">
                       <Button
                         variant="outline"
@@ -407,11 +430,11 @@ export default function AdminFinesPage() {
                     <TableRow key={fine.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium whitespace-nowrap">{fine.memberName}</div>
-                          <div className="text-xs text-muted-foreground">{fine.memberPart}</div>
+                          <div className="font-medium whitespace-nowrap">{getMemberDisplayName(fine)}</div>
+                          <div className="text-xs text-muted-foreground">{getMemberPartLabel(fine)}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{fine.roundNumber}회차</TableCell>
+                      <TableCell className="whitespace-nowrap">{getRoundLabel(fine.roundNumber)}</TableCell>
                       <TableCell>
                         <span className={typeConfig[fine.type]?.color || ''}>
                           {typeConfig[fine.type]?.label || fine.type}
@@ -429,7 +452,7 @@ export default function AdminFinesPage() {
                         {new Date(fine.createdAt).toLocaleDateString('ko-KR')}
                       </TableCell>
                       <TableCell>
-                        {fine.status === 'unpaid' && (
+                        {fine.status === STATUS_FILTERS.pending && (
                           <div className="flex items-center gap-1">
                             <Button
                               variant="outline"

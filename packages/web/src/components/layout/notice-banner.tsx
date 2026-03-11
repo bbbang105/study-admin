@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronUp, Megaphone, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,10 +38,15 @@ function saveState(noticeId: string, state: BannerState) {
   }
 }
 
-export function NoticeBanner() {
+interface NoticeBannerProps {
+  onHeightChange?: (height: number) => void;
+}
+
+export function NoticeBanner({ onHeightChange }: NoticeBannerProps) {
   const [notice, setNotice] = useState<NoticeBannerData | null>(null);
   const [bannerState, setBannerState] = useState<BannerState>('open');
   const [loaded, setLoaded] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/notice-banner')
@@ -55,6 +60,25 @@ export function NoticeBanner() {
       })
       .catch(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !notice || bannerState === 'closed') {
+      onHeightChange?.(0);
+      return;
+    }
+
+    const element = bannerRef.current;
+    if (!element) return;
+
+    const updateHeight = () => onHeightChange?.(element.offsetHeight);
+
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [bannerState, loaded, notice, onHeightChange]);
 
   if (!loaded || !notice || bannerState === 'closed') return null;
 
@@ -78,6 +102,7 @@ export function NoticeBanner() {
 
   return (
     <div
+      ref={bannerRef}
       className={cn(
         'w-full border-b border-sky-200/60 dark:border-sky-800/40',
         'bg-sky-50/80 dark:bg-sky-950/30'

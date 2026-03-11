@@ -62,7 +62,7 @@ export default function MemberProfilePage() {
           return;
         }
         const result = await response.json();
-        setData(result);
+        setData(result.data);
       } catch (err) {
         setError('프로필 정보를 불러오는데 실패했습니다.');
         console.error(err);
