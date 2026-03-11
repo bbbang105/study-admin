@@ -326,6 +326,7 @@ export default function AdminMembersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditMember(member)}
+                            aria-label={`${member.name} 수정`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -334,6 +335,7 @@ export default function AdminMembersPage() {
                             size="icon"
                             onClick={() => handleDeleteMember(member)}
                             disabled={member.status === 'withdrawn'}
+                            aria-label={`${member.name} 삭제`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -403,6 +405,7 @@ export default function AdminMembersPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleEditMember(member)}
+                                aria-label={`${member.name} 수정`}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -411,6 +414,7 @@ export default function AdminMembersPage() {
                                 size="icon"
                                 onClick={() => handleDeleteMember(member)}
                                 disabled={member.status === 'withdrawn'}
+                                aria-label={`${member.name} 삭제`}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
