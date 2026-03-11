@@ -8,7 +8,6 @@ import {
   isDeadlinePassed,
   isGracePeriod,
   isGracePeriodEnded,
-  getConfigValue,
 } from './round.service';
 
 describe('Round Service Integration Tests', () => {

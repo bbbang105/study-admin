@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Client } from 'discord.js';
 
 // Mock all dependencies to avoid import errors
 vi.mock('./activity-handler', () => ({
