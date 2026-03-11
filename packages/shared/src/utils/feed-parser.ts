@@ -102,7 +102,7 @@ export function sanitizeDescription(html: string | undefined): string | null {
 
 /**
  * URL에서 og:image 메타태그 추출 (5초 타임아웃)
- * SSRF 보호: 내부 URL 차단
+ * SSRF 보호: 내부 URL 차단 + OG 이미지 URL 검증
  */
 export async function extractOgImage(url: string): Promise<string | null> {
   try {
@@ -124,10 +124,25 @@ export async function extractOgImage(url: string): Promise<string | null> {
       html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
 
-    return match?.[1] ?? null;
+    const ogImageUrl = match?.[1] ?? null;
+
+    // SSRF 방지: OG 이미지 URL 자체도 안전한지 검증
+    if (ogImageUrl && !isSafeUrl(ogImageUrl)) {
+      console.warn('[extractOgImage] Unsafe OG image URL blocked:', ogImageUrl);
+      return null;
+    }
+
+    return ogImageUrl;
   } catch (error) {
     // 디버깅을 위한 에러 로그 (운영 환경에서도 유용)
-    console.error('[extractOgImage] Failed:', error instanceof Error ? error.message : error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('timeout')) {
+      console.warn('[extractOgImage] Timeout:', url);
+    } else if (message.includes('fetch failed') || message.includes('ECONNREFUSED')) {
+      console.warn('[extractOgImage] Network error:', url);
+    } else {
+      console.error('[extractOgImage] Unexpected error:', { url, error: message });
+    }
     return null;
   }
 }

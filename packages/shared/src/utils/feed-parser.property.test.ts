@@ -181,4 +181,108 @@ describe('feed-parser utilities', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('extractFeedItems 포맷별 동작', () => {
+    it('Property 17: RSS 포맷 파싱', () => {
+      const mockResult = {
+        format: 'rss' as const,
+        feed: {
+          items: [
+            {
+              title: 'Test Post',
+              link: 'https://example.com/post1',
+              pubDate: new Date('2026-03-01'),
+              description: '<pTest description</p>',
+              categories: ['tech', 'programming'],
+            },
+          ],
+        },
+      };
+
+      const items = extractFeedItems(mockResult);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        title: 'Test Post',
+        link: 'https://example.com/post1',
+        description: '<pTest description</p>',
+        categories: ['tech', 'programming'],
+      });
+    });
+
+    it('Property 18: Atom 포맷 파싱', () => {
+      const mockResult = {
+        format: 'atom' as const,
+        feed: {
+          entries: [
+            {
+              title: 'Atom Post',
+              links: [{ href: 'https://example.com/atom1' }],
+              published: '2026-03-01T00:00:00Z',
+              summary: 'Atom summary',
+              categories: [{ term: 'blog' }],
+            },
+          ],
+        },
+      };
+
+      const items = extractFeedItems(mockResult);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        title: 'Atom Post',
+        link: 'https://example.com/atom1',
+        description: 'Atom summary',
+        categories: ['blog'],
+      });
+    });
+
+    it('Property 19: JSON Feed 포맷 파싱', () => {
+      const mockResult = {
+        format: 'json' as const,
+        feed: {
+          items: [
+            {
+              title: 'JSON Feed Post',
+              url: 'https://example.com/json1',
+              date_published: '2026-03-01T00:00:00Z',
+              summary: 'JSON feed summary',
+              tags: ['javascript', 'nodejs'],
+            },
+          ],
+        },
+      };
+
+      const items = extractFeedItems(mockResult);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        title: 'JSON Feed Post',
+        link: 'https://example.com/json1',
+        description: 'JSON feed summary',
+        categories: ['javascript', 'nodejs'],
+      });
+    });
+
+    it('Property 20: RDF 포맷 파싱 (fallback)', () => {
+      const mockResult = {
+        format: 'rdf' as const,
+        feed: {
+          items: [
+            {
+              title: 'RDF Post',
+              link: 'https://example.com/rdf1',
+              dc: { date: '2026-03-01T00:00:00Z' },
+              description: 'RDF description',
+            },
+          ],
+        },
+      };
+
+      const items = extractFeedItems(mockResult);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        title: 'RDF Post',
+        link: 'https://example.com/rdf1',
+        description: 'RDF description',
+      });
+    });
+  });
 });
