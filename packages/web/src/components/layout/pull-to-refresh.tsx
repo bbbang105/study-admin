@@ -30,7 +30,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Content wrapper that translates down */}
-      <div ref={containerRef} className="will-change-transform">
+      <div ref={containerRef} className="flex flex-1 min-h-0 flex-col will-change-transform">
         {children}
       </div>
     </>

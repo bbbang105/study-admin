@@ -129,9 +129,6 @@ function SidebarContent({
 }: SidebarContentProps) {
   return (
     <div className="flex h-full flex-col">
-      {/* Spacer to match header height */}
-      <div className="h-14 shrink-0" />
-
       {/* ── Primary navigation ───────────────────────────────────────── */}
       <nav
         aria-label={isAdmin ? '관리자 메뉴' : '사용자 메뉴'}
@@ -186,7 +183,11 @@ function SidebarContent({
 
 // ─── Sidebar component ────────────────────────────────────────────────────────
 
-export function Sidebar({ isAdmin = false, collapsed, onToggleCollapsed }: SidebarProps) {
+export function Sidebar({
+  isAdmin = false,
+  collapsed,
+  onToggleCollapsed,
+}: SidebarProps) {
   const pathname = usePathname();
 
   const toggleCollapsed = () => onToggleCollapsed(!collapsed);
