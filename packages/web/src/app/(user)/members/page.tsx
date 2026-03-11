@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { UsersRound, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,6 +35,7 @@ interface MembersData {
 }
 
 export default function MembersPage() {
+  const router = useRouter();
   const [data, setData] = useState<MembersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export default function MembersPage() {
           throw new Error('Failed to fetch members');
         }
         const result = await response.json();
-        setData(result);
+        setData(result.data);
       } catch (err) {
         setError('스터디원 목록을 불러오는데 실패했습니다.');
         console.error(err);
@@ -132,71 +133,70 @@ export default function MembersPage() {
             ].filter((link) => link.url);
 
             return (
-              <Link key={member.id} href={`/members/${member.id}`}>
-                <Card className="border-border/60 shadow-none hover:border-border hover:bg-muted/30 transition-colors cursor-pointer h-full">
-                  <CardContent className="p-4">
-                    {/* Top: Avatar + Name + Part */}
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-11 w-11 ring-2 ring-border ring-offset-1 ring-offset-background shrink-0">
-                        <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                          {member.nickname.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate">
-                          {member.nickname}
+              <Card
+                key={member.id}
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(`/members/${member.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    router.push(`/members/${member.id}`);
+                  }
+                }}
+                className="h-full cursor-pointer border-border/60 shadow-none transition-colors hover:border-border hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                <CardContent className="p-4">
+                  {/* Top: Avatar + Name + Part */}
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-11 w-11 shrink-0 ring-2 ring-border ring-offset-1 ring-offset-background">
+                      <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                        {member.nickname.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-xs text-muted-foreground">
+                          @{member.discordUsername.replace(/#0$/, '')}
                         </p>
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs text-muted-foreground truncate">
-                            @{member.discordUsername.replace(/#0$/, '')}
-                          </p>
-                          <PartBadge part={member.part} size="sm" />
-                        </div>
+                        <PartBadge part={member.part} size="sm" />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Bio */}
-                    {member.bio && (
-                      <p className="mt-3 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {member.bio}
-                      </p>
-                    )}
+                  {/* Bio */}
+                  {member.bio && (
+                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                      {member.bio}
+                    </p>
+                  )}
 
-                    {/* Social link chips */}
-                    {socialLinks.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {socialLinks.map((link) => {
-                          const Icon = link.icon;
-                          return (
-                            <span
-                              key={link.label}
-                              role="link"
-                              tabIndex={0}
-                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                window.open(link.url!, '_blank', 'noopener,noreferrer');
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  window.open(link.url!, '_blank', 'noopener,noreferrer');
-                                }
-                              }}
-                            >
-                              <Icon className="h-3 w-3" />
-                              {link.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+                  {/* Social link chips */}
+                  {socialLinks.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {socialLinks.map((link) => {
+                        const Icon = link.icon;
+                        return (
+                          <a
+                            key={link.label}
+                            href={link.url!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+                          >
+                            <Icon className="h-3 w-3" />
+                            {link.label}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
         </div>
