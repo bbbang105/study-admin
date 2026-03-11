@@ -168,7 +168,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     }
   });
 
-  // Set up curation crawl function: fetch RSS → parse → return CrawledContent[]
+  // Set up curation crawl function: fetch RSS → parse → extract content → return CrawledContent[]
+  // P1 #8: 큐레이션 데이터 품질 개선 - description, thumbnailUrl 추출
   curationCrawler.setCrawlFunction(async (url: string): Promise<CrawledContent[]> => {
     // Look up the source's rssUrl from DB (source.url might differ from RSS URL)
     const db = getDb();
@@ -188,56 +189,31 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     const result = parseFeed(response.data);
     if (!result) return [];
 
-    // Normalize feed items across formats (RSS/Atom/JSON/RDF)
-    interface NormalizedItem {
-      title?: string;
-      link?: string;
-      pubDate?: string;
-      categories?: string[];
-    }
+    // P1 #8: 공유 유틸리티 사용
+    const { extractFeedItems, sanitizeDescription, extractOgImage } = await import('@blog-study/shared/utils');
+    const feedItems = extractFeedItems(result);
 
-    let normalized: NormalizedItem[] = [];
-    const { format, feed } = result;
+    const crawledContents: CrawledContent[] = [];
 
-    if (format === 'atom') {
-      normalized = (feed.entries ?? []).map((entry) => ({
-        title: entry.title,
-        link: entry.links?.[0]?.href,
-        pubDate: entry.published ?? entry.updated,
-        categories: entry.categories?.map((c) => c.term).filter(Boolean) as string[],
-      }));
-    } else if (format === 'rss') {
-      normalized = (feed.items ?? []).map((item) => ({
-        title: item.title,
-        link: item.link,
-        pubDate: item.pubDate ? String(item.pubDate) : undefined,
-        categories: item.categories?.map((c) => typeof c === 'string' ? c : c.name).filter(Boolean) as string[],
-      }));
-    } else if (format === 'json') {
-      normalized = (feed.items ?? []).map((item) => ({
-        title: item.title,
-        link: item.url ?? item.external_url,
-        pubDate: item.date_published ?? item.date_modified,
-        categories: item.tags,
-      }));
-    } else {
-      // RDF
-      normalized = (feed.items ?? []).map((item) => ({
-        title: item.title,
-        link: item.link,
-        pubDate: item.dc?.date,
-      }));
-    }
+    for (const item of feedItems) {
+      if (!item.link || !item.title) continue;
 
-    return normalized
-      .filter((item) => item.title && item.link)
-      .map((item) => ({
-        title: item.title!,
-        url: item.link!,
+      // P1 #8: description, thumbnailUrl 추출
+      const description = sanitizeDescription(item.description);
+      const thumbnailUrl = await extractOgImage(item.link);
+
+      crawledContents.push({
+        title: item.title,
+        url: item.link,
         publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
         category: '',
         tags: item.categories ?? [],
-      }));
+        description,
+        thumbnailUrl,
+      });
+    }
+
+    return crawledContents;
   });
 
   // Register workers FIRST (this creates the queues in the queue table)

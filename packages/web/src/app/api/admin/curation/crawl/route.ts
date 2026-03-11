@@ -8,7 +8,9 @@ import {
   createUnauthorizedResponse,
   verifyAdminAccess,
 } from '@/lib/admin';
-import { isSafeUrl } from '@/lib/rss-detect';
+import { utils } from '@blog-study/shared/utils';
+
+const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
 
 interface CrawlSourceResult {
   sourceId: string;
@@ -17,96 +19,6 @@ interface CrawlSourceResult {
   itemsFound: number;
   newItemsAdded: number;
   error?: string;
-}
-
-interface NormalizedFeedItem {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  description?: string;
-  categories?: string[];
-}
-
-/**
- * Normalize feed items across different formats (RSS/Atom/JSON/RDF)
- */
-function extractFeedItems(result: ReturnType<typeof parseFeed>): NormalizedFeedItem[] {
-  const { format, feed } = result;
-
-  if (format === 'atom') {
-    return (feed.entries ?? []).map((entry) => ({
-      title: entry.title,
-      link: entry.links?.[0]?.href,
-      pubDate: entry.published ?? entry.updated,
-      description: entry.summary ?? entry.content,
-      categories: entry.categories?.map((c) => c.term).filter(Boolean) as string[],
-    }));
-  }
-
-  if (format === 'rss') {
-    return (feed.items ?? []).map((item) => ({
-      title: item.title,
-      link: item.link,
-      pubDate: item.pubDate ? String(item.pubDate) : undefined,
-      description: item.description,
-      categories: item.categories
-        ?.map((c) => (typeof c === 'string' ? c : c.name))
-        .filter(Boolean) as string[],
-    }));
-  }
-
-  if (format === 'json') {
-    return (feed.items ?? []).map((item) => ({
-      title: item.title,
-      link: item.url ?? item.external_url,
-      pubDate: item.date_published ?? item.date_modified,
-      description: item.summary ?? item.content_text,
-      categories: item.tags,
-    }));
-  }
-
-  // RDF
-  return (feed.items ?? []).map((item) => ({
-    title: item.title,
-    link: item.link,
-    pubDate: item.dc?.date,
-    description: item.description,
-  }));
-}
-
-/**
- * HTML 태그 제거 + 300자 truncate
- */
-function sanitizeDescription(html: string | undefined): string | null {
-  if (!html) return null;
-  const text = html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&[a-zA-Z]+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!text) return null;
-  return text.length > 300 ? text.slice(0, 300) + '...' : text;
-}
-
-/**
- * URL에서 og:image 메타태그 추출 (5초 타임아웃)
- */
-async function extractOgImage(url: string): Promise<string | null> {
-  try {
-    if (!isSafeUrl(url)) return null;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'BlogStudyBot/1.0' },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const match =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /**
