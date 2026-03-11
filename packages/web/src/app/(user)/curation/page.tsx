@@ -587,7 +587,7 @@ export default function CurationPage() {
 
       {/* ── Sticky filter bar ── */}
       <div
-        className="sticky top-14 z-20 bg-background/95 backdrop-blur-sm border-b border-border/60
+        className="top-14 z-20 bg-background/95 backdrop-blur-sm border-b border-border/60
           -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 space-y-2.5"
       >
         {/* Search bar */}

@@ -417,8 +417,8 @@ function BoardContent() {
       {/* Controls: Tabs + Write button */}
       <section aria-label="게시판 필터 및 글쓰기">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs value={currentCategory} onValueChange={handleCategoryChange}>
-            <TabsList className="h-9 gap-0.5 bg-muted/60 p-1 flex-wrap" aria-label="카테고리 필터">
+          <Tabs value={currentCategory} onValueChange={handleCategoryChange} className="w-full md:justify-start">
+            <TabsList className="h-9 gap-0.5 justify-between bg-muted/60 p-1 flex-wrap w-full md:w-auto md:justify-start" aria-label="카테고리 필터">
               {ALL_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
