@@ -35,7 +35,7 @@ type AttendanceStatus = 'submitted' | 'late' | 'absent' | 'pending';
 
 interface AttendanceRecord {
   roundNumber: number;
-  status: AttendanceStatus;
+  status: string;
 }
 
 interface DiscordScore {
@@ -122,6 +122,19 @@ const ATTENDANCE_DOT_CONFIG: Record<AttendanceStatus, { bg: string; label: strin
   pending: { bg: 'bg-muted', label: '진행중' },
 };
 
+const UNKNOWN_ATTENDANCE_DOT_CONFIG = {
+  bg: 'bg-muted',
+  label: '상태 미확인',
+} as const;
+
+function getAttendanceDotConfig(status: string | null | undefined) {
+  if (status && status in ATTENDANCE_DOT_CONFIG) {
+    return ATTENDANCE_DOT_CONFIG[status as AttendanceStatus];
+  }
+
+  return UNKNOWN_ATTENDANCE_DOT_CONFIG;
+}
+
 // ─────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────
@@ -151,7 +164,7 @@ function MiniHeatmap({ history }: { history: AttendanceRecord[] }) {
   return (
     <div className="hidden sm:flex items-center gap-0.5">
       {history.map((record) => {
-        const config = ATTENDANCE_DOT_CONFIG[record.status];
+        const config = getAttendanceDotConfig(record.status);
         return (
           <span
             key={record.roundNumber}
