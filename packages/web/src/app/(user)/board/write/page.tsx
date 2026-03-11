@@ -227,7 +227,12 @@ export default function BoardWritePage() {
 
       {/* Error Message */}
       {error && (
-        <p className="text-sm text-destructive text-center rounded-md bg-destructive/10 px-4 py-2.5 border border-destructive/20">
+        <p
+          role="alert"
+          aria-live="assertive"
+          id="form-error"
+          className="text-sm text-destructive text-center rounded-md bg-destructive/10 px-4 py-2.5 border border-destructive/20"
+        >
           {error}
         </p>
       )}
