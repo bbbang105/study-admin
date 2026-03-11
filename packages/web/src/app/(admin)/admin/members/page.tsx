@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -257,8 +258,12 @@ export default function AdminMembersPage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Label htmlFor="members-search" className="sr-only">
+                  멤버 검색
+                </Label>
                 <Input
+                  id="members-search"
                   placeholder="검색..."
                   className="pl-8 w-full sm:w-[200px]"
                   value={searchQuery}

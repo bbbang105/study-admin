@@ -261,7 +261,10 @@ function PostsContent() {
                       <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
                     </div>
                   </div>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
+                  <span className="flex items-center gap-0.5 text-muted-foreground/40 group-hover:text-primary shrink-0 mt-0.5 transition-colors">
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">(새 탭에서 열기)</span>
+                  </span>
                 </a>
               ))}
             </div>
@@ -299,10 +302,12 @@ function PostsContent() {
                           href={post.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium"
+                          className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium inline-flex items-center gap-1"
                           onClick={() => trackPostView(post.id)}
                         >
                           {post.title}
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                          <span className="sr-only">(새 탭에서 열기)</span>
                         </a>
                       </TableCell>
                       <TableCell className="text-sm text-foreground/80 py-2.5 whitespace-nowrap">
@@ -333,6 +338,7 @@ function PostsContent() {
                           size="sm"
                           asChild
                           className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                          aria-label={`${post.title} (새 탭에서 열기)`}
                         >
                           <a
                             href={post.url}

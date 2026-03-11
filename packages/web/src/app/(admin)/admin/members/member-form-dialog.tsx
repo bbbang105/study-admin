@@ -184,7 +184,12 @@ export function MemberFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error messages */}
           {errors.length > 0 && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div
+              role="alert"
+              aria-live="assertive"
+              id="form-errors"
+              className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+            >
               {errors.map((error, index) => (
                 <p key={index}>{error}</p>
               ))}
@@ -202,6 +207,8 @@ export function MemberFormDialog({
               value={formData.name}
               onChange={handleChange}
               placeholder="홍길동"
+              aria-invalid={errors.some((e) => e.includes('이름'))}
+              aria-describedby={errors.length > 0 ? 'form-errors' : undefined}
             />
           </div>
 
@@ -216,6 +223,8 @@ export function MemberFormDialog({
               value={formData.part}
               onChange={handleChange}
               placeholder="frontend, backend, design, pm 등"
+              aria-invalid={errors.some((e) => e.includes('파트'))}
+              aria-describedby={errors.length > 0 ? 'form-errors' : undefined}
             />
           </div>
 
@@ -230,6 +239,8 @@ export function MemberFormDialog({
               value={formData.discordId}
               onChange={handleChange}
               placeholder="123456789012345678"
+              aria-invalid={errors.some((e) => e.includes('Discord ID'))}
+              aria-describedby={errors.length > 0 ? 'form-errors' : undefined}
             />
           </div>
 
@@ -242,6 +253,7 @@ export function MemberFormDialog({
               value={formData.discordUsername}
               onChange={handleChange}
               placeholder="username#1234"
+              aria-describedby={errors.length > 0 ? 'form-errors' : undefined}
             />
           </div>
 
@@ -256,6 +268,8 @@ export function MemberFormDialog({
               value={formData.blogUrl}
               onChange={handleChange}
               placeholder="https://velog.io/@username"
+              aria-invalid={errors.some((e) => e.includes('블로그 URL'))}
+              aria-describedby={errors.length > 0 ? 'form-errors' : undefined}
             />
           </div>
 
