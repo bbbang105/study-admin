@@ -2,9 +2,20 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, ExternalLink, Search, Sparkles, X } from 'lucide-react';
+import { ChevronDown, ExternalLink, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
 import { PageError } from '@/components/ui/page-state';
+import { Button } from '@/components/ui/button';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { getArticleGradient, formatRelativeDate, CATEGORY_STYLES } from '@/lib/curation-utils';
 
 // ─────────────────────────────────────────────
@@ -408,7 +419,7 @@ export default function CurationPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tagsExpanded, setTagsExpanded] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParam);
 
   // Refs — use refs for values accessed inside IntersectionObserver to avoid stale closures
@@ -561,6 +572,8 @@ export default function CurationPage() {
 
   const showInitialSkeletons = loading && items.length === 0;
   const hasActiveSearch = searchParam.length > 0;
+  const currentFilter = FILTERS.find((filter) => filter.value === category) ?? FILTERS[0]!;
+  const selectedTagCount = selectedTags.length;
 
   return (
     <div className="space-y-0">
@@ -570,26 +583,31 @@ export default function CurationPage() {
         {loadingMore && '추가 콘텐츠를 불러오는 중입니다.'}
       </div>
 
-      {/* ── Header ── */}
-      <div className="space-y-1 pb-4">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Curation
-        </p>
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-          <h1 className="text-xl font-semibold text-foreground">큐레이션</h1>
-          {!loading && (
-            <span className="text-sm text-muted-foreground">
-              {totalCount}개의 콘텐츠
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ── Sticky filter bar ── */}
       <div
-        className="top-14 z-20 bg-background/95 backdrop-blur-sm border-b border-border/60
-          -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 space-y-2.5"
+        className="sticky -top-6 z-20 relative bg-background/95 backdrop-blur-sm border-b border-border/60
+          -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-0 sm:pt-1 pb-3 space-y-2.5"
       >
+        <div
+          className="pointer-events-none absolute inset-x-0 -top-4 hidden h-4 bg-background sm:block"
+          aria-hidden="true"
+        />
+
+        {/* ── Header ── */}
+        <div className="space-y-1 pt-2 sm:pt-5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Curation
+          </p>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <h1 className="hidden text-xl font-semibold text-foreground sm:block">큐레이션</h1>
+            {!loading && (
+              <span className="text-xs text-muted-foreground sm:text-sm">
+                {totalCount}개의 콘텐츠
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── Sticky filter bar ── */}
         {/* Search bar */}
         <div role="search" className="relative">
           <label htmlFor="curation-search" className="sr-only">
@@ -619,8 +637,8 @@ export default function CurationPage() {
           )}
         </div>
 
-        {/* Category pills + tags (desktop: same row / mobile: separate rows) */}
-        <div role="group" aria-label="콘텐츠 필터" className="flex items-center gap-2 flex-wrap">
+        {/* Category pills + tags (desktop) */}
+        <div role="group" aria-label="콘텐츠 필터" className="hidden lg:flex items-center gap-2 flex-wrap">
           {/* Category pills */}
           {FILTERS.map(({ value, label, emoji }) => (
             <button
@@ -640,51 +658,97 @@ export default function CurationPage() {
             </button>
           ))}
 
-          {/* Separator — desktop only */}
-          <div className="hidden lg:block w-px h-5 bg-border/60 mx-1" aria-hidden="true" />
+          <div className="w-px h-5 bg-border/60 mx-1" aria-hidden="true" />
 
           {/* Desktop tags — inline after categories */}
-          <div className="hidden lg:flex">
+          <div className="flex">
             <TagFilterList selectedTags={selectedTags} onToggle={handleTagToggle} onClear={clearTags} />
           </div>
         </div>
 
-        {/* Mobile tag toggle */}
-        <div className="lg:hidden">
-          <button
-            onClick={() => setTagsExpanded((prev) => !prev)}
-            aria-expanded={tagsExpanded}
-            aria-controls="mobile-tag-panel"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground
-              transition-colors min-h-[44px] px-1 -mx-1 rounded
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            태그 필터
-            {selectedTags.length > 0 && (
-              <span className="text-foreground">({selectedTags.length})</span>
-            )}
-            <ChevronDown
-              aria-hidden="true"
-              className={`h-3.5 w-3.5 motion-safe:transition-transform motion-safe:duration-200 ${tagsExpanded ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          <div
-            id="mobile-tag-panel"
-            className={`overflow-hidden motion-safe:transition-[max-height] motion-safe:duration-200 motion-safe:ease-in-out ${
-              tagsExpanded ? 'max-h-60' : 'max-h-0'
-            }`}
-            aria-hidden={!tagsExpanded}
-          >
-            <div className="pt-2">
-              <TagFilterList selectedTags={selectedTags} onToggle={handleTagToggle} onClear={clearTags} />
-            </div>
+        <Drawer open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <div className="lg:hidden">
+            <DrawerTrigger asChild>
+              <button
+                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-border/60
+                  bg-card px-4 py-3 text-left shadow-sm transition-colors hover:bg-accent/40
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="모바일 필터 열기"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground">모바일 필터</p>
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {currentFilter.emoji} {currentFilter.label}
+                    {selectedTagCount > 0 ? ` · 태그 ${selectedTagCount}개` : ' · 태그 전체'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </button>
+            </DrawerTrigger>
           </div>
-        </div>
+
+          <DrawerContent className="lg:hidden">
+            <DrawerHeader>
+              <DrawerTitle>큐레이션 필터</DrawerTitle>
+              <DrawerDescription>
+                카테고리와 태그를 선택해서 원하는 콘텐츠만 볼 수 있어요.
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="grid gap-5 overflow-y-auto px-4 pb-4">
+              <section className="grid gap-2">
+                <h2 className="text-sm font-semibold text-foreground">카테고리</h2>
+                <div className="flex flex-wrap gap-2">
+                  {FILTERS.map(({ value, label, emoji }) => (
+                    <button
+                      key={value}
+                      onClick={() => handleFilterChange(value)}
+                      aria-pressed={category === value}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium
+                        transition-all duration-200 focus-visible:outline-none focus-visible:ring-2
+                        focus-visible:ring-primary focus-visible:ring-offset-2
+                        ${category === value
+                          ? 'bg-foreground text-background shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                    >
+                      <span aria-hidden="true">{emoji}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="grid gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-foreground">태그</h2>
+                  {selectedTagCount > 0 && (
+                    <button
+                      onClick={clearTags}
+                      className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      전체 해제
+                    </button>
+                  )}
+                </div>
+                <TagFilterList selectedTags={selectedTags} onToggle={handleTagToggle} onClear={clearTags} />
+              </section>
+            </div>
+
+            <DrawerFooter className="border-t border-border/60 bg-background/95">
+              <DrawerClose asChild>
+                <Button className="w-full">적용하기</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
 
       {/* ── Content area ── */}
-      <div className="pt-4">
+      <div className="pt-0 lg:pt-4">
         {showInitialSkeletons ? (
           <>
             <p className="sr-only">콘텐츠를 불러오는 중입니다.</p>
