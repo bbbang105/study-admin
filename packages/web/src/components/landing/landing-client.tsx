@@ -144,7 +144,7 @@ function Hero() {
         </FadeUp>
 
         <FadeUp delay={0.4}>
-          <p className="mt-3 text-xs text-zinc-500">무료 · 설정 5분 완료</p>
+          <p className="mt-3 text-xs text-zinc-400">무료 · 설정 5분 완료</p>
         </FadeUp>
       </div>
     </section>
@@ -162,7 +162,7 @@ function StatsBar({ stats }: { stats: LandingStats }) {
               <span className="text-3xl font-bold text-white">
                 <CountUp target={stats.members} suffix="명" />
               </span>
-              <span className="text-sm text-zinc-500">활동 중</span>
+              <span className="text-sm text-zinc-400">활동 중</span>
             </div>
 
             <div className="hidden h-10 w-px bg-white/10 sm:block" />
@@ -172,7 +172,7 @@ function StatsBar({ stats }: { stats: LandingStats }) {
               <span className="text-3xl font-bold text-white">
                 <CountUp target={stats.posts} suffix="개" />
               </span>
-              <span className="text-sm text-zinc-500">글 수집</span>
+              <span className="text-sm text-zinc-400">글 수집</span>
             </div>
 
             <div className="hidden h-10 w-px bg-white/10 sm:block" />
@@ -182,7 +182,7 @@ function StatsBar({ stats }: { stats: LandingStats }) {
               <span className="text-3xl font-bold text-white">
                 <CountUp target={stats.round} suffix="회차" />
               </span>
-              <span className="text-sm text-zinc-500">진행 중</span>
+              <span className="text-sm text-zinc-400">진행 중</span>
             </div>
           </div>
         </div>
@@ -348,7 +348,7 @@ function Footer() {
   return (
     <footer className="border-t border-white/5 px-6 py-8">
       <div className="mx-auto max-w-6xl text-center">
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-zinc-400">
           © {new Date().getFullYear()} 큐스팅 4th · Built by{' '}
           <a
             href="https://github.com/bbbang105"
