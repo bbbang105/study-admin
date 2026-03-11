@@ -88,6 +88,12 @@ importers:
       drizzle-orm:
         specifier: ^0.33.0
         version: 0.33.0(@types/react@19.2.14)(pg@8.18.0)(postgres@3.4.8)(react@19.2.4)
+      feedsmith:
+        specifier: ^2.9.0
+        version: 2.9.0
+      html-entities:
+        specifier: ^2.5.2
+        version: 2.6.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -3377,6 +3383,9 @@ packages:
   highlight.js@11.11.1:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
+
+  html-entities@2.6.0:
+    resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
   htmlparser2@10.1.0:
     resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
@@ -7895,6 +7904,8 @@ snapshots:
       hermes-estree: 0.25.1
 
   highlight.js@11.11.1: {}
+
+  html-entities@2.6.0: {}
 
   htmlparser2@10.1.0:
     dependencies:
