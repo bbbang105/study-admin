@@ -160,8 +160,9 @@ export async function POST(request: NextRequest) {
           // DB 삽입은 순차 처리 (중복 체크 포함)
           for (let i = 0; i < itemsWithMetadata.length; i++) {
             const { item, description } = itemsWithMetadata[i]!;
+            const result = thumbnailResults[i];
             const thumbnailUrl =
-              thumbnailResults[i]?.status === 'fulfilled' ? thumbnailResults[i].value : null;
+              result?.status === 'fulfilled' ? result.value : null;
 
             // URL 중복 체크
             const [existing] = await database

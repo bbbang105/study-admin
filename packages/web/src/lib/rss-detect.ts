@@ -5,7 +5,10 @@
 
 import { utils } from '@blog-study/shared';
 
-const { detectBlogPlatform, isSafeUrl } = utils;
+const { detectBlogPlatform, isSafeUrl: _isSafeUrl } = utils;
+
+// Re-export for other modules
+export const isSafeUrl = _isSafeUrl;
 
 const HTTP_TIMEOUT = 10000;
 
