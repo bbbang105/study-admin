@@ -415,45 +415,48 @@ function BoardContent() {
   return (
     <div className="space-y-4">
       {/* Controls: Tabs + Write button */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={currentCategory} onValueChange={handleCategoryChange}>
-          <TabsList className="h-9 gap-0.5 bg-muted/60 p-1 flex-wrap">
-            {ALL_TABS.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="h-7 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <section aria-label="게시판 필터 및 글쓰기">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Tabs value={currentCategory} onValueChange={handleCategoryChange}>
+            <TabsList className="h-9 gap-0.5 bg-muted/60 p-1 flex-wrap" aria-label="카테고리 필터">
+              {ALL_TABS.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="h-7 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <span className="text-xs text-muted-foreground tabular-nums">
-            총 {totalCount}개
-          </span>
-          <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
-            <Link href="/board/write">
-              <PenSquare className="h-3.5 w-3.5" />
-              글쓰기
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              총 {totalCount}개
+            </span>
+            <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
+              <Link href="/board/write">
+                <PenSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                글쓰기
+              </Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Pinned notices section */}
       {showPinned && (
-        <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 dark:border-amber-800/30 dark:bg-amber-950/10 overflow-hidden">
-          <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-amber-200/60 dark:border-amber-800/30">
-            <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
-              공지사항
-            </span>
-          </div>
+        <section aria-labelledby="pinned-notice-title">
+          <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 dark:border-amber-800/30 dark:bg-amber-950/10 overflow-hidden">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-amber-200/60 dark:border-amber-800/30">
+              <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" aria-hidden="true" />
+              <span id="pinned-notice-title" className="text-xs font-semibold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
+                공지사항
+              </span>
+            </div>
 
-          {/* Desktop: pinned table */}
+            {/* Desktop: pinned table */}
           <div className="hidden md:block">
             <Table>
               <TableBody>
@@ -470,11 +473,13 @@ function BoardContent() {
               <PinnedCard key={post.id} post={post} />
             ))}
           </div>
-        </div>
+          </div>
+        </section>
       )}
 
       {/* Normal posts */}
-      <Card className="border-border/60 shadow-none overflow-hidden">
+      <section aria-labelledby="posts-title">
+        <Card className="border-border/60 shadow-none overflow-hidden">
         {posts.length > 0 ? (
           <>
             {/* Desktop: table */}
@@ -513,15 +518,19 @@ function BoardContent() {
 
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-center gap-1 border-t border-border/40 py-4">
+              <nav
+                className="flex flex-wrap items-center justify-center gap-1 border-t border-border/40 py-4"
+                aria-label="게시글 페이지네이션"
+              >
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage <= 1}
                   className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  aria-label="이전 페이지"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
+                  <ChevronLeft className="h-3.5 w-3.5 mr-0.5" aria-hidden="true" />
                   이전
                 </Button>
                 {(() => {
@@ -540,6 +549,8 @@ function BoardContent() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handlePageChange(page)}
+                      aria-label={`${page} 페이지${page === currentPage ? ' (현재 페이지)' : ''}`}
+                      aria-current={page === currentPage ? 'page' : undefined}
                       className={`h-8 w-8 p-0 text-xs tabular-nums ${
                         page === currentPage
                           ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
@@ -556,16 +567,17 @@ function BoardContent() {
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage >= pagination.totalPages}
                   className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  aria-label="다음 페이지"
                 >
                   다음
-                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" aria-hidden="true" />
                 </Button>
-              </div>
+              </nav>
             )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <LayoutList className="h-8 w-8 text-muted-foreground/40" />
+            <LayoutList className="h-8 w-8 text-muted-foreground/40" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               {currentCategory === 'all'
                 ? '아직 작성된 게시글이 없습니다.'
@@ -577,6 +589,7 @@ function BoardContent() {
           </div>
         )}
       </Card>
+    </section>
     </div>
   );
 }

@@ -67,7 +67,7 @@ export function BottomNav({ isAdmin = false }: BottomNavProps) {
                 isActive ? 'text-primary' : 'text-muted-foreground active:text-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+              <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden="true" />
               <span>{item.title}</span>
             </Link>
           );

@@ -71,6 +71,7 @@ function NavLink({ item, isActive, collapsed }: NavLinkProps) {
     <Link
       href={item.href}
       title={collapsed ? item.title : undefined}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
         // Base layout
         'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium',
@@ -102,6 +103,7 @@ function NavLink({ item, isActive, collapsed }: NavLinkProps) {
             : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300',
           'transition-colors duration-200'
         )}
+        aria-hidden="true"
       />
       {!collapsed && <span className="truncate leading-none">{item.title}</span>}
     </Link>

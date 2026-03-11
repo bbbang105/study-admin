@@ -103,9 +103,9 @@ function Hero() {
   return (
     <section className="relative flex min-h-[calc(100vh-56px)] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center">
       {/* Glow background */}
-      <div className="landing-glow absolute inset-0 pointer-events-none" />
+      <div className="landing-glow absolute inset-0 pointer-events-none" aria-hidden="true" />
       {/* Grid pattern overlay */}
-      <div className="grid-pattern absolute inset-0 pointer-events-none" />
+      <div className="grid-pattern absolute inset-0 pointer-events-none" aria-hidden="true" />
 
       <div className="relative z-10 flex flex-col items-center">
         {/* Badge pill */}
@@ -308,6 +308,7 @@ function AvatarMarquee() {
                 key={`${seed}-${i}`}
                 src={`https://api.dicebear.com/9.x/fun-emoji/svg?seed=${seed}`}
                 alt=""
+                aria-hidden="true"
                 width={48}
                 height={48}
                 className="rounded-full border border-white/10 shrink-0"
@@ -323,7 +324,7 @@ function AvatarMarquee() {
 function FinalCTA() {
   return (
     <section className="relative overflow-hidden px-6 py-24 sm:py-32 text-center">
-      <div className="landing-glow-bottom absolute inset-0 pointer-events-none" />
+      <div className="landing-glow-bottom absolute inset-0 pointer-events-none" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto max-w-2xl">
         <FadeUp delay={0}>
@@ -383,8 +384,11 @@ function Footer() {
 export function LandingClient({ stats }: LandingClientProps) {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <a href="#main-content" className="skip-to-content">
+        본문으로 바로가기
+      </a>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Hero />
         <StatsBar stats={stats} />
         <FeaturesBento />
