@@ -201,11 +201,13 @@ export const fines = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     paidAt: timestamp('paid_at', { withTimezone: true }),
     pendingConfirmation: boolean('pending_confirmation').default(true),
+    lastReminderAt: timestamp('last_reminder_at', { withTimezone: true }),
   },
   (table) => ({
     memberRoundUnique: uniqueIndex('fines_member_round_unique').on(table.memberId, table.roundId),
     statusIdx: index('idx_fines_status').on(table.status),
     pendingConfirmationIdx: index('idx_fines_pending_confirmation').on(table.pendingConfirmation),
+    lastReminderAtIdx: index('idx_fines_last_reminder_at').on(table.lastReminderAt),
   })
 );
 
