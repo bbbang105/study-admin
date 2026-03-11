@@ -12,6 +12,17 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AdminDashboardSkeleton, PageError } from '@/components/ui/page-state';
 import { CrawlModal } from './crawl-modal';
 import type { CrawlStatus, CrawlSourceResult, CrawlSummary } from './crawl-modal';
@@ -59,6 +70,9 @@ export default function AdminCurationPage() {
   const [editingSource, setEditingSource] = useState<CurationSource | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<CurationSource | null>(null);
 
   // Crawl modal state
   const [crawlModalOpen, setCrawlModalOpen] = useState(false);
@@ -185,17 +199,15 @@ export default function AdminCurationPage() {
   };
 
   const handleDelete = async (source: CurationSource) => {
-    if (
-      !confirm(
-        `"${source.name}" 소스를 삭제하시겠습니까?\n수집된 ${source.itemCount}개의 아이템도 함께 삭제됩니다.`,
-      )
-    ) {
-      return;
-    }
+    setDeleteTarget(source);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
     try {
-      setUpdatingId(source.id);
-      const response = await fetch(`/api/admin/curation/${source.id}`, {
+      setUpdatingId(deleteTarget.id);
+      const response = await fetch(`/api/admin/curation/${deleteTarget.id}`, {
         method: 'DELETE',
       });
 
@@ -203,6 +215,7 @@ export default function AdminCurationPage() {
         throw new Error('Failed to delete source');
       }
 
+      setDeleteTarget(null);
       await fetchSources();
     } catch (err) {
       console.error('Error deleting source:', err);
@@ -361,6 +374,23 @@ export default function AdminCurationPage() {
         errorMessage={crawlErrorMessage}
       />
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>소스 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{deleteTarget?.name}&rdquo; 소스를 삭제하시겠습니까? 수집된 {deleteTarget?.itemCount}개의
+              아이템도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card>
@@ -443,8 +473,12 @@ export default function AdminCurationPage() {
               <CardDescription>{filteredSources.length}개의 소스</CardDescription>
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <Label htmlFor="curation-search" className="sr-only">
+                소스 검색
+              </Label>
               <Input
+                id="curation-search"
                 placeholder="검색..."
                 className="pl-8 w-full sm:w-[200px]"
                 value={searchQuery}

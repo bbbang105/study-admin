@@ -101,7 +101,7 @@ export function CommentForm({
       />
 
       {error && (
-        <p className="text-xs text-destructive">{error}</p>
+        <p role="alert" aria-live="assertive" className="text-xs text-destructive">{error}</p>
       )}
 
       <div className="flex items-center justify-between gap-3">

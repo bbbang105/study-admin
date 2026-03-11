@@ -13,6 +13,16 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface CurationItem {
   id: string;
@@ -58,6 +68,9 @@ export default function CurationItemsPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<CurationItem | null>(null);
+
   // Filters
   const [category, setCategory] = useState('all');
   const [sourceId, setSourceId] = useState('all');
@@ -101,21 +114,25 @@ export default function CurationItemsPage() {
   };
 
   const handleDelete = async (item: CurationItem) => {
-    if (!confirm(`"${item.title}" 아이템을 삭제하시겠습니까?`)) return;
+    setDeleteTarget(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
     try {
-      setDeletingId(item.id);
-      const response = await fetch(`/api/admin/curation/items/${item.id}`, {
+      setDeletingId(deleteTarget.id);
+      const response = await fetch(`/api/admin/curation/items/${deleteTarget.id}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) throw new Error('Failed to delete item');
 
+      setDeleteTarget(null);
       // Refresh current page
       fetchItems(pagination.page, category, sourceId);
     } catch (err) {
       console.error('Error deleting item:', err);
-      alert('삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
     }
@@ -206,7 +223,10 @@ export default function CurationItemsPage() {
                   className="font-medium text-sm hover:underline line-clamp-2 flex items-start gap-1 group"
                 >
                   <span className="flex-1">{item.title}</span>
-                  <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 mt-0.5 shrink-0">
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">(새 탭에서 열기)</span>
+                  </span>
                 </a>
 
                 {/* Source + Date */}
@@ -280,6 +300,22 @@ export default function CurationItemsPage() {
           </Button>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>아이템 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{deleteTarget?.title}&rdquo; 아이템을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

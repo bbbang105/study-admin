@@ -33,6 +33,8 @@ export interface CrawledContent {
   publishedAt?: Date;
   category: string;
   tags: string[];
+  description?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 /**
@@ -322,6 +324,8 @@ export class CurationService {
             publishedAt: crawled.publishedAt,
             category: crawled.category || source.category,
             tags: crawled.tags,
+            description: crawled.description,
+            thumbnailUrl: crawled.thumbnailUrl,
             relevanceScore,
             isShared: false,
           });

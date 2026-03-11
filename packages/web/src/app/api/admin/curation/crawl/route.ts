@@ -8,7 +8,9 @@ import {
   createUnauthorizedResponse,
   verifyAdminAccess,
 } from '@/lib/admin';
-import { isSafeUrl } from '@/lib/rss-detect';
+import { utils } from '@blog-study/shared/utils';
+
+const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
 
 interface CrawlSourceResult {
   sourceId: string;
@@ -17,96 +19,6 @@ interface CrawlSourceResult {
   itemsFound: number;
   newItemsAdded: number;
   error?: string;
-}
-
-interface NormalizedFeedItem {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  description?: string;
-  categories?: string[];
-}
-
-/**
- * Normalize feed items across different formats (RSS/Atom/JSON/RDF)
- */
-function extractFeedItems(result: ReturnType<typeof parseFeed>): NormalizedFeedItem[] {
-  const { format, feed } = result;
-
-  if (format === 'atom') {
-    return (feed.entries ?? []).map((entry) => ({
-      title: entry.title,
-      link: entry.links?.[0]?.href,
-      pubDate: entry.published ?? entry.updated,
-      description: entry.summary ?? entry.content,
-      categories: entry.categories?.map((c) => c.term).filter(Boolean) as string[],
-    }));
-  }
-
-  if (format === 'rss') {
-    return (feed.items ?? []).map((item) => ({
-      title: item.title,
-      link: item.link,
-      pubDate: item.pubDate ? String(item.pubDate) : undefined,
-      description: item.description,
-      categories: item.categories
-        ?.map((c) => (typeof c === 'string' ? c : c.name))
-        .filter(Boolean) as string[],
-    }));
-  }
-
-  if (format === 'json') {
-    return (feed.items ?? []).map((item) => ({
-      title: item.title,
-      link: item.url ?? item.external_url,
-      pubDate: item.date_published ?? item.date_modified,
-      description: item.summary ?? item.content_text,
-      categories: item.tags,
-    }));
-  }
-
-  // RDF
-  return (feed.items ?? []).map((item) => ({
-    title: item.title,
-    link: item.link,
-    pubDate: item.dc?.date,
-    description: item.description,
-  }));
-}
-
-/**
- * HTML 태그 제거 + 300자 truncate
- */
-function sanitizeDescription(html: string | undefined): string | null {
-  if (!html) return null;
-  const text = html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&[a-zA-Z]+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!text) return null;
-  return text.length > 300 ? text.slice(0, 300) + '...' : text;
-}
-
-/**
- * URL에서 og:image 메타태그 추출 (5초 타임아웃)
- */
-async function extractOgImage(url: string): Promise<string | null> {
-  try {
-    if (!isSafeUrl(url)) return null;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'BlogStudyBot/1.0' },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const match =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -224,20 +136,38 @@ export async function POST(request: NextRequest) {
 
           let newItemsAdded = 0;
 
-          for (const item of feedItems) {
-            if (!item.link || !item.title) continue;
+          // P1 #8: 성능 개선 - 병렬 OG 이미지 추출
+          const validItems = feedItems.filter((item) => item.link && item.title);
 
-            // since 필터: publishedAt이 sinceDate보다 이전이면 skip
-            if (sinceDate && item.pubDate) {
+          // since 필터 및 description 사전 처리
+          const itemsWithMetadata = validItems
+            .filter((item) => {
+              if (!sinceDate || !item.pubDate) return true;
               const pubDate = new Date(item.pubDate);
-              if (!isNaN(pubDate.getTime()) && pubDate < sinceDate) continue;
-            }
+              return isNaN(pubDate.getTime()) || pubDate >= sinceDate;
+            })
+            .map((item) => ({
+              item,
+              description: sanitizeDescription(item.description),
+            }));
+
+          // OG 이미지 병렬 추출
+          const thumbnailResults = await Promise.allSettled(
+            itemsWithMetadata.map(({ item }) => extractOgImage(item.link!))
+          );
+
+          // DB 삽입은 순차 처리 (중복 체크 포함)
+          for (let i = 0; i < itemsWithMetadata.length; i++) {
+            const { item, description } = itemsWithMetadata[i]!;
+            const result = thumbnailResults[i];
+            const thumbnailUrl =
+              result?.status === 'fulfilled' ? result.value : null;
 
             // URL 중복 체크
             const [existing] = await database
               .select({ id: curationItems.id })
               .from(curationItems)
-              .where(eq(curationItems.url, item.link))
+              .where(eq(curationItems.url, item.link!))
               .limit(1);
 
             if (existing) continue;
@@ -251,13 +181,10 @@ export async function POST(request: NextRequest) {
               publishedAt = new Date(item.pubDate);
             }
 
-            const description = sanitizeDescription(item.description);
-            const thumbnailUrl = await extractOgImage(item.link);
-
             await database.insert(curationItems).values({
               sourceId: source.id,
-              title: item.title,
-              url: item.link,
+              title: item.title!,
+              url: item.link!,
               description,
               thumbnailUrl,
               publishedAt,

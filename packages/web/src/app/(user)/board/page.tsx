@@ -126,7 +126,14 @@ function PostTableRow({ post }: { post: BoardPost }) {
   return (
     <TableRow
       className="border-border/40 hover:bg-muted/30 cursor-pointer"
+      tabIndex={0}
       onClick={() => router.push(`/board/${post.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          router.push(`/board/${post.id}`);
+        }
+      }}
     >
       <TableCell className="py-2.5 w-[90px]">
         <CategoryBadge category={post.category} />
@@ -233,7 +240,14 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
   return (
     <TableRow
       className="border-border/40 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70 dark:hover:bg-amber-950/20 cursor-pointer"
+      tabIndex={0}
       onClick={() => router.push(`/board/${post.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          router.push(`/board/${post.id}`);
+        }
+      }}
     >
       <TableCell className="py-2.5 w-[90px]">
         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
