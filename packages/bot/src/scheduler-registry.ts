@@ -193,25 +193,30 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     const { extractFeedItems, sanitizeDescription, extractOgImage } = await import('@blog-study/shared/utils');
     const feedItems = extractFeedItems(result);
 
-    const crawledContents: CrawledContent[] = [];
+    // P1 #8: 성능 개선 - OG 이미지 추출 병렬 처리
+    const validItems = feedItems.filter((item) => item.link && item.title);
 
-    for (const item of feedItems) {
-      if (!item.link || !item.title) continue;
+    // description은 동기 처리로 먼저 수행
+    const itemsWithDescription = validItems.map((item) => ({
+      ...item,
+      description: sanitizeDescription(item.description),
+    }));
 
-      // P1 #8: description, thumbnailUrl 추출
-      const description = sanitizeDescription(item.description);
-      const thumbnailUrl = await extractOgImage(item.link);
+    // OG 이미지는 병렬로 추출 (최대 10개 동시 처리)
+    const OG_IMAGE_CONCURRENCY = 10;
+    const thumbnailResults = await Promise.allSettled(
+      itemsWithDescription.map((item) => extractOgImage(item.link!))
+    );
 
-      crawledContents.push({
-        title: item.title,
-        url: item.link,
-        publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
-        category: '',
-        tags: item.categories ?? [],
-        description,
-        thumbnailUrl,
-      });
-    }
+    const crawledContents: CrawledContent[] = itemsWithDescription.map((item, index) => ({
+      title: item.title!,
+      url: item.link!,
+      publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
+      category: '',
+      tags: item.categories ?? [],
+      description: item.description,
+      thumbnailUrl: thumbnailResults[index].status === 'fulfilled' ? thumbnailResults[index].value : null,
+    }));
 
     return crawledContents;
   });

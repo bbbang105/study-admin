@@ -136,20 +136,37 @@ export async function POST(request: NextRequest) {
 
           let newItemsAdded = 0;
 
-          for (const item of feedItems) {
-            if (!item.link || !item.title) continue;
+          // P1 #8: 성능 개선 - 병렬 OG 이미지 추출
+          const validItems = feedItems.filter((item) => item.link && item.title);
 
-            // since 필터: publishedAt이 sinceDate보다 이전이면 skip
-            if (sinceDate && item.pubDate) {
+          // since 필터 및 description 사전 처리
+          const itemsWithMetadata = validItems
+            .filter((item) => {
+              if (!sinceDate || !item.pubDate) return true;
               const pubDate = new Date(item.pubDate);
-              if (!isNaN(pubDate.getTime()) && pubDate < sinceDate) continue;
-            }
+              return isNaN(pubDate.getTime()) || pubDate >= sinceDate;
+            })
+            .map((item) => ({
+              item,
+              description: sanitizeDescription(item.description),
+            }));
+
+          // OG 이미지 병렬 추출
+          const thumbnailResults = await Promise.allSettled(
+            itemsWithMetadata.map(({ item }) => extractOgImage(item.link!))
+          );
+
+          // DB 삽입은 순차 처리 (중복 체크 포함)
+          for (let i = 0; i < itemsWithMetadata.length; i++) {
+            const { item, description } = itemsWithMetadata[i]!;
+            const thumbnailUrl =
+              thumbnailResults[i]?.status === 'fulfilled' ? thumbnailResults[i].value : null;
 
             // URL 중복 체크
             const [existing] = await database
               .select({ id: curationItems.id })
               .from(curationItems)
-              .where(eq(curationItems.url, item.link))
+              .where(eq(curationItems.url, item.link!))
               .limit(1);
 
             if (existing) continue;
@@ -163,13 +180,10 @@ export async function POST(request: NextRequest) {
               publishedAt = new Date(item.pubDate);
             }
 
-            const description = sanitizeDescription(item.description);
-            const thumbnailUrl = await extractOgImage(item.link);
-
             await database.insert(curationItems).values({
               sourceId: source.id,
-              title: item.title,
-              url: item.link,
+              title: item.title!,
+              url: item.link!,
               description,
               thumbnailUrl,
               publishedAt,
