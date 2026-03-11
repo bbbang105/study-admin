@@ -9,6 +9,7 @@ import {
   verifyAdminAccess,
 } from '@/lib/admin';
 import { utils } from '@blog-study/shared/utils';
+import type { NormalizedFeedItem } from '@blog-study/shared/utils';
 
 const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
 
@@ -137,23 +138,23 @@ export async function POST(request: NextRequest) {
           let newItemsAdded = 0;
 
           // P1 #8: 성능 개선 - 병렬 OG 이미지 추출
-          const validItems = feedItems.filter((item) => item.link && item.title);
+          const validItems = feedItems.filter((item: NormalizedFeedItem) => item.link && item.title);
 
           // since 필터 및 description 사전 처리
           const itemsWithMetadata = validItems
-            .filter((item) => {
+            .filter((item: NormalizedFeedItem) => {
               if (!sinceDate || !item.pubDate) return true;
               const pubDate = new Date(item.pubDate);
               return isNaN(pubDate.getTime()) || pubDate >= sinceDate;
             })
-            .map((item) => ({
+            .map((item: NormalizedFeedItem) => ({
               item,
               description: sanitizeDescription(item.description),
             }));
 
           // OG 이미지 병렬 추출
           const thumbnailResults = await Promise.allSettled(
-            itemsWithMetadata.map(({ item }) => extractOgImage(item.link!))
+            itemsWithMetadata.map(({ item }: { item: NormalizedFeedItem }) => extractOgImage(item.link!))
           );
 
           // DB 삽입은 순차 처리 (중복 체크 포함)

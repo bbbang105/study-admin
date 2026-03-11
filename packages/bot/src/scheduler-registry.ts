@@ -202,21 +202,23 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       description: sanitizeDescription(item.description),
     }));
 
-    // OG 이미지는 병렬로 추출 (최대 10개 동시 처리)
-    const OG_IMAGE_CONCURRENCY = 10;
+    // OG 이미지는 병렬로 추출
     const thumbnailResults = await Promise.allSettled(
       itemsWithDescription.map((item) => extractOgImage(item.link!))
     );
 
-    const crawledContents: CrawledContent[] = itemsWithDescription.map((item, index) => ({
-      title: item.title!,
-      url: item.link!,
-      publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
-      category: '',
-      tags: item.categories ?? [],
-      description: item.description,
-      thumbnailUrl: thumbnailResults[index].status === 'fulfilled' ? thumbnailResults[index].value : null,
-    }));
+    const crawledContents: CrawledContent[] = itemsWithDescription.map((item, index) => {
+      const result = thumbnailResults[index];
+      return {
+        title: item.title!,
+        url: item.link!,
+        publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
+        category: '',
+        tags: item.categories ?? [],
+        description: item.description,
+        thumbnailUrl: result?.status === 'fulfilled' ? result.value : null,
+      };
+    });
 
     return crawledContents;
   });
