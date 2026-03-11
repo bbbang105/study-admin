@@ -9,7 +9,6 @@ import {
   verifyAdminAccess,
 } from '@/lib/admin';
 import { utils } from '@blog-study/shared/utils';
-import type { NormalizedFeedItem } from '@blog-study/shared/utils';
 
 const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
 
