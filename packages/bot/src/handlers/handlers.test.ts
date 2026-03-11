@@ -13,6 +13,8 @@ vi.mock('./activity-handler', () => ({
 
 vi.mock('./dm-handler', () => ({
   setupDMHandler: vi.fn(),
+  sendFineNotification: vi.fn(),
+  sendFineReminder: vi.fn(),
 }));
 
 vi.mock('@blog-study/shared/db', () => ({
@@ -23,8 +25,6 @@ vi.mock('@blog-study/shared/db', () => ({
     limit: vi.fn(),
   })),
 }));
-
-describe('Handlers Integration Tests', () => {
 
 describe('Handlers Integration Tests', () => {
   describe('Property 1: 핸들러 모듈 로드', () => {
