@@ -440,14 +440,9 @@ function BoardContent() {
               <span id="pinned-notice-title" className="text-xs font-semibold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
                 공지사항
               </span>
-          <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-amber-200/60 dark:border-amber-800/30">
-            <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-500 uppercase tracking-wider">
-              공지사항
-            </span>
-          </div>
+            </div>
 
-          {/* Desktop: pinned table */}
+            {/* Desktop: pinned table */}
           <div className="hidden md:block">
             <Table>
               <TableBody>
