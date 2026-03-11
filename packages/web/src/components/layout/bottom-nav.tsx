@@ -61,12 +61,13 @@ export function BottomNav({ isAdmin = false }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground active:text-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+              <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden="true" />
               <span>{item.title}</span>
             </Link>
           );
