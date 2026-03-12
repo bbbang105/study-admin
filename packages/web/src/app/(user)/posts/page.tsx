@@ -235,7 +235,7 @@ function PostsContent() {
         {data?.posts && data.posts.length > 0 ? (
           <>
             {/* Mobile: compact list */}
-            <div className="md:hidden divide-y divide-border/40">
+            <div className="lg:hidden divide-y divide-border/40">
               {data.posts.map((post) => (
                 <a
                   key={post.id}
@@ -270,7 +270,7 @@ function PostsContent() {
             </div>
 
             {/* Desktop: table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border/60">
@@ -302,16 +302,22 @@ function PostsContent() {
                           href={post.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline underline-offset-4 line-clamp-1 font-medium inline-flex items-center gap-1"
+                          title={post.title}
+                          className="flex max-w-full items-center gap-1 overflow-hidden text-sm font-medium text-primary hover:underline underline-offset-4"
                           onClick={() => trackPostView(post.id)}
                         >
-                          {post.title}
-                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                          <span className="truncate">{post.title}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
                           <span className="sr-only">(새 탭에서 열기)</span>
                         </a>
                       </TableCell>
-                      <TableCell className="text-sm text-foreground/80 py-2.5 whitespace-nowrap">
-                        {post.memberNickname || post.memberDiscordUsername}
+                      <TableCell
+                        className="max-w-32 py-2.5 text-sm text-foreground/80 whitespace-nowrap"
+                        title={post.memberNickname || post.memberDiscordUsername}
+                      >
+                        <span className="block truncate">
+                          {post.memberNickname || post.memberDiscordUsername}
+                        </span>
                       </TableCell>
                       <TableCell className="text-center py-2.5 whitespace-nowrap">
                         {post.memberPart ? (

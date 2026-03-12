@@ -143,7 +143,10 @@ function PostTableRow({ post }: { post: BoardPost }) {
           {post.isSecret && (
             <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
           )}
-          <span className="text-sm font-medium text-foreground truncate">
+          <span
+            className="text-sm font-medium text-foreground truncate"
+            title={post.isMasked ? '비밀글입니다' : post.title}
+          >
             {post.isMasked ? '비밀글입니다' : post.title}
           </span>
           {post.commentCount > 0 && (
@@ -154,18 +157,20 @@ function PostTableRow({ post }: { post: BoardPost }) {
           )}
         </div>
       </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap">
-        <MemberAvatar
-          memberId={post.memberId}
-          name={displayName}
-          seed={avatarSeed}
-          imageUrl={post.isMasked ? null : post.memberProfileImage}
-          size="sm"
-          noLink={post.isMasked}
-          showName
-          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-          isAdmin={post.memberIsAdmin}
-        />
+      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
+        <div className="max-w-[140px]">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.isMasked ? null : post.memberProfileImage}
+            size="sm"
+            noLink={post.isMasked}
+            showName
+            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+            isAdmin={post.memberIsAdmin}
+          />
+        </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -257,7 +262,7 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
       </TableCell>
       <TableCell className="py-2.5 max-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm font-medium text-foreground truncate">
+          <span className="text-sm font-medium text-foreground truncate" title={post.title}>
             {post.title}
           </span>
           {post.commentCount > 0 && (
@@ -268,17 +273,19 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
           )}
         </div>
       </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap">
-        <MemberAvatar
-          memberId={post.memberId}
-          name={displayName}
-          seed={avatarSeed}
-          imageUrl={post.memberProfileImage}
-          size="sm"
-          showName
-          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-          isAdmin={post.memberIsAdmin}
-        />
+      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
+        <div className="max-w-[140px]">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.memberProfileImage}
+            size="sm"
+            showName
+            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+            isAdmin={post.memberIsAdmin}
+          />
+        </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -418,21 +425,24 @@ function BoardContent() {
       <section aria-label="게시판 필터 및 글쓰기">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={currentCategory} onValueChange={handleCategoryChange} className="w-full md:justify-start">
-            <TabsList className="h-9 gap-0.5 justify-between bg-muted/60 p-1 flex-wrap w-full md:w-auto md:justify-start" aria-label="카테고리 필터">
-              {ALL_TABS.map((tab) => (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="h-7 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList className="h-9 w-max min-w-0 justify-start gap-0.5 bg-muted/60 p-1" aria-label="카테고리 필터">
+                {ALL_TABS.map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    title={tab.label}
+                    className="h-7 shrink-0 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </Tabs>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <span className="text-xs text-muted-foreground tabular-nums">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:self-auto">
+            <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
               총 {totalCount}개
             </span>
             <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
@@ -457,7 +467,7 @@ function BoardContent() {
             </div>
 
             {/* Desktop: pinned table */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <Table>
               <TableBody>
                 {pinnedPosts.map((post) => (
@@ -468,7 +478,7 @@ function BoardContent() {
           </div>
 
           {/* Mobile: pinned cards */}
-          <div className="md:hidden px-4">
+          <div className="lg:hidden px-4">
             {pinnedPosts.map((post) => (
               <PinnedCard key={post.id} post={post} />
             ))}
@@ -483,7 +493,7 @@ function BoardContent() {
         {posts.length > 0 ? (
           <>
             {/* Desktop: table */}
-            <div className="hidden md:block">
+            <div className="hidden lg:block">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border/60">
@@ -510,7 +520,7 @@ function BoardContent() {
             </div>
 
             {/* Mobile: card list */}
-            <CardContent className="md:hidden px-4 py-0">
+            <CardContent className="lg:hidden px-4 py-0">
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}

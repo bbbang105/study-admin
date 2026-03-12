@@ -275,7 +275,7 @@ export default function AdminMembersPage() {
         </CardHeader>
         <CardContent>
           {statusFilter === 'pending_approval' && filteredMembers.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2">
               {filteredMembers.map((member) => (
                 <PendingMemberCard
                   key={member.id}
@@ -288,7 +288,7 @@ export default function AdminMembersPage() {
           ) : (
             <>
               {/* Mobile card list */}
-              <div className="md:hidden space-y-3">
+              <div className="lg:hidden space-y-3">
                 {filteredMembers.length > 0 ? (
                   filteredMembers.map((member) => (
                     <div key={member.id} className="border rounded-lg p-3 space-y-2">
@@ -351,7 +351,7 @@ export default function AdminMembersPage() {
               </div>
 
               {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

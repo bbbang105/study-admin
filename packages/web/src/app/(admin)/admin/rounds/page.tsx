@@ -187,25 +187,29 @@ export default function AdminRoundsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">회차</p>
                 <p className="text-2xl font-bold">{currentRound.roundNumber}회차</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">기간</p>
-                <p className="text-sm font-medium">
+                <p className="hidden text-sm font-medium xl:block">
                   {currentRound.startDate} ~ {currentRound.endDate}
                 </p>
+                <p className="text-sm font-medium xl:hidden">
+                  {currentRound.startDate}
+                  <br />~ {currentRound.endDate}
+                </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">지각 마감</p>
                 <p className="text-sm font-medium">{currentRound.graceEndDate}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">제출률</p>
                 <p className="text-2xl font-bold">{currentRound.stats.submissionRate}%</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                   <span className="text-success">제출 {currentRound.stats.submitted}</span>
                   <span className="text-warning">지각 {currentRound.stats.late}</span>
                   <span className="text-destructive">결석 {currentRound.stats.absent}</span>
@@ -239,7 +243,7 @@ export default function AdminRoundsPage() {
           </CardHeader>
           <CardContent>
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -418,7 +422,7 @@ export default function AdminRoundsPage() {
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
+            <div className="lg:hidden space-y-3">
               {rounds.map((round) => {
                 const isExpanded = expandedId === round.id;
                 const isDeleting = deletingId === round.id;

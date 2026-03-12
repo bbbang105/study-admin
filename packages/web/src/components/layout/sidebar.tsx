@@ -198,7 +198,7 @@ export function Sidebar({
     <aside
       aria-label="데스크톱 내비게이션"
       className={cn(
-        'fixed left-0 top-0 z-30 hidden h-full md:flex md:flex-col',
+        'fixed left-0 top-0 z-30 hidden h-full lg:flex lg:flex-col',
         'border-r border-zinc-200 dark:border-zinc-800',
         'bg-white dark:bg-zinc-950',
         'transition-[width] duration-200 ease-in-out',

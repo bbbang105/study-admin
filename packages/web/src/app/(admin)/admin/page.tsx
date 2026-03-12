@@ -10,7 +10,8 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  ArrowRight,
+  ArrowUpRight,
+  Inbox,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +89,15 @@ const statusLabels: Record<
   absent: { label: '결석', variant: 'destructive' },
 };
 
+function AvatarInitial({ name }: { name: string }) {
+  const initial = name.trim().charAt(0).toUpperCase();
+  return (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+      {initial}
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,15 +129,15 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+      <div className="space-y-0.5">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           Admin
         </p>
-        <h1 className="text-xl font-semibold">관리자 대시보드</h1>
+        <h1 className="text-lg font-semibold tracking-tight">관리자 대시보드</h1>
       </div>
 
       {/* Current Round Card */}
-      {data?.currentRound && (
+      {data?.currentRound ? (
         <Card className="border-primary/30 shadow-none">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
@@ -140,18 +150,22 @@ export default function AdminDashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              <div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 md:gap-4">
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">회차</p>
                 <p className="text-2xl font-bold">{data.currentRound.roundNumber}회차</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">기간</p>
-                <p className="text-sm font-medium">
+                <p className="hidden text-sm font-medium xl:block">
                   {data.currentRound.startDate} ~ {data.currentRound.endDate}
                 </p>
+                <p className="text-sm font-medium xl:hidden">
+                  {data.currentRound.startDate}
+                  <br />~ {data.currentRound.endDate}
+                </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">마감까지</p>
                 <p className="text-2xl font-bold">
                   {data.currentRound.isGracePeriod ? (
@@ -161,7 +175,7 @@ export default function AdminDashboardPage() {
                   )}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">제출률</p>
                 <p className="text-2xl font-bold">
                   {data.submissionStats?.submissionRate ?? 0}%
@@ -170,159 +184,191 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+      ) : (
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            아직 시작된 회차가 없습니다.
+          </CardContent>
+        </Card>
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-4 md:gap-4">
-        <Card className="shadow-none border-border/60">
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs text-muted-foreground">활성 참가자</p>
+                <p className="text-2xl font-bold tracking-tight">{data?.memberCounts.active ?? 0}명</p>
+                <p className="text-xs text-muted-foreground">
+                  휴면 {data?.memberCounts.dormant ?? 0}명 · 탈퇴 {data?.memberCounts.withdrawn ?? 0}명
+                </p>
+              </div>
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <Users className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold">{data?.memberCounts.active ?? 0}명</div>
-            <p className="text-xs text-muted-foreground mt-0.5">활성 참가자</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              휴면 {data?.memberCounts.dormant ?? 0}명 · 탈퇴 {data?.memberCounts.withdrawn ?? 0}명
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-none border-border/60">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs text-muted-foreground">총 포스트</p>
+                <p className="text-2xl font-bold tracking-tight">{data?.totalPosts ?? 0}개</p>
+                <p className="text-xs text-muted-foreground">누적 작성 글</p>
+              </div>
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <FileText className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold">{data?.totalPosts ?? 0}개</div>
-            <p className="text-xs text-muted-foreground mt-0.5">총 포스트</p>
-            <p className="text-xs text-muted-foreground mt-1">누적 작성 글</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-none border-border/60">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs text-muted-foreground">미납 벌금</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {(data?.unpaidFines.total ?? 0).toLocaleString()}원
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {data?.unpaidFines.count ?? 0}건 미납
+                </p>
+              </div>
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <CreditCard className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold">
-              {(data?.unpaidFines.total ?? 0).toLocaleString()}원
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">미납 벌금</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {data?.unpaidFines.count ?? 0}건 미납
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-none border-border/60">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs text-muted-foreground">이번 회차 현황</p>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle className="h-4 w-4 text-success" />
+                    <span className="font-medium">{data?.submissionStats?.submitted ?? 0}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4 text-warning" />
+                    <span className="font-medium">{data?.submissionStats?.late ?? 0}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                    <span className="font-medium">{data?.submissionStats?.absent ?? 0}</span>
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  대기 {data?.submissionStats?.pending ?? 0}명
+                </p>
+              </div>
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <CheckCircle className="h-4 w-4 text-success" />
-                <span className="text-sm font-medium">{data?.submissionStats?.submitted ?? 0}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <AlertCircle className="h-4 w-4 text-warning" />
-                <span className="text-sm font-medium">{data?.submissionStats?.late ?? 0}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <XCircle className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-medium">{data?.submissionStats?.absent ?? 0}</span>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">이번 회차 현황</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              대기 {data?.submissionStats?.pending ?? 0}명
-            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Recent Posts */}
-        <Card className="shadow-none border-border/60">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">최근 포스트</p>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" asChild>
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between px-4 py-3 pb-0">
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Activity
+              </p>
+              <p className="text-sm font-semibold">최근 포스트</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+              asChild
+            >
                 <Link href="/posts">
                   전체 보기
-                  <ArrowRight className="h-3 w-3 ml-1" />
+                  <ArrowUpRight className="h-3 w-3" />
                 </Link>
               </Button>
-            </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-4 py-3">
             {data?.recentActivity.posts && data.recentActivity.posts.length > 0 ? (
-              <div className="space-y-0">
-                {data.recentActivity.posts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="flex items-start justify-between border-b border-border/40 py-2.5 last:border-0 last:pb-0 first:pt-0"
-                  >
-                    <div className="min-w-0 flex-1">
+              <div className="divide-y divide-border/50">
+                {data.recentActivity.posts.map((post) => {
+                  const authorName = post.memberNickname || post.memberDiscordUsername;
+                  return (
+                    <div key={post.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <AvatarInitial name={authorName} />
+                      <div className="min-w-0 flex-1 space-y-0.5">
                       <a
                         href={post.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm hover:underline truncate block text-foreground"
+                        className="block truncate text-sm font-medium leading-snug hover:text-primary transition-colors"
                       >
                         {post.title}
                       </a>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                        <span>{post.memberNickname || post.memberDiscordUsername}</span>
-                        <span>·</span>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{authorName}</span>
+                        <span className="text-border">·</span>
                         <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                최근 포스트가 없습니다.
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Inbox className="h-8 w-8 opacity-30" />
+                <p className="text-sm">최근 포스트가 없습니다.</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Recent Attendance */}
-        <Card className="shadow-none border-border/60">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">최근 출석 변경</p>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" asChild>
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between px-4 py-3 pb-0">
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Activity
+              </p>
+              <p className="text-sm font-semibold">최근 출석 변경</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+              asChild
+            >
                 <Link href="/admin/attendance">
                   전체 보기
-                  <ArrowRight className="h-3 w-3 ml-1" />
+                  <ArrowUpRight className="h-3 w-3" />
                 </Link>
               </Button>
-            </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-4 py-3">
             {data?.recentActivity.attendance && data.recentActivity.attendance.length > 0 ? (
-              <div className="space-y-0">
+              <div className="divide-y divide-border/50">
                 {data.recentActivity.attendance.map((att) => (
                   <div
                     key={att.id}
-                    className="flex items-center justify-between border-b border-border/40 py-2.5 last:border-0 last:pb-0 first:pt-0"
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                   >
-                    <div>
-                      <p className="text-sm text-foreground">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
                         {att.memberName || att.memberDiscordUsername}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground">
                         {att.roundNumber}회차 · {new Date(att.updatedAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
@@ -333,8 +379,9 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                최근 출석 변경 내역이 없습니다.
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Inbox className="h-8 w-8 opacity-30" />
+                <p className="text-sm">최근 출석 변경 내역이 없습니다.</p>
               </div>
             )}
           </CardContent>

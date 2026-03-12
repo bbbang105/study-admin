@@ -66,6 +66,8 @@ interface AttendanceData {
   roundStats: RoundStats[];
 }
 
+type DisplayRound = RoundInfo | null;
+
 interface StatusConfigItem {
   label: string;
   icon: React.ReactNode;
@@ -232,6 +234,10 @@ export default function AdminAttendancePage() {
   const totalPages = Math.ceil(data.rounds.length / ROUNDS_PER_PAGE);
   const startIndex = currentPage * ROUNDS_PER_PAGE;
   const visibleRounds = data.rounds.slice(startIndex, startIndex + ROUNDS_PER_PAGE);
+  const displayRounds: DisplayRound[] = [
+    ...visibleRounds,
+    ...Array.from<DisplayRound>({ length: Math.max(0, ROUNDS_PER_PAGE - visibleRounds.length) }).fill(null),
+  ];
   const visibleRoundStats = data.roundStats.filter((rs) =>
     visibleRounds.some((r) => r.id === rs.roundId)
   );
@@ -283,9 +289,12 @@ export default function AdminAttendancePage() {
       </Card>
 
       {/* Round Stats Summary */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
+      <div className="flex flex-wrap gap-3 md:gap-4">
         {visibleRoundStats.map((rs) => (
-          <Card key={rs.roundId} className={rs.isCurrent ? 'border-primary' : ''}>
+          <Card
+            key={rs.roundId}
+            className={`w-[calc(50%-0.375rem)] min-w-0 sm:w-[180px] ${rs.isCurrent ? 'border-primary' : ''}`}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium">{rs.roundNumber}회차</CardTitle>
@@ -296,12 +305,18 @@ export default function AdminAttendancePage() {
                 )}
               </div>
               <CardDescription className="text-xs">
-                {rs.startDate} ~ {rs.endDate}
+                <span className="hidden xl:inline">
+                  {rs.startDate} ~ {rs.endDate}
+                </span>
+                <span className="xl:hidden">
+                  {rs.startDate}
+                  <br />~ {rs.endDate}
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{rs.stats.submissionRate}%</div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                 <span className="text-success">✓{rs.stats.submitted}</span>
                 <span className="text-warning">△{rs.stats.late}</span>
                 <span className="text-destructive">✗{rs.stats.absent}</span>
@@ -373,17 +388,21 @@ export default function AdminAttendancePage() {
                   <TableHead className="sticky left-[150px] bg-background z-10 min-w-[80px]">
                     상태
                   </TableHead>
-                  {visibleRounds.map((round) => (
+                  {displayRounds.map((round, index) => (
                     <TableHead
-                      key={round.id}
-                      className={`text-center min-w-[80px] ${round.isCurrent ? 'bg-primary/10' : ''}`}
+                      key={round?.id ?? `empty-round-${currentPage}-${index}`}
+                      className={`text-center min-w-[80px] ${round?.isCurrent ? 'bg-primary/10' : ''}`}
                     >
-                      <div className="flex flex-col items-center">
-                        <span className="font-medium">{round.roundNumber}회차</span>
-                        <span className="text-xs text-muted-foreground">
-                          {round.endDate.slice(5)}
-                        </span>
-                      </div>
+                      {round ? (
+                        <div className="flex flex-col items-center">
+                          <span className="font-medium">{round.roundNumber}회차</span>
+                          <span className="text-xs text-muted-foreground">
+                            {round.endDate.slice(5)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="h-8" aria-hidden="true" />
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -405,7 +424,18 @@ export default function AdminAttendancePage() {
                           {MEMBER_STATUS_CONFIG[row.member.status]?.label || row.member.status}
                         </Badge>
                       </TableCell>
-                      {visibleRounds.map((round) => {
+                      {displayRounds.map((round, index) => {
+                        if (!round) {
+                          return (
+                            <TableCell
+                              key={`empty-cell-${row.member.id}-${currentPage}-${index}`}
+                              className="text-center text-muted-foreground/30"
+                            >
+                              -
+                            </TableCell>
+                          );
+                        }
+
                         const att = row.attendance[round.id];
                         const cellConfig = getStatusConfig(att?.status || 'none');
                         const cellKey = `${row.member.id}-${round.id}`;
