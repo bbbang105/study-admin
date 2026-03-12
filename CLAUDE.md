@@ -6,9 +6,11 @@
 
 ```
 packages/
-├── bot/      # Discord 봇 (스케줄러 + 이벤트 핸들러만, 슬래시 커맨드 없음) → AWS EC2 배포
+├── bot/      # Discord 봇 (스케줄러 + 이벤트 핸들러만, 슬래시 커맨드 없음) → AWS EC2 (Docker)
 ├── web/      # Next.js 16 대시보드 → Vercel 배포
 └── shared/   # 공유 코드 (DB 스키마, 타입, 유틸)
+deploy/
+└── bot/      # EC2 배포 스크립트 (deploy.sh) — 리포에 커밋하지 않음, EC2에 직접 배치
 ```
 
 **모노레포**: pnpm workspace (`pnpm-workspace.yaml`)
@@ -22,7 +24,8 @@ packages/
 | Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
-| 배포 | AWS EC2 (bot), Vercel (web), Supabase (DB + Auth) |
+| 배포 | AWS EC2 Docker (bot), Vercel (web), Supabase (DB + Auth) |
+| CI/CD | GitHub Actions → ECR → SSH deploy (bot), Vercel Git Integration (web) |
 
 ## 개발 명령어
 
@@ -102,6 +105,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
 | `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |
 | `packages/web/public/logo.svg` | 풀 로고 SVG (픽토그램 + 텍스트) |
+| `packages/bot/Dockerfile` | 봇 Docker 이미지 (multi-stage, node:22-alpine) |
+| `.github/workflows/bot-deploy.yml` | 봇 CI/CD (CI Gate → ECR 빌드/푸시 → SSH 배포) |
+| `.github/workflows/ci.yml` | PR/push CI (lint, typecheck, test, build) |
 
 ## 인증 구조
 
@@ -218,6 +224,15 @@ npx drizzle-kit push --force
 | `docs/26-03-08-discord-channel-setup.md` | 디스코드 채널 세팅 가이드 (큐스팅) |
 | `docs/plans/26-03-08-landing-page-redesign-design.md` | 랜딩 페이지 리디자인 디자인 문서 |
 | `docs/plans/26-03-08-landing-page-redesign.md` | 랜딩 페이지 구현 플랜 |
+
+## 봇 배포 (CI/CD)
+
+- **파이프라인**: `dev` push → CI Gate (lint+typecheck+test) → ECR 빌드(ARM64) → SSH 배포
+- **트리거**: `packages/bot/**`, `packages/shared/**` 변경 시 + `workflow_dispatch`
+- **EC2**: illdan-mgmt (t4g ARM64), `~/study-admin-bot/deploy.sh` + `.env`
+- **ECR**: `101548339709.dkr.ecr.ap-northeast-2.amazonaws.com/study-admin-bot`
+- **deploy.sh**: ECR 로그인 → pull → 컨테이너 교체 → health check → Discord 웹훅 알림
+- **주의**: `deploy/bot/deploy.sh`는 커밋하지 않음 (EC2에 직접 배치)
 
 ## docs 파일명 컨벤션
 
