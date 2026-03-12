@@ -1,3 +1,4 @@
+// TODO: 큐레이션 기능은 나중에 활성화 예정 (현재 네비게이션에서 숨김 처리됨)
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';

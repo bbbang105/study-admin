@@ -24,6 +24,19 @@ export async function GET() {
 
     const database = db();
 
+    // Get current user's member info
+    const discordIdentity = user.identities?.find((i) => i.provider === 'discord');
+    const discordId = discordIdentity?.id;
+    let currentUserNickname: string | null = null;
+    if (discordId) {
+      const [me] = await database
+        .select({ nickname: members.nickname, discordUsername: members.discordUsername })
+        .from(members)
+        .where(eq(members.discordId, discordId))
+        .limit(1);
+      currentUserNickname = me?.nickname || me?.discordUsername || null;
+    }
+
     // Get current round
     const [currentRoundData] = await database
       .select()
@@ -110,6 +123,7 @@ export async function GET() {
     const totalPostsResult = await database.select({ count: count() }).from(posts);
 
     return successResponse({
+      nickname: currentUserNickname,
       currentRound,
       recentPosts: recentPostsResult.map((post) => ({
         id: post.id,

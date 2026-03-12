@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-08 (v3)
+> 최종 업데이트: 2026-03-12 (v4)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -45,7 +45,7 @@ graph TB
 
     subgraph Web["Web Dashboard · Vercel"]
         MW["Middleware<br/>세션 검증"]
-        PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Curation · Board<br/>Admin (Members · Rounds · Attendance<br/>Fines · Scores · Curation · Settings)"]
+        PAGES["Pages<br/>Dashboard · Posts · Ranking<br/>Profile · Board · Members<br/>Admin (Members · Rounds · Attendance<br/>Fines · Scores · Settings)"]
         PTR["Pull-to-Refresh<br/>커스텀 터치 제스처"]
         BANNER["Notice Banner<br/>글로벌 공지 배너"]
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
@@ -217,9 +217,9 @@ flowchart TD
 | Public | `/` | 랜딩 페이지 (다크 모드, Framer Motion, DB 스탯 ISR 60s, 인증 시 → `/dashboard`) | 서버 사이드 세션 체크 |
 | Auth | `/login` | Discord OAuth 로그인 | 인증 시 /dashboard 리다이렉트 |
 | User | `/dashboard` | 대시보드 | 로그인 필수 |
-| User | `/posts` | 글 목록 | 로그인 필수 |
+| User | `/posts` | 글 목록 (최신순/인기순 탭, 무한 스크롤, OG 썸네일) | 로그인 필수 |
 | User | `/ranking` | 랭킹 | 로그인 필수 |
-| User | `/curation` | 큐레이션 | 로그인 필수 |
+| User | `/curation` | 큐레이션 (현재 숨김, 나중에 활성화 예정) | 로그인 필수 |
 | User | `/board` | 커뮤니티 게시판 | 로그인 필수 |
 | User | `/members` | 멤버 목록 | 로그인 필수 |
 | User | `/members/[id]` | 멤버 상세 | 로그인 필수 |
@@ -230,7 +230,7 @@ flowchart TD
 | Admin | `/admin/attendance` | 출석 관리 | 관리자 전용 |
 | Admin | `/admin/fines` | 벌금 관리 | 관리자 전용 |
 | Admin | `/admin/scores` | 점수 관리 | 관리자 전용 |
-| Admin | `/admin/curation` | 큐레이션 소스 관리 | 관리자 전용 |
+| Admin | `/admin/curation` | 큐레이션 소스 관리 (현재 숨김) | 관리자 전용 |
 | Admin | `/admin/settings` | 설정 | 관리자 전용 |
 
 ### 미들웨어 보호 로직
@@ -306,6 +306,9 @@ erDiagram
         varchar title
         varchar url UK
         timestamp published_at
+        text description
+        varchar thumbnail_url
+        integer comment_count
     }
 
     attendance {
@@ -382,8 +385,8 @@ erDiagram
 | 뷰포트 | 내비게이션 | 컴포넌트 |
 |--------|-----------|---------|
 | Desktop (md+) | 좌측 고정 사이드바 (접기/펼치기) | `Sidebar` |
-| Mobile 사용자 (<md) | 하단 고정 탭 바 (5개: 글 목록/랭킹/큐레이션/게시판/스터디원) | `BottomNav` |
-| Mobile 관리자 (<md) | 하단 고정 탭 바 (6개: 멤버/회차/출석/벌금/점수/큐레이션) | `BottomNav` |
+| Mobile 사용자 (<md) | 하단 고정 탭 바 (5개: 랭킹/포스트/홈/게시판/스터디원) | `BottomNav` |
+| Mobile 관리자 (<md) | 하단 고정 탭 바 (5개: 멤버/회차/출석/벌금/점수) | `BottomNav` |
 
 - **Header**: 로고(커스텀 SVG 픽토그램, 사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
 - **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (7섹션: Nav/Hero/Stats/Bento/HowItWorks/Marquee/CTA). 큐시즘 블루 그라디언트 (`#0091FF→#004DFF`), Framer Motion 애니메이션, DB 스탯 ISR 60s

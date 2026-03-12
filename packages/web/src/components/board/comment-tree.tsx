@@ -175,7 +175,7 @@ function InlineEditForm({ comment, onSaved, onCancel }: InlineEditFormProps) {
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center gap-2">
           <Switch
             id={`edit-secret-${comment.id}`}
@@ -186,14 +186,14 @@ function InlineEditForm({ comment, onSaved, onCancel }: InlineEditFormProps) {
           />
           <Label
             htmlFor={`edit-secret-${comment.id}`}
-            className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none"
+            className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap"
           >
             <Lock className="h-3 w-3" />
             비밀댓글
           </Label>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 ml-auto">
           <Button
             type="button"
             variant="ghost"
@@ -261,7 +261,7 @@ function CommentItem({
   const canEdit = isOwner && !node.isDeleted && !node.isMasked;
   const canDelete = (isOwner || isAdmin) && !node.isDeleted;
   // 비밀댓글 답글: 본인/글작성자/관리자만 가능 (마스킹된 건 볼 수 없으므로 불가)
-  const canReply = !node.isDeleted && !node.isMasked && depth < 3
+  const canReply = !node.isDeleted && !node.isMasked && depth < 5
     && (!node.isSecret || isOwner || isPostAuthor || isAdmin);
 
   const displayName = node.isDeleted
@@ -276,8 +276,8 @@ function CommentItem({
     ? 'anonymous'
     : node.memberDiscordId || node.memberName;
 
-  // Visual indent: cap at 3 levels deep
-  const indentDepth = Math.min(depth, 3);
+  // 시각적 인덴트: 최대 5단계, 단 깊은 뎁스는 좁은 간격 (모바일 깨짐 방지)
+  const indentDepth = Math.min(depth, 5);
 
   const handleDelete = async (e?: React.MouseEvent) => {
     e?.preventDefault();
@@ -305,12 +305,8 @@ function CommentItem({
     <div>
       {/* Comment row */}
       <div
-        className={cn(
-          'group',
-          depth > 0 && `ml-${indentDepth * 8}`,
-          node.isDeleted && 'opacity-60'
-        )}
-        style={depth > 0 ? { marginLeft: `${indentDepth * 2}rem` } : undefined}
+        className={cn('group', node.isDeleted && 'opacity-60')}
+        style={depth > 0 ? { marginLeft: `${indentDepth * 1.5}rem` } : undefined}
       >
         {/* Depth indicator line */}
         {depth > 0 && (
@@ -368,12 +364,8 @@ function CommentItem({
 
         {/* Reply form */}
         {replyOpen && !editing && (
-          <div
-            className={cn(
-              'mt-2 mb-3 rounded-lg border border-border/50 bg-muted/20 p-3',
-              depth > 0 ? 'ml-9' : 'ml-9'
-            )}
-          >
+          <div className="mt-2 mb-3 rounded-lg border border-border/50 bg-muted/20 p-2 sm:p-3 ml-9">
+
             <p className="text-xs font-medium text-muted-foreground mb-2">
               @{displayName}에게 답글
             </p>
@@ -549,7 +541,7 @@ function CommentContent({
 
         {/* Action buttons */}
         {!editing && (
-          <div className="flex items-center gap-1 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 pt-0.5">
             {canReply && (
               <Button
                 variant="ghost"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
@@ -20,11 +20,7 @@ interface UserInfo {
   imageUrl?: string;
 }
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -70,7 +66,7 @@ export default function AdminLayout({
   const handleLogout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
+      router.push('/');
       router.refresh();
     } catch {
       console.error('Logout failed');
@@ -110,10 +106,7 @@ export default function AdminLayout({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction
-              onClick={() => router.push('/dashboard')}
-              className="h-9 text-sm"
-            >
+            <AlertDialogAction onClick={() => router.push('/dashboard')} className="h-9 text-sm">
               확인
             </AlertDialogAction>
           </AlertDialogFooter>

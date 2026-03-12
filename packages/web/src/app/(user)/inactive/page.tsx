@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ShieldX, LogOut } from 'lucide-react';
+import { LogOut, ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function InactivePage() {
@@ -9,7 +9,7 @@ export default function InactivePage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    router.push('/');
     router.refresh();
   };
 
@@ -20,11 +20,10 @@ export default function InactivePage() {
           <ShieldX className="h-10 w-10 text-red-500" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">
-            계정이 비활성화되었습니다
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">계정이 비활성화되었습니다</h1>
           <p className="text-muted-foreground">
-            관리자에 의해 계정이 비활성화되었습니다.<br />
+            관리자에 의해 계정이 비활성화되었습니다.
+            <br />
             자세한 사항은 관리자에게 문의해주세요.
           </p>
         </div>

@@ -12,6 +12,8 @@ export interface SerializedPost {
   url: string;
   publishedAt: string; // ISO 8601 string
   description: string | null;
+  thumbnailUrl: string | null;
+  commentCount: number | null;
   collectedAt: string | null; // ISO 8601 string
 }
 
@@ -28,6 +30,8 @@ export function serializePost(post: Post): SerializedPost {
     url: post.url,
     publishedAt: post.publishedAt.toISOString(),
     description: post.description,
+    thumbnailUrl: post.thumbnailUrl,
+    commentCount: post.commentCount,
     collectedAt: post.collectedAt?.toISOString() ?? null,
   };
 }
@@ -45,6 +49,8 @@ export function deserializePost(serialized: SerializedPost): Post {
     url: serialized.url,
     publishedAt: new Date(serialized.publishedAt),
     description: serialized.description,
+    thumbnailUrl: serialized.thumbnailUrl,
+    commentCount: serialized.commentCount ?? 0,
     collectedAt: serialized.collectedAt ? new Date(serialized.collectedAt) : null,
   };
 }
@@ -77,6 +83,7 @@ export function postsAreEqual(a: Post, b: Post): boolean {
     a.url === b.url &&
     a.publishedAt.getTime() === b.publishedAt.getTime() &&
     a.description === b.description &&
+    a.thumbnailUrl === b.thumbnailUrl &&
     (a.collectedAt === null && b.collectedAt === null ||
       (a.collectedAt !== null && b.collectedAt !== null &&
         a.collectedAt.getTime() === b.collectedAt.getTime()))

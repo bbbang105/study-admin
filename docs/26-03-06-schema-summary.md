@@ -57,6 +57,8 @@
 | `url` | varchar(1000) | unique, not null |
 | `published_at` | timestamptz | not null |
 | `description` | text | nullable |
+| `thumbnail_url` | varchar(1000) | nullable, OG 이미지 |
+| `comment_count` | integer | default 0 |
 | `collected_at` | timestamptz | defaultNow |
 
 ### attendance

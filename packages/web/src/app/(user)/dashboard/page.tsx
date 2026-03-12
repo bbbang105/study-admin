@@ -33,6 +33,7 @@ interface Post {
 }
 
 interface DashboardData {
+  nickname: string | null;
   currentRound: RoundInfo | null;
   recentPosts: Post[];
   totalMembers: number;
@@ -41,10 +42,10 @@ interface DashboardData {
 
 function getGreeting(): { emoji: string; text: string } {
   const hour = new Date().getHours();
-  if (hour < 6) return { emoji: '🌙', text: '새벽까지 글쓰기, 대단해요' };
-  if (hour < 12) return { emoji: '☀️', text: '좋은 아침이에요' };
-  if (hour < 18) return { emoji: '🌤️', text: '오늘도 화이팅' };
-  return { emoji: '🌆', text: '오늘 하루도 수고했어요' };
+  if (hour < 6) return { emoji: '🌙', text: '새벽까지 글쓰기, 대단해요.' };
+  if (hour < 12) return { emoji: '☀️', text: '좋은 아침이에요.' };
+  if (hour < 18) return { emoji: '🌤️', text: '오늘도 화이팅.' };
+  return { emoji: '🌆', text: '오늘 하루도 수고했어요.' };
 }
 
 function getMotivation(round: RoundInfo | null): {
@@ -91,7 +92,8 @@ function getMotivation(round: RoundInfo | null): {
     { emoji: '🫶', message: '당신만이 쓸 수 있는 이야기가 있어요. 오늘 한 줄 남겨봐요.' },
   ];
   const idx = Math.floor(Date.now() / (1000 * 60 * 30)) % chillMessages.length; // 30분마다 변경
-  return { ...chillMessages[idx], tone: 'chill' };
+  const picked = chillMessages[idx] ?? chillMessages[0]!;
+  return { emoji: picked.emoji, message: picked.message, tone: 'chill' as const };
 }
 
 function getDdayLabel(days: number, isGrace: boolean): string {
@@ -157,7 +159,7 @@ export default function DashboardPage() {
           Overview
         </p>
         <h1 className="text-lg font-semibold tracking-tight">
-          {greeting.emoji} {greeting.text}
+          {greeting.emoji} {greeting.text} {data?.nickname && `${data.nickname}님`}
         </h1>
       </div>
 
@@ -290,7 +292,7 @@ export default function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between px-4 py-3 pb-0">
           <div className="space-y-0.5">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              Activity
+              Posts
             </p>
             <p className="text-sm font-semibold">스터디원들의 최근 글</p>
           </div>

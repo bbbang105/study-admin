@@ -145,6 +145,8 @@ export const posts = pgTable(
     url: varchar('url', { length: 1000 }).notNull().unique(),
     publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
     description: text('description'),
+    thumbnailUrl: varchar('thumbnail_url', { length: 1000 }),
+    commentCount: integer('comment_count').default(0),
     collectedAt: timestamp('collected_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -315,6 +317,33 @@ export const postViews = pgTable(
 );
 
 /**
+ * 블로그 글 댓글 (Post Comments)
+ * 블로그 포스트에 달리는 댓글 (비밀댓글 없음)
+ */
+export const postComments = pgTable(
+  'post_comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id),
+    parentId: uuid('parent_id'),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    postIdIdx: index('idx_post_comments_post_id').on(table.postId),
+    memberIdIdx: index('idx_post_comments_member_id').on(table.memberId),
+    parentIdIdx: index('idx_post_comments_parent_id').on(table.parentId),
+  })
+);
+
+/**
  * 설정 (Config)
  * 스터디 설정 키-값 저장소
  */
@@ -398,6 +427,7 @@ export const membersRelations = relations(members, ({ many }) => ({
   fines: many(fines),
   activityScores: many(activityScores),
   postViews: many(postViews),
+  postComments: many(postComments),
   boardPosts: many(boardPosts),
   boardComments: many(boardComments),
 }));
@@ -408,7 +438,7 @@ export const roundsRelations = relations(rounds, ({ many }) => ({
   fines: many(fines),
 }));
 
-export const postsRelations = relations(posts, ({ one }) => ({
+export const postsRelations = relations(posts, ({ one, many }) => ({
   member: one(members, {
     fields: [posts.memberId],
     references: [members.id],
@@ -417,6 +447,8 @@ export const postsRelations = relations(posts, ({ one }) => ({
     fields: [posts.roundId],
     references: [rounds.id],
   }),
+  views: many(postViews),
+  comments: many(postComments),
 }));
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
@@ -456,6 +488,17 @@ export const postViewsRelations = relations(postViews, ({ one }) => ({
   post: one(posts, {
     fields: [postViews.postId],
     references: [posts.id],
+  }),
+}));
+
+export const postCommentsRelations = relations(postComments, ({ one }) => ({
+  post: one(posts, {
+    fields: [postComments.postId],
+    references: [posts.id],
+  }),
+  member: one(members, {
+    fields: [postComments.memberId],
+    references: [members.id],
   }),
 }));
 
@@ -531,6 +574,9 @@ export type NewPostView = typeof postViews.$inferInsert;
 
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;
+
+export type PostComment = typeof postComments.$inferSelect;
+export type NewPostComment = typeof postComments.$inferInsert;
 
 export type BoardPost = typeof boardPosts.$inferSelect;
 export type NewBoardPost = typeof boardPosts.$inferInsert;

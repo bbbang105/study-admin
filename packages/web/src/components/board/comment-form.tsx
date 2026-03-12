@@ -104,7 +104,7 @@ export function CommentForm({
         <p role="alert" aria-live="assertive" className="text-xs text-destructive">{error}</p>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Secret toggle */}
         <div className="flex items-center gap-2">
           <Switch
@@ -116,7 +116,7 @@ export function CommentForm({
           />
           <Label
             htmlFor={`secret-${parentId ?? 'root'}`}
-            className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none"
+            className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap"
           >
             <Lock className="h-3 w-3" />
             비밀댓글{forceSecret && ' (자동)'}
@@ -124,7 +124,7 @@ export function CommentForm({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           {onCancel && (
             <Button
               type="button"
@@ -158,7 +158,7 @@ export function CommentForm({
       </div>
 
       <p className="text-[11px] text-muted-foreground/60">
-        Ctrl+Enter 또는 Cmd+Enter로 빠르게 등록할 수 있습니다.
+        Ctrl+Enter 또는 Cmd+Enter로 등록
       </p>
     </div>
   );
