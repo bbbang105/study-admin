@@ -1,7 +1,7 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { UsersRound, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,7 +35,6 @@ interface MembersData {
 }
 
 export default function MembersPage() {
-  const router = useRouter();
   const [data, setData] = useState<MembersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,18 +134,9 @@ export default function MembersPage() {
             return (
               <Card
                 key={member.id}
-                role="link"
-                tabIndex={0}
-                onClick={() => router.push(`/members/${member.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    router.push(`/members/${member.id}`);
-                  }
-                }}
-                className="h-full cursor-pointer border-border/60 shadow-none transition-colors hover:border-border hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="h-full border-border/60 shadow-none transition-colors hover:border-border hover:bg-muted/30"
               >
-                <CardContent className="p-4">
+                <CardContent className="flex h-full flex-col p-4">
                   {/* Top: Avatar + Name + Part */}
                   <div className="flex items-start gap-3">
                     <Avatar className="h-11 w-11 shrink-0 ring-2 ring-border ring-offset-1 ring-offset-background">
@@ -195,6 +185,11 @@ export default function MembersPage() {
                       })}
                     </div>
                   )}
+                  <div className="mt-4">
+                    <Button asChild variant="outline" size="sm" className="w-full">
+                      <Link href={`/members/${member.id}`}>프로필 보기</Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

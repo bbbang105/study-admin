@@ -119,22 +119,11 @@ function CategoryBadge({ category }: { category: string }) {
 // ─────────────────────────────────────────────
 
 function PostTableRow({ post }: { post: BoardPost }) {
-  const router = useRouter();
   const displayName = post.isMasked ? '익명' : post.memberName || '알 수 없음';
   const avatarSeed = post.isMasked ? 'anonymous' : post.memberDiscordId || post.memberName;
 
   return (
-    <TableRow
-      className="border-border/40 hover:bg-muted/30 cursor-pointer"
-      tabIndex={0}
-      onClick={() => router.push(`/board/${post.id}`)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          router.push(`/board/${post.id}`);
-        }
-      }}
-    >
+    <TableRow className="border-border/40 hover:bg-muted/30">
       <TableCell className="py-2.5 w-[90px]">
         <CategoryBadge category={post.category} />
       </TableCell>
@@ -143,9 +132,13 @@ function PostTableRow({ post }: { post: BoardPost }) {
           {post.isSecret && (
             <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
           )}
-          <span className="text-sm font-medium text-foreground truncate">
+          <Link
+            href={`/board/${post.id}`}
+            className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+            title={post.isMasked ? '비밀글입니다' : post.title}
+          >
             {post.isMasked ? '비밀글입니다' : post.title}
-          </span>
+          </Link>
           {post.commentCount > 0 && (
             <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
               <MessageSquare className="h-3 w-3" />
@@ -154,18 +147,20 @@ function PostTableRow({ post }: { post: BoardPost }) {
           )}
         </div>
       </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap">
-        <MemberAvatar
-          memberId={post.memberId}
-          name={displayName}
-          seed={avatarSeed}
-          imageUrl={post.isMasked ? null : post.memberProfileImage}
-          size="sm"
-          noLink={post.isMasked}
-          showName
-          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-          isAdmin={post.memberIsAdmin}
-        />
+      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
+        <div className="max-w-[140px]">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.isMasked ? null : post.memberProfileImage}
+            size="sm"
+            noLink={post.isMasked}
+            showName
+            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+            isAdmin={post.memberIsAdmin}
+          />
+        </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -179,15 +174,11 @@ function PostTableRow({ post }: { post: BoardPost }) {
 // ─────────────────────────────────────────────
 
 function PostCard({ post }: { post: BoardPost }) {
-  const router = useRouter();
   const displayName = post.isMasked ? '익명' : post.memberName || '알 수 없음';
   const avatarSeed = post.isMasked ? 'anonymous' : post.memberDiscordId || post.memberName;
 
   return (
-    <div
-      className="block group cursor-pointer"
-      onClick={() => router.push(`/board/${post.id}`)}
-    >
+    <div className="block group">
       <div className="flex items-start gap-3 py-3 border-b border-border/40 last:border-0">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -196,9 +187,12 @@ function PostCard({ post }: { post: BoardPost }) {
               <Lock className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
             )}
           </div>
-          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+          <Link
+            href={`/board/${post.id}`}
+            className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
+          >
             {post.isMasked ? '비밀글입니다' : post.title}
-          </p>
+          </Link>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <MemberAvatar
               memberId={post.memberId}
@@ -233,22 +227,11 @@ function PostCard({ post }: { post: BoardPost }) {
 // ─────────────────────────────────────────────
 
 function PinnedTableRow({ post }: { post: BoardPost }) {
-  const router = useRouter();
   const displayName = post.memberName || '알 수 없음';
   const avatarSeed = post.memberDiscordId || post.memberName;
 
   return (
-    <TableRow
-      className="border-border/40 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70 dark:hover:bg-amber-950/20 cursor-pointer"
-      tabIndex={0}
-      onClick={() => router.push(`/board/${post.id}`)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          router.push(`/board/${post.id}`);
-        }
-      }}
-    >
+    <TableRow className="border-border/40 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70 dark:hover:bg-amber-950/20">
       <TableCell className="py-2.5 w-[90px]">
         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
           <Pin className="h-2.5 w-2.5" />
@@ -257,9 +240,13 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
       </TableCell>
       <TableCell className="py-2.5 max-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm font-medium text-foreground truncate">
+          <Link
+            href={`/board/${post.id}`}
+            className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+            title={post.title}
+          >
             {post.title}
-          </span>
+          </Link>
           {post.commentCount > 0 && (
             <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
               <MessageSquare className="h-3 w-3" />
@@ -268,17 +255,19 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
           )}
         </div>
       </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap">
-        <MemberAvatar
-          memberId={post.memberId}
-          name={displayName}
-          seed={avatarSeed}
-          imageUrl={post.memberProfileImage}
-          size="sm"
-          showName
-          nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-          isAdmin={post.memberIsAdmin}
-        />
+      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
+        <div className="max-w-[140px]">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.memberProfileImage}
+            size="sm"
+            showName
+            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
+            isAdmin={post.memberIsAdmin}
+          />
+        </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
         {formatRelativeTime(post.createdAt)}
@@ -292,15 +281,11 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
 // ─────────────────────────────────────────────
 
 function PinnedCard({ post }: { post: BoardPost }) {
-  const router = useRouter();
   const displayName = post.memberName || '알 수 없음';
   const avatarSeed = post.memberDiscordId || post.memberName;
 
   return (
-    <div
-      className="block group cursor-pointer"
-      onClick={() => router.push(`/board/${post.id}`)}
-    >
+    <div className="block group">
       <div className="flex items-start gap-3 py-3 border-b border-amber-200/60 dark:border-amber-800/30 last:border-0">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
@@ -309,9 +294,12 @@ function PinnedCard({ post }: { post: BoardPost }) {
               공지
             </span>
           </div>
-          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+          <Link
+            href={`/board/${post.id}`}
+            className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
+          >
             {post.title}
-          </p>
+          </Link>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <MemberAvatar
               memberId={post.memberId}
@@ -418,21 +406,24 @@ function BoardContent() {
       <section aria-label="게시판 필터 및 글쓰기">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={currentCategory} onValueChange={handleCategoryChange} className="w-full md:justify-start">
-            <TabsList className="h-9 gap-0.5 justify-between bg-muted/60 p-1 flex-wrap w-full md:w-auto md:justify-start" aria-label="카테고리 필터">
-              {ALL_TABS.map((tab) => (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="h-7 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList className="h-9 w-max min-w-0 justify-start gap-0.5 bg-muted/60 p-1" aria-label="카테고리 필터">
+                {ALL_TABS.map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    title={tab.label}
+                    className="h-7 shrink-0 px-2.5 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </Tabs>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <span className="text-xs text-muted-foreground tabular-nums">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:self-auto">
+            <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
               총 {totalCount}개
             </span>
             <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
@@ -457,7 +448,7 @@ function BoardContent() {
             </div>
 
             {/* Desktop: pinned table */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <Table>
               <TableBody>
                 {pinnedPosts.map((post) => (
@@ -468,7 +459,7 @@ function BoardContent() {
           </div>
 
           {/* Mobile: pinned cards */}
-          <div className="md:hidden px-4">
+          <div className="lg:hidden px-4">
             {pinnedPosts.map((post) => (
               <PinnedCard key={post.id} post={post} />
             ))}
@@ -483,7 +474,7 @@ function BoardContent() {
         {posts.length > 0 ? (
           <>
             {/* Desktop: table */}
-            <div className="hidden md:block">
+            <div className="hidden lg:block">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border/60">
@@ -510,7 +501,7 @@ function BoardContent() {
             </div>
 
             {/* Mobile: card list */}
-            <CardContent className="md:hidden px-4 py-0">
+            <CardContent className="lg:hidden px-4 py-0">
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}

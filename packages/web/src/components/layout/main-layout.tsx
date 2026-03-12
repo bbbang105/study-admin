@@ -39,8 +39,8 @@ function MainContent({
       tabIndex={-1}
       className={cn(
         'flex-1 min-w-0 min-h-0 transition-[margin-left] duration-200',
-        showSidebar && (collapsed ? 'md:ml-16' : 'md:ml-60'),
-        'pb-20 md:pb-0' // bottom nav spacing on mobile
+        showSidebar && (collapsed ? 'lg:ml-16' : 'lg:ml-60'),
+        'pb-20 lg:pb-0' // bottom nav spacing on mobile/tablet
       )}
     >
       <div
@@ -63,7 +63,11 @@ export function MainLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    const storedValue = localStorage.getItem(STORAGE_KEY);
+    if (storedValue !== null) {
+      return storedValue === 'true';
+    }
+    return window.innerWidth < 1280;
   });
 
   const handleToggleCollapsed = (value: boolean) => {

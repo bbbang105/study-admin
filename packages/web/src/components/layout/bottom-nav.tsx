@@ -50,7 +50,7 @@ export function BottomNav({ isAdmin = false }: BottomNavProps) {
   return (
     <nav
       aria-label="모바일 내비게이션"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm lg:hidden"
     >
       <div className="flex h-14 items-center justify-around px-1">
         {navItems.map((item) => {
