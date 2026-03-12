@@ -31,7 +31,7 @@ graph TB
         end
     end
 
-    subgraph Bot["Discord Bot · AWS EC2"]
+    subgraph Bot["Discord Bot · AWS EC2 (Docker)"]
         SCH["Schedulers<br/>pg-boss"]
         EVT["Event Handlers<br/>discord.js v14"]
         SVC["Service Layer<br/>RSS · Fine · Curation · Score"]
@@ -126,7 +126,7 @@ graph LR
 | 패키지 | 설명 | 배포 |
 |--------|------|------|
 | `packages/shared` | Drizzle 스키마, 타입, 유틸 | npm (workspace 내부) |
-| `packages/bot` | Discord 봇 (스케줄러 + 이벤트 핸들러, 슬래시 커맨드 없음) | AWS EC2 |
+| `packages/bot` | Discord 봇 (스케줄러 + 이벤트 핸들러, 슬래시 커맨드 없음) | AWS EC2 (Docker) |
 | `packages/web` | Next.js 대시보드, API Routes | Vercel |
 
 ## 인증 아키텍처
@@ -435,12 +435,22 @@ erDiagram
 
 ```mermaid
 graph LR
+    subgraph GHA["GitHub Actions"]
+        CI["CI Gate<br/>(lint+typecheck+test)"]
+        ECR_PUSH["Docker Build<br/>→ ECR Push (ARM64)"]
+        SSH["SSH Deploy"]
+    end
+
     subgraph Vercel["Vercel (ICN)"]
         WEB_DEPLOY["@blog-study/web<br/>Next.js"]
     end
 
-    subgraph EC2["AWS EC2"]
-        BOT_DEPLOY["@blog-study/bot<br/>discord.js + pm2"]
+    subgraph EC2["AWS EC2 (t4g)"]
+        BOT_DEPLOY["@blog-study/bot<br/>Docker Container"]
+    end
+
+    subgraph AWS["AWS"]
+        ECR["ECR<br/>study-admin-bot"]
     end
 
     subgraph Supabase["Supabase (ap-northeast-2)"]
@@ -448,6 +458,11 @@ graph LR
         SA["Supabase Auth"]
     end
 
+    CI --> ECR_PUSH
+    ECR_PUSH --> ECR
+    ECR_PUSH --> SSH
+    SSH --> BOT_DEPLOY
+    BOT_DEPLOY -->|pull| ECR
     WEB_DEPLOY --> PG
     WEB_DEPLOY --> SA
     BOT_DEPLOY --> PG

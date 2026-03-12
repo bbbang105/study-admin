@@ -1,0 +1,102 @@
+name: 🤖 Bot Build & Deploy
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'packages/bot/**'
+      - 'packages/shared/**'
+      - 'packages/bot/Dockerfile'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bot-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ECR_REPOSITORY: study-admin-bot
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  ci:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: ✅ 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 📦 pnpm 설정
+        uses: pnpm/action-setup@v4
+
+      - name: 🟢 Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: 📥 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: 🔨 shared 빌드
+        run: pnpm --filter @blog-study/shared build
+
+      - name: 🔍 린트
+        run: pnpm --filter @blog-study/bot lint
+
+      - name: 🔎 타입 체크
+        run: pnpm --filter @blog-study/bot typecheck
+
+      - name: 🧪 테스트
+        run: pnpm --filter @blog-study/bot test
+
+  build-and-push:
+    name: Build and Push to ECR
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: ✅ 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 🐳 ECR 로그인
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 🐳 Docker 이미지 빌드 및 푸시 (ARM64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/bot/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 SSH로 배포 스크립트 실행
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            ~/study-admin-bot/deploy.sh ${{ github.sha }}

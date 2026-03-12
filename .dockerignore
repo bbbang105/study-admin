@@ -24,7 +24,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Environment files (use Railway/Vercel environment variables)
+# Environment files
 .env
 .env.*
 !.env.example
