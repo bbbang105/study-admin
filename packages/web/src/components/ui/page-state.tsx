@@ -1,5 +1,7 @@
+import { RotateCcw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 // ─────────────────────────────────────────────
 // Error
@@ -7,8 +9,41 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export function PageError({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="text-sm text-destructive">{message}</div>
+    <div className="flex items-center justify-center min-h-[400px] px-4">
+      <div className="flex flex-col items-center gap-5 max-w-xs text-center">
+        <div className="text-6xl animate-bounce" aria-hidden="true">
+          🥲
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-base font-medium text-foreground">
+            이런, 뭔가 잘못됐어요
+          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {message}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.location.reload()}
+          className="rounded-full px-5"
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+          다시시도
+        </Button>
+        <p className="text-xs text-muted-foreground/60 pt-2">
+          문제가 계속되면{' '}
+          <a
+            href="https://github.com/bbbang105"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+          >
+            관리자에게 문의
+          </a>
+          해주세요
+        </p>
+      </div>
     </div>
   );
 }
