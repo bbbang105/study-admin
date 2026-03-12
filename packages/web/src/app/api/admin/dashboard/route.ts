@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { eq, desc, count, sql } from 'drizzle-orm';
+import { count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
 
-const { members, posts, rounds, attendance, fines, MemberStatus, AttendanceStatus, FineStatus } = sharedDb;
+const { members, posts, rounds, attendance, fines, MemberStatus, AttendanceStatus, FineStatus } =
+  sharedDb;
 
 /**
  * GET /api/admin/dashboard
@@ -28,14 +29,18 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
     if (currentRoundData) {
       const now = new Date();
       const endDate = new Date(currentRoundData.endDate);
+      const endOfDeadline = new Date(endDate);
+      endOfDeadline.setHours(23, 59, 59, 999);
       const graceEndDate = new Date(currentRoundData.graceEndDate);
-      
-      // Calculate days remaining
-      const timeDiff = endDate.getTime() - now.getTime();
+      const endOfGrace = new Date(graceEndDate);
+      endOfGrace.setHours(23, 59, 59, 999);
+
+      // Calculate days remaining (마감일 당일 23:59:59 기준)
+      const timeDiff = endOfDeadline.getTime() - now.getTime();
       const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-      
-      // Check if in grace period
-      const isGracePeriod = now > endDate && now <= graceEndDate;
+
+      // 지각: 마감일 다음 날부터 ~ 지각 마감일 23:59:59까지
+      const isGracePeriod = now > endOfDeadline && now <= endOfGrace;
 
       currentRound = {
         id: currentRoundData.id,
@@ -58,19 +63,26 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
         .groupBy(attendance.status);
 
       const statsMap = new Map(attendanceStats.map((s) => [s.status, s.count]));
-      const total = attendanceStats.reduce((sum, s) => sum + s.count, 0);
       const submitted = statsMap.get(AttendanceStatus.SUBMITTED) || 0;
       const late = statsMap.get(AttendanceStatus.LATE) || 0;
       const absent = statsMap.get(AttendanceStatus.ABSENT) || 0;
       const pending = statsMap.get(AttendanceStatus.PENDING) || 0;
 
+      // 활성 멤버 수 기준으로 제출률 계산
+      const [activeMembersResult] = await database
+        .select({ count: count() })
+        .from(members)
+        .where(eq(members.status, MemberStatus.ACTIVE));
+      const totalActiveMembers = activeMembersResult?.count ?? 0;
+
       submissionStats = {
-        total,
+        total: totalActiveMembers,
         submitted,
         late,
         absent,
         pending,
-        submissionRate: total > 0 ? Math.round((submitted / total) * 100) : 0,
+        submissionRate:
+          totalActiveMembers > 0 ? Math.round((submitted / totalActiveMembers) * 100) : 0,
       };
     }
 
@@ -86,9 +98,7 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
     const memberCountMap = new Map(memberCounts.map((m) => [m.status, m.count]));
 
     // Get total posts count
-    const [totalPostsResult] = await database
-      .select({ count: count() })
-      .from(posts);
+    const [totalPostsResult] = await database.select({ count: count() }).from(posts);
 
     // Get unpaid fines summary
     const [unpaidFinesResult] = await database
@@ -165,9 +175,6 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
     });
   } catch (error) {
     console.error('Admin dashboard API error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 });

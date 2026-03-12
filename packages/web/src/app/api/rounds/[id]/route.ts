@@ -86,14 +86,18 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     // Calculate time-related info
     const now = new Date();
     const endDate = new Date(roundData.endDate);
+    const endOfDeadline = new Date(endDate);
+    endOfDeadline.setHours(23, 59, 59, 999);
     const graceEndDate = new Date(roundData.graceEndDate);
+    const endOfGrace = new Date(graceEndDate);
+    endOfGrace.setHours(23, 59, 59, 999);
     const startDate = new Date(roundData.startDate);
 
-    const timeDiff = endDate.getTime() - now.getTime();
+    const timeDiff = endOfDeadline.getTime() - now.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
-    const isGracePeriod = now > endDate && now <= graceEndDate;
-    const isCompleted = now > graceEndDate;
+    const isGracePeriod = now > endOfDeadline && now <= endOfGrace;
+    const isCompleted = now > endOfGrace;
     const isUpcoming = now < startDate;
 
     return successResponse({
