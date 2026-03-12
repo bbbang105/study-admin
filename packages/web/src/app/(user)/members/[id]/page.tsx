@@ -96,7 +96,7 @@ export default function MemberProfilePage() {
   if (error || !data) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" aria-label="뒤로 가기" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <PageError message={error || '데이터를 불러올 수 없습니다.'} />
@@ -116,7 +116,7 @@ export default function MemberProfilePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" className="shrink-0" aria-label="뒤로 가기" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="min-w-0">

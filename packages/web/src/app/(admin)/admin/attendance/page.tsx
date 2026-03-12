@@ -475,6 +475,7 @@ export default function AdminAttendancePage() {
                               <button
                                 className="inline-flex items-center justify-center p-1.5 rounded cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
                                 title={`클릭하여 출석 상태 변경${att?.submittedAt ? ` (${new Date(att.submittedAt).toLocaleDateString('ko-KR')})` : ''}`}
+                                aria-label={`${row.member.name} ${round.roundNumber}회차 출석 상태 변경`}
                                 onClick={() => setEditingCell(cellKey)}
                               >
                                 <div

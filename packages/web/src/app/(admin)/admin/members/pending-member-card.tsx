@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { ExternalLink, Check, X, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -34,9 +35,12 @@ export function PendingMemberCard({ member, onApprove, onReject }: PendingMember
     <Card className="relative">
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
-          <img
+          <Image
             src={member.profileImageUrl || getDefaultAvatar(member.name)}
             alt={member.name}
+            width={48}
+            height={48}
+            unoptimized
             className="h-12 w-12 rounded-full object-cover"
           />
           <div className="min-w-0 flex-1">
