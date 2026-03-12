@@ -81,7 +81,7 @@ export function MainLayout({
     } else {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
-        router.push('/login');
+        router.push('/');
         router.refresh();
       } catch {
         console.error('Logout failed');

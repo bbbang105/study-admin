@@ -46,14 +46,18 @@ export async function GET(request: NextRequest) {
 
       const now = new Date();
       const endDate = new Date(currentRound.endDate);
+      const endOfDeadline = new Date(endDate);
+      endOfDeadline.setHours(23, 59, 59, 999);
       const graceEndDate = new Date(currentRound.graceEndDate);
+      const endOfGrace = new Date(graceEndDate);
+      endOfGrace.setHours(23, 59, 59, 999);
 
-      // Calculate days remaining
-      const timeDiff = endDate.getTime() - now.getTime();
+      // Calculate days remaining (마감일 당일 23:59:59 기준)
+      const timeDiff = endOfDeadline.getTime() - now.getTime();
       const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
-      // Check if in grace period
-      const isGracePeriod = now > endDate && now <= graceEndDate;
+      // 지각: 마감일 다음 날부터 ~ 지각 마감일 23:59:59까지
+      const isGracePeriod = now > endOfDeadline && now <= endOfGrace;
 
       return successResponse({
         round: {

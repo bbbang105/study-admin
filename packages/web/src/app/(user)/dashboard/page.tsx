@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, FileText, Inbox, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Clock, FileText, Inbox, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton, PageError } from '@/components/ui/page-state';
+import { getDefaultAvatar } from '@/lib/utils';
 
 interface RoundInfo {
   roundNumber: number;
@@ -23,24 +25,81 @@ interface Post {
   title: string;
   url: string;
   publishedAt: string;
+  memberId: string | null;
   memberName: string;
+  memberNickname: string | null;
   memberDiscordUsername: string;
+  memberProfileImageUrl: string | null;
 }
 
 interface DashboardData {
+  nickname: string | null;
   currentRound: RoundInfo | null;
   recentPosts: Post[];
   totalMembers: number;
   totalPosts: number;
 }
 
-function AvatarInitial({ name }: { name: string }) {
-  const initial = name.trim().charAt(0).toUpperCase();
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-      {initial}
-    </div>
-  );
+function getGreeting(): { emoji: string; text: string } {
+  const hour = new Date().getHours();
+  if (hour < 6) return { emoji: '🌙', text: '새벽까지 글쓰기, 대단해요.' };
+  if (hour < 12) return { emoji: '☀️', text: '좋은 아침이에요.' };
+  if (hour < 18) return { emoji: '🌤️', text: '오늘도 화이팅.' };
+  return { emoji: '🌆', text: '오늘 하루도 수고했어요.' };
+}
+
+function getMotivation(round: RoundInfo | null): {
+  emoji: string;
+  message: string;
+  tone: 'chill' | 'warn' | 'urgent' | 'celebrate';
+} {
+  if (!round) return { emoji: '📝', message: '새 회차를 기다리는 중이에요', tone: 'chill' };
+
+  if (round.submissionRate >= 100) {
+    return { emoji: '🎉', message: '이번 회차 전원 제출 완료! 다들 멋져요', tone: 'celebrate' };
+  }
+  if (round.isGracePeriod) {
+    return { emoji: '😱', message: '지각 기간이에요! 서둘러 제출해주세요', tone: 'urgent' };
+  }
+  if (round.daysRemaining <= 1) {
+    return { emoji: '⏰', message: '마감이 코앞이에요! 오늘 안에 제출하세요', tone: 'urgent' };
+  }
+  if (round.daysRemaining <= 3) {
+    return { emoji: '🔥', message: '마감이 다가오고 있어요, 슬슬 준비해볼까요?', tone: 'warn' };
+  }
+  if (round.submissionRate >= 80) {
+    return { emoji: '💪', message: '거의 다 제출했어요! 조금만 더 힘내요', tone: 'chill' };
+  }
+
+  const chillMessages: { emoji: string; message: string }[] = [
+    { emoji: '✍️', message: '완벽한 글은 없어요. 일단 쓰기 시작하면 그게 최고의 글이에요.' },
+    { emoji: '🌱', message: '한 줄이라도 좋아요. 시작이 반이라잖아요.' },
+    { emoji: '📝', message: '"못 쓴 글은 고칠 수도 없다." — 노라 로버츠.' },
+    { emoji: '💡', message: '영감은 기다리는 게 아니라, 쓰다 보면 찾아와요.' },
+    { emoji: '☕', message: '커피 한 잔이면 충분해요. 가볍게 시작해봐요.' },
+    { emoji: '🐢', message: '느려도 괜찮아요. 꾸준함이 재능을 이겨요.' },
+    { emoji: '🎯', message: '"완벽보다 완성이 낫다." — 셰릴 샌드버그.' },
+    { emoji: '🌊', message: '첫 문장이 어색해도 괜찮아요. 다 그렇게 시작했어요.' },
+    { emoji: '🧩', message: '오늘 쓴 글이 내일의 나를 만들어요.' },
+    {
+      emoji: '🚀',
+      message: '"90% 완성해서 세상에 공유한 글이, 머릿속 100%보다 낫다." — 존 에이커프.',
+    },
+    { emoji: '🎨', message: '블로그는 나만의 캔버스예요. 부담 갖지 말고 자유롭게.' },
+    { emoji: '📖', message: '"쓰면 쓸수록 나아진다. 가장 중요한 건 끈기다." — 옥타비아 버틀러.' },
+    { emoji: '✨', message: '세상에 완벽한 초안은 없어요. 일단 써보고 다듬으면 돼요.' },
+    { emoji: '🏃', message: '글쓰기 근육도 운동처럼, 꾸준히 하면 늘어요.' },
+    { emoji: '🫶', message: '당신만이 쓸 수 있는 이야기가 있어요. 오늘 한 줄 남겨봐요.' },
+  ];
+  const idx = Math.floor(Date.now() / (1000 * 60 * 30)) % chillMessages.length; // 30분마다 변경
+  const picked = chillMessages[idx] ?? chillMessages[0]!;
+  return { emoji: picked.emoji, message: picked.message, tone: 'chill' as const };
+}
+
+function getDdayLabel(days: number, isGrace: boolean): string {
+  if (isGrace) return '지각 마감';
+  if (days <= 1) return 'D-Day';
+  return `D-${days}`;
 }
 
 export default function DashboardPage() {
@@ -80,57 +139,95 @@ export default function DashboardPage() {
     return <PageError message={error} />;
   }
 
+  const greeting = getGreeting();
+  const motivation = getMotivation(data?.currentRound ?? null);
+  const round = data?.currentRound;
+
+  const ddayColor = round
+    ? round.isGracePeriod || round.daysRemaining <= 1
+      ? 'text-destructive'
+      : round.daysRemaining <= 3
+        ? 'text-warning'
+        : 'text-primary'
+    : '';
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="space-y-0.5">
+      {/* Greeting Header */}
+      <div className="space-y-1">
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           Overview
         </p>
-        <h1 className="text-lg font-semibold tracking-tight">큐스팅 4th 현황</h1>
+        <h1 className="text-lg font-semibold tracking-tight">
+          {greeting.emoji} {greeting.text} {data?.nickname && `${data.nickname}님`}
+        </h1>
+      </div>
+
+      {/* Motivation Banner */}
+      <div
+        className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2.5 ${
+          motivation.tone === 'celebrate'
+            ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'
+            : motivation.tone === 'urgent'
+              ? 'bg-destructive/10 text-destructive'
+              : motivation.tone === 'warn'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'bg-primary/5 text-muted-foreground'
+        }`}
+      >
+        <span className="text-lg shrink-0">{motivation.emoji}</span>
+        {motivation.message}
       </div>
 
       {/* Current Round Card */}
-      {data?.currentRound ? (
-        <Card className="border-primary/30 shadow-none">
+      {round ? (
+        <Card className="border-primary/30 shadow-none overflow-hidden">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">현재 회차</p>
-              {data.currentRound.isGracePeriod ? (
-                <Badge variant="warning">지각 기간</Badge>
-              ) : (
-                <Badge variant="default">진행 중</Badge>
-              )}
+              <p className="text-sm font-medium">{round.roundNumber}회차</p>
+              <div className="flex items-center gap-2">
+                <span className={`text-lg font-bold ${ddayColor}`}>
+                  {getDdayLabel(round.daysRemaining, round.isGracePeriod)}
+                </span>
+                {round.isGracePeriod ? (
+                  <Badge variant="warning">지각 기간</Badge>
+                ) : (
+                  <Badge variant="default">진행 중</Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">회차</p>
-                <p className="text-2xl font-bold">{data.currentRound.roundNumber}회차</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">기간</p>
-                <p className="text-xl font-bold lg:block hidden">
-                  {data.currentRound.startDate} ~ {data.currentRound.endDate}
-                </p>
-                <p className="text-xl font-bold lg:hidden">
-                  {data.currentRound.startDate}<br/> ~ {data.currentRound.endDate}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">마감까지</p>
-                <p className="text-2xl font-bold">
-                  {data.currentRound.isGracePeriod ? (
-                    <span className="text-warning">지각 마감</span>
-                  ) : (
-                    `${data.currentRound.daysRemaining}일`
-                  )}
+          <CardContent className="px-4 pb-4 space-y-4">
+            {/* Period */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                {round.startDate} ~ {round.endDate}
+              </span>
+            </div>
+
+            {/* Submission Progress */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">제출률</p>
+                <p className="text-sm font-bold">
+                  {round.submissionRate >= 100 && <span className="mr-1">🎊</span>}
+                  {round.submissionRate}%
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">제출률</p>
-                <p className="text-2xl font-bold">{data.currentRound.submissionRate}%</p>
+              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ease-out ${
+                    round.submissionRate >= 100
+                      ? 'bg-emerald-500'
+                      : round.submissionRate >= 70
+                        ? 'bg-primary'
+                        : round.submissionRate >= 40
+                          ? 'bg-amber-500'
+                          : 'bg-destructive'
+                  }`}
+                  style={{ width: `${Math.min(round.submissionRate, 100)}%` }}
+                />
               </div>
             </div>
           </CardContent>
@@ -138,7 +235,7 @@ export default function DashboardPage() {
       ) : (
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-6 text-center text-muted-foreground text-sm">
-            아직 시작된 회차가 없습니다.
+            📝 아직 시작된 회차가 없습니다.
           </CardContent>
         </Card>
       )}
@@ -148,10 +245,13 @@ export default function DashboardPage() {
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 space-y-2">
-                <p className="text-xs text-muted-foreground">총 참가자</p>
-                <p className="text-2xl font-bold tracking-tight">{data?.totalMembers ?? 0}명</p>
-                <p className="text-xs text-muted-foreground">활성 스터디원</p>
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs text-muted-foreground">스터디원</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {data?.totalMembers ?? 0}
+                  <span className="text-sm font-normal text-muted-foreground ml-0.5">명</span>
+                </p>
+                <p className="text-xs text-muted-foreground">🏃🏻 함께 성장하는 중</p>
               </div>
               <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <TrendingUp className="h-4 w-4" />
@@ -163,10 +263,21 @@ export default function DashboardPage() {
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 space-y-2">
-                <p className="text-xs text-muted-foreground">총 포스트</p>
-                <p className="text-2xl font-bold tracking-tight">{data?.totalPosts ?? 0}개</p>
-                <p className="text-xs text-muted-foreground">누적 작성 글</p>
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs text-muted-foreground">누적 포스트</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {data?.totalPosts ?? 0}
+                  <span className="text-sm font-normal text-muted-foreground ml-0.5">개</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {(data?.totalPosts ?? 0) >= 100
+                    ? '🏆 100개 돌파!'
+                    : (data?.totalPosts ?? 0) >= 50
+                      ? '💯 50개 달성!'
+                      : (data?.totalPosts ?? 0) >= 30
+                        ? '📚 꾸준히 쌓이는 중'
+                        : '✏️ 하나씩 채워가요'}
+                </p>
               </div>
               <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <FileText className="h-4 w-4" />
@@ -181,9 +292,9 @@ export default function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between px-4 py-3 pb-0">
           <div className="space-y-0.5">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              Activity
+              Posts
             </p>
-            <p className="text-sm font-semibold">최근 포스트</p>
+            <p className="text-sm font-semibold">스터디원들의 최근 글</p>
           </div>
           <Button
             variant="ghost"
@@ -200,11 +311,28 @@ export default function DashboardPage() {
         <CardContent className="px-4 py-3">
           {data?.recentPosts && data.recentPosts.length > 0 ? (
             <div className="divide-y divide-border/50">
-              {data.recentPosts.map((post) => {
-                const authorName = post.memberName || post.memberDiscordUsername;
+              {data.recentPosts.map((post, index) => {
+                const displayName =
+                  post.memberNickname || post.memberName || post.memberDiscordUsername;
+                const avatarSrc = post.memberProfileImageUrl || getDefaultAvatar(displayName);
                 return (
                   <div key={post.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                    <AvatarInitial name={authorName} />
+                    {post.memberId ? (
+                      <Link href={`/members/${post.memberId}`} className="shrink-0">
+                        <Avatar className="h-8 w-8 ring-1 ring-border transition-opacity hover:opacity-80">
+                          <AvatarImage src={avatarSrc} alt={displayName} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                            {displayName.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    ) : (
+                      <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                          {displayName.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <a
                         href={post.url}
@@ -213,10 +341,20 @@ export default function DashboardPage() {
                         className="block truncate text-sm font-medium leading-snug hover:text-primary transition-colors"
                         onClick={() => trackPostView(post.id)}
                       >
+                        {index === 0 && <span className="mr-1">🆕</span>}
                         {post.title}
                       </a>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span>{authorName}</span>
+                        {post.memberId ? (
+                          <Link
+                            href={`/members/${post.memberId}`}
+                            className="hover:text-foreground transition-colors"
+                          >
+                            {displayName}
+                          </Link>
+                        ) : (
+                          <span>{displayName}</span>
+                        )}
                         <span className="text-border">·</span>
                         <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
                       </div>

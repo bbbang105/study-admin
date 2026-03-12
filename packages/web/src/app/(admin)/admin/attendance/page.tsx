@@ -76,25 +76,25 @@ interface StatusConfigItem {
 }
 
 const statusConfig = {
-  submitted: {
+  SUBMITTED: {
     label: '제출',
     icon: <CheckCircle className="h-4 w-4" />,
     className: 'text-success',
     bgClassName: 'bg-success/10 dark:bg-green-900/30',
   },
-  pending: {
+  PENDING: {
     label: '대기',
     icon: <Clock className="h-4 w-4" />,
     className: 'text-muted-foreground',
     bgClassName: 'bg-muted dark:bg-gray-800/30',
   },
-  late: {
+  LATE: {
     label: '지각',
     icon: <AlertCircle className="h-4 w-4" />,
     className: 'text-warning',
     bgClassName: 'bg-warning/10 dark:bg-yellow-900/30',
   },
-  absent: {
+  ABSENT: {
     label: '결석',
     icon: <XCircle className="h-4 w-4" />,
     className: 'text-destructive',
@@ -119,10 +119,10 @@ function getStatusConfig(status: string): StatusConfigItem {
 const ROUNDS_PER_PAGE = 5;
 
 const attendanceStatuses = [
-  { value: 'submitted', label: '제출', className: 'text-success' },
-  { value: 'pending', label: '대기', className: 'text-muted-foreground' },
-  { value: 'late', label: '지각', className: 'text-warning' },
-  { value: 'absent', label: '결석', className: 'text-destructive' },
+  { value: 'SUBMITTED', label: '제출', className: 'text-success' },
+  { value: 'PENDING', label: '대기', className: 'text-muted-foreground' },
+  { value: 'LATE', label: '지각', className: 'text-warning' },
+  { value: 'ABSENT', label: '결석', className: 'text-destructive' },
 ] as const;
 
 export default function AdminAttendancePage() {
@@ -236,7 +236,9 @@ export default function AdminAttendancePage() {
   const visibleRounds = data.rounds.slice(startIndex, startIndex + ROUNDS_PER_PAGE);
   const displayRounds: DisplayRound[] = [
     ...visibleRounds,
-    ...Array.from<DisplayRound>({ length: Math.max(0, ROUNDS_PER_PAGE - visibleRounds.length) }).fill(null),
+    ...Array.from<DisplayRound>({
+      length: Math.max(0, ROUNDS_PER_PAGE - visibleRounds.length),
+    }).fill(null),
   ];
   const visibleRoundStats = data.roundStats.filter((rs) =>
     visibleRounds.some((r) => r.id === rs.roundId)

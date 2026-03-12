@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isSafeUrl } from '@/lib/rss-detect';
 
-const { posts, members, rounds, ActivityScoreType } = sharedDb;
+const {
+  posts,
+  members,
+  rounds,
+  attendance,
+  fines,
+  ActivityScoreType,
+  AttendanceStatus,
+  FineStatus,
+  FineType,
+} = sharedDb;
 
 const BLOG_POST_POINTS = 30;
 const BLOG_POST_DAILY_CAP = 60;
@@ -18,18 +28,18 @@ function getTodayDateString(): string {
 }
 
 /**
- * OG 태그에서 제목과 발행일 추출
+ * OG 태그에서 제목, 발행일, 썸네일, 설명 추출
  */
 async function fetchOgData(
   url: string
-): Promise<{ title: string | null; publishedAt: string | null }> {
+): Promise<{ title: string | null; publishedAt: string | null; thumbnailUrl: string | null; description: string | null }> {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!response.ok) return { title: null, publishedAt: null };
+    if (!response.ok) return { title: null, publishedAt: null, thumbnailUrl: null, description: null };
 
     const html = await response.text();
 
@@ -48,9 +58,26 @@ async function fetchOgData(
       html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']article:published_time["']/i);
     const publishedAt = pubMatch?.[1] || null;
 
-    return { title: title?.trim() || null, publishedAt };
+    // og:image
+    const ogImageMatch =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    let thumbnailUrl = ogImageMatch?.[1] || null;
+    if (thumbnailUrl && !isSafeUrl(thumbnailUrl)) thumbnailUrl = null;
+
+    // og:description > meta description
+    const ogDescMatch =
+      html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
+    const metaDescMatch =
+      html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+    const rawDesc = ogDescMatch?.[1] || metaDescMatch?.[1] || null;
+    const description = rawDesc ? rawDesc.trim().slice(0, 300) : null;
+
+    return { title: title?.trim() || null, publishedAt, thumbnailUrl, description };
   } catch {
-    return { title: null, publishedAt: null };
+    return { title: null, publishedAt: null, thumbnailUrl: null, description: null };
   }
 }
 
@@ -115,9 +142,14 @@ export async function POST(request: NextRequest) {
     // OG 크롤링 시도
     let title = manualTitle as string | null;
     let publishedAt: Date = new Date();
+    let thumbnailUrl: string | null = null;
+    let description: string | null = null;
+
+    const ogData = await fetchOgData(url);
+    thumbnailUrl = ogData.thumbnailUrl;
+    description = ogData.description;
 
     if (!title) {
-      const ogData = await fetchOgData(url);
       if (ogData.title) {
         title = ogData.title;
         if (ogData.publishedAt) {
@@ -137,7 +169,12 @@ export async function POST(request: NextRequest) {
 
     // 현재 회차 조회
     const [currentRound] = await database
-      .select({ id: rounds.id })
+      .select({
+        id: rounds.id,
+        roundNumber: rounds.roundNumber,
+        endDate: rounds.endDate,
+        graceEndDate: rounds.graceEndDate,
+      })
       .from(rounds)
       .where(eq(rounds.isCurrent, true))
       .limit(1);
@@ -151,12 +188,72 @@ export async function POST(request: NextRequest) {
         title,
         url,
         publishedAt,
+        thumbnailUrl,
+        description,
       })
       .returning();
 
+    // 출석 상태 업데이트 (현재 회차가 있을 때만)
+    if (currentRound) {
+      const now = new Date();
+      const endOfDeadline = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
+
+      const isLate = now > endOfDeadline;
+
+      // 기존 출석 레코드 확인
+      const [existingAtt] = await database
+        .select()
+        .from(attendance)
+        .where(and(eq(attendance.memberId, member.id), eq(attendance.roundId, currentRound.id)))
+        .limit(1);
+
+      const newStatus = isLate ? AttendanceStatus.LATE : AttendanceStatus.SUBMITTED;
+
+      if (!existingAtt) {
+        // 출석 레코드가 없으면 생성
+        await database.insert(attendance).values({
+          memberId: member.id,
+          roundId: currentRound.id,
+          status: newStatus,
+          submittedAt: now,
+          updatedAt: now,
+        });
+      } else if (existingAtt.status === AttendanceStatus.PENDING) {
+        // PENDING 상태일 때만 업데이트 (이미 SUBMITTED/LATE/ABSENT이면 유지)
+        await database
+          .update(attendance)
+          .set({
+            status: newStatus,
+            submittedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(attendance.id, existingAtt.id));
+      }
+
+      // 지각이면 벌금 부과 (중복 방지)
+      if (isLate && (!existingAtt || existingAtt.status === AttendanceStatus.PENDING)) {
+        const [existingFine] = await database
+          .select()
+          .from(fines)
+          .where(and(eq(fines.memberId, member.id), eq(fines.roundId, currentRound.id)))
+          .limit(1);
+
+        if (!existingFine) {
+          await database.insert(fines).values({
+            memberId: member.id,
+            roundId: currentRound.id,
+            type: FineType.LATE,
+            amount: 3000,
+            status: FineStatus.UNPAID,
+          });
+        }
+      }
+    }
+
     // 블로그 포스트 점수 부여 (30점, 일일 60점 상한)
     const today = getTodayDateString();
-    const safeTitle = title.replace(/[<>"'&]/g, '').slice(0, 200);
+    // Drizzle sql`` 태그가 자동으로 parameterize하므로 추가 sanitize 불필요
+    const safeTitle = title.slice(0, 200);
     await database.execute(sql`
       WITH daily AS (
         SELECT COALESCE(SUM(points), 0) AS total

@@ -93,7 +93,7 @@ export function Header({ user, isAdmin = false, onLogout }: HeaderProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.svg" alt="큐스팅 4th" width={24} height={24} className="rounded-md" />
-          <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase hidden sm:inline">
+          <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
             큐스팅 4th
           </span>
         </Link>

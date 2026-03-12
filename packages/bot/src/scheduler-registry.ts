@@ -20,6 +20,7 @@ import { getScoreService } from './services/score.service';
 import { getAttendanceService, getFineService } from './services';
 import { sendFineNotification } from './handlers/dm-handler';
 import { getDb, members, ActivityScoreType, curationSources } from '@blog-study/shared/db';
+import { extractOgImage } from '@blog-study/shared/utils';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
 
@@ -72,6 +73,9 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     for (const item of items) {
       if (item.pubDate < POST_CUTOFF_DATE) continue;
 
+      // OG 이미지 추출 (실패해도 글 등록은 진행)
+      const thumbnailUrl = await extractOgImage(item.link).catch(() => null);
+
       const result = await postService.create({
         memberId: member.id,
         roundId: currentRound?.id ?? null,
@@ -79,6 +83,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         url: item.link,
         publishedAt: item.pubDate,
         description: item.description,
+        thumbnailUrl,
       });
 
       if (result.isNew) {

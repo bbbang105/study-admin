@@ -9,7 +9,7 @@ export default function PendingApprovalPage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    router.push('/');
     router.refresh();
   };
 
@@ -20,11 +20,10 @@ export default function PendingApprovalPage() {
           <Clock className="h-10 w-10 text-sky-500" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">
-            관리자 승인 대기 중
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">관리자 승인 대기 중</h1>
           <p className="text-muted-foreground">
-            온보딩이 완료되었습니다.<br />
+            온보딩이 완료되었습니다.
+            <br />
             관리자가 가입을 확인하면 서비스를 이용하실 수 있습니다.
           </p>
         </div>

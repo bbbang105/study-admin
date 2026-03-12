@@ -88,7 +88,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/error.tsx` | 관리자 에러 바운더리 |
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
 | `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (H1-H3, 구분선, 코드블록, 링크, 한글 IME 대응) |
-| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자 5개, 관리자 모드 미표시) |
+| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자: 랭킹/포스트/홈/게시판/스터디원, 관리자 모드 미표시) |
 | `packages/web/src/components/layout/notice-banner.tsx` | 글로벌 공지 배너 (제목+내용 미리보기, 접기/닫기) |
 | `packages/web/src/components/layout/pull-to-refresh.tsx` | Pull-to-Refresh 컴포넌트 (PWA 터치 제스처) |
 | `packages/web/src/hooks/use-pull-to-refresh.ts` | Pull-to-Refresh 훅 (`window.location.reload()` 기반) |
@@ -135,6 +135,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
 - **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (사용자 전용, 관리자 모드 미표시)
 - **사이드바**: 모드 전환은 헤더 프로필 드롭다운에서만 가능 (사이드바에 토글 없음)
+- **큐레이션**: 현재 네비게이션에서 숨김 (TODO: 나중에 활성화 예정), 페이지/로직은 유지
+- **포스트**: 최신순/인기순 탭, 무한 스크롤, 썸네일(OG 이미지)+그라디언트 폴백, 인기순 상위 3개 금/은/동 메달
 - **공지 배너**: 글로벌 상단 배너 (제목+내용 미리보기, 접기→제목만, 닫기→숨김, 관리자 페이지 미표시)
 - **다이얼로그**: Safari PWA 스크롤 대응 (flex 레이아웃, `inset-y-0 my-auto` 센터링, `overflow-y-auto`, `data-scroll-locked` 가드)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 → `window.location.reload()` (Safari PWA 최적화, 다이얼로그 열림 시 비활성화)

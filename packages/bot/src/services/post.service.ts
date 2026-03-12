@@ -47,6 +47,7 @@ export interface CreatePostInput {
   url: string;
   publishedAt: Date;
   description?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 /**
@@ -86,6 +87,7 @@ export class PostService {
       url: input.url,
       publishedAt: input.publishedAt,
       description: input.description ?? null,
+      thumbnailUrl: input.thumbnailUrl ?? null,
     };
 
     const [created] = await this.db.insert(posts).values(newPost).returning();

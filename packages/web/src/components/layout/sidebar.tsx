@@ -9,7 +9,6 @@ import {
   FileText,
   LayoutDashboard,
   MessageSquare,
-  Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -40,7 +39,8 @@ const userNavItems: NavItem[] = [
   { title: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { title: '포스트', href: '/posts', icon: FileText },
   { title: '랭킹', href: '/ranking', icon: Trophy },
-  { title: '큐레이션', href: '/curation', icon: Newspaper },
+  // TODO: 큐레이션 기능 나중에 활성화 예정
+  // { title: '큐레이션', href: '/curation', icon: Newspaper },
   { title: '게시판', href: '/board', icon: MessageSquare },
   { title: '스터디원 목록', href: '/members', icon: UsersRound },
 ];
@@ -52,7 +52,8 @@ const adminNavItems: NavItem[] = [
   { title: '출석 관리', href: '/admin/attendance', icon: CalendarCheck },
   { title: '벌금 관리', href: '/admin/fines', icon: Banknote },
   { title: '점수 관리', href: '/admin/scores', icon: Star },
-  { title: '큐레이션 소스', href: '/admin/curation', icon: Newspaper },
+  // TODO: 큐레이션 기능 나중에 활성화 예정
+  // { title: '큐레이션 소스', href: '/admin/curation', icon: Newspaper },
   { title: '설정', href: '/admin/settings', icon: Settings },
 ];
 
