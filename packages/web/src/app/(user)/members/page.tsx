@@ -185,7 +185,6 @@ export default function MembersPage() {
                       })}
                     </div>
                   )}
-
                   <div className="mt-4">
                     <Button asChild variant="outline" size="sm" className="w-full">
                       <Link href={`/members/${member.id}`}>프로필 보기</Link>
