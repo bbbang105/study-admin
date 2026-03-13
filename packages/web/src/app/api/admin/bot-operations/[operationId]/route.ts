@@ -3,6 +3,7 @@ import { withAdminAuth } from '@/lib/admin';
 import { Errors, successResponse } from '@/lib/api-error';
 
 const BOT_API_URL = process.env.BOT_API_URL || 'http://localhost:3001';
+const BOT_API_SECRET = process.env.BOT_API_SECRET;
 
 /**
  * Map operation IDs to bot API endpoints
@@ -54,6 +55,7 @@ export const POST = withAdminAuth(async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(BOT_API_SECRET && { 'Authorization': `Bearer ${BOT_API_SECRET}` }),
       },
       signal: controller.signal,
     });
@@ -70,7 +72,7 @@ export const POST = withAdminAuth(async (
       }
 
       return Errors.externalServiceError(
-        `봇 서버 오류: ${response.status} ${errorText}`
+        '봇 서버에서 오류가 발생했습니다.'
       ).toResponse();
     }
 
@@ -100,6 +102,6 @@ export const POST = withAdminAuth(async (
       ).toResponse();
     }
 
-    return Errors.externalServiceError(errorMessage).toResponse();
+    return Errors.externalServiceError('봇 서버 통신 오류').toResponse();
   }
 });
