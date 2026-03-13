@@ -411,31 +411,6 @@ export function PollManagerModal({
                             className="flex-1"
                           />
                         </div>
-
-                        {/* Quick extend buttons */}
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {EXPIRY_OPTIONS.map((option) => (
-                            <Button
-                              key={option.hours}
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const newExpiresAt = new Date(
-                                  new Date(editingPoll.expiresAt).getTime() +
-                                    option.hours * 60 * 60 * 1000
-                                ).toISOString();
-                                setEditingPoll({
-                                  ...editingPoll,
-                                  expiresAt: newExpiresAt,
-                                });
-                              }}
-                              className="h-7 text-xs"
-                            >
-                              +{option.label}
-                            </Button>
-                          ))}
-                        </div>
                       </div>
                     </div>
 

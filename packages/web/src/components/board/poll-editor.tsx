@@ -274,22 +274,6 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
                   className="flex-1"
                 />
               </div>
-
-              {/* Quick select buttons */}
-              <div className="flex flex-wrap gap-2 pt-1">
-                {EXPIRY_OPTIONS.map((option) => (
-                  <Button
-                    key={option.hours}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setExpiry(option.hours)}
-                    className="h-7 text-xs"
-                  >
-                    +{option.label}
-                  </Button>
-                ))}
-              </div>
             </div>
           </div>
 
