@@ -22,9 +22,9 @@ const BOT_API_SECRET = process.env.BOT_API_SECRET;
  * Bearer token authentication middleware for trigger endpoints
  */
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // 시크릿 미설정 시 인증 스킵 (로컬 개발용)
   if (!BOT_API_SECRET) {
-    logger.warn('[API] BOT_API_SECRET not set, rejecting request');
-    res.status(401).json({ error: 'Server not configured for API access' });
+    next();
     return;
   }
 
