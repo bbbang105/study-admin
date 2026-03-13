@@ -5,6 +5,7 @@
 
 import { Client, EmbedBuilder, bold } from 'discord.js';
 import { count, eq, sql } from 'drizzle-orm';
+import logger from '../lib/logger';
 import {
   getDb,
   members,
@@ -14,6 +15,7 @@ import {
   ActivityScoreType,
 } from '@blog-study/shared/db';
 import { getConfigValue, ConfigKeys } from '../services/round.service';
+import { formatKSTDate } from '@blog-study/shared/utils';
 
 /**
  * Result of a weekly ranking cycle
@@ -41,39 +43,23 @@ interface MemberRanking {
 }
 
 /**
- * Format KST date to ISO date string (YYYY-MM-DD)
- */
-function formatKSTDate(date: Date): string {
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstDate = new Date(date.getTime() + kstOffset);
-  return kstDate.toISOString().split('T')[0]!;
-}
-
-/**
  * Get the week start and end dates (Monday to Sunday) in KST
  */
 function getWeekDates(): { startDate: string; endDate: string } {
   const now = new Date();
-  // KST offset (UTC+9)
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstNow = new Date(now.getTime() + kstOffset);
+  const day = now.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
 
-  const day = kstNow.getDay(); // 0 (Sunday) to 6 (Saturday)
-  const diff = kstNow.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-
-  const monday = new Date(kstNow);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
 
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
 
-  // Format dates directly from KST time
-  const startDate = formatKSTDate(monday);
-  const endDate = formatKSTDate(sunday);
-
-  return { startDate, endDate };
+  return {
+    startDate: formatKSTDate(monday),
+    endDate: formatKSTDate(sunday),
+  };
 }
 
 /**
@@ -227,7 +213,7 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
  * Weekly Ranking class for scheduling weekly ranking announcements
  */
 export class WeeklyRanking {
-  private runningLock = Promise.resolve();
+  private isRunning = false;
   private client: Client | null = null;
 
   /**
@@ -248,25 +234,25 @@ export class WeeklyRanking {
    * Check if the scheduler is currently running
    */
   isSending(): boolean {
-    // Check if there's an active lock
-    return this.runningLock !== Promise.resolve();
+    return this.isRunning;
   }
 
   /**
    * Send weekly ranking report
    */
   async sendWeeklyRanking(): Promise<WeeklyRankingResult> {
-    // Wait for any existing run to complete
-    await this.runningLock;
+    if (this.isRunning) {
+      logger.info('[WeeklyRanking] Already in progress, skipping');
+      return {
+        timestamp: new Date(),
+        rankingSent: false,
+        totalMembers: 0,
+        errors: ['Already in progress'],
+        warnings: [],
+      };
+    }
 
-    // Create new lock
-    let resolveLock: (() => void) | undefined;
-    const currentLock = new Promise<void>(resolve => {
-      resolveLock = resolve;
-    });
-    const previousLock = this.runningLock;
-    this.runningLock = currentLock;
-
+    this.isRunning = true;
     const startTime = new Date();
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -276,13 +262,13 @@ export class WeeklyRanking {
         throw new Error('Discord client not set');
       }
 
-      console.log('[WeeklyRanking] Fetching member rankings...');
+      logger.info('[WeeklyRanking] Fetching member rankings...');
 
       // Get rankings
       const rankings = await getMemberRankings();
 
       if (rankings.length === 0) {
-        console.log('[WeeklyRanking] No active members found');
+        logger.info('[WeeklyRanking] No active members found');
         warnings.push('랭킹 기간에 활성 멤버가 없습니다');
 
         return {
@@ -294,7 +280,7 @@ export class WeeklyRanking {
         };
       }
 
-      console.log(`[WeeklyRanking] Found ${rankings.length} active members`);
+      logger.info(`[WeeklyRanking] Found ${rankings.length} active members`);
 
       // Get ranking channel ID
       const channelId = await getConfigValue(ConfigKeys.RANKING_CHANNEL);
@@ -315,7 +301,7 @@ export class WeeklyRanking {
 
       await channel.send({ embeds: [embed] });
 
-      console.log(`[WeeklyRanking] Weekly ranking sent successfully (${rankings.length} members)`);
+      logger.info(`[WeeklyRanking] Weekly ranking sent successfully (${rankings.length} members)`);
 
       return {
         timestamp: startTime,
@@ -326,7 +312,7 @@ export class WeeklyRanking {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[WeeklyRanking] Error: ${errorMsg}`);
+      logger.error(`[WeeklyRanking] Error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -337,16 +323,7 @@ export class WeeklyRanking {
         warnings,
       };
     } finally {
-      // Release current lock
-      if (resolveLock) {
-        resolveLock();
-      }
-      // Restore previous lock state if it was different
-      if (previousLock !== Promise.resolve()) {
-        this.runningLock = previousLock;
-      } else {
-        this.runningLock = Promise.resolve();
-      }
+      this.isRunning = false;
     }
   }
 }

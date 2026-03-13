@@ -116,6 +116,11 @@ export function createBotApiServer(): Express {
   app.post('/api/trigger/round-start', triggerLimiter, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
+
+      if (roundReporter.isReporting()) {
+        return res.status(409).json({ error: '회차 작업이 이미 실행 중입니다' });
+      }
+
       const result = await roundReporter.sendRoundStartAnnouncement();
       res.json({ success: true, result });
     } catch (error) {

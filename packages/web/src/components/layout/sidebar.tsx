@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Banknote,
+  Bot,
   CalendarCheck,
   CalendarRange,
   FileText,
@@ -52,6 +53,7 @@ const adminNavItems: NavItem[] = [
   { title: '출석 관리', href: '/admin/attendance', icon: CalendarCheck },
   { title: '벌금 관리', href: '/admin/fines', icon: Banknote },
   { title: '점수 관리', href: '/admin/scores', icon: Star },
+  { title: '봇', href: '/admin/bot-operations', icon: Bot },
   // TODO: 큐레이션 기능 나중에 활성화 예정
   // { title: '큐레이션 소스', href: '/admin/curation', icon: Newspaper },
   { title: '설정', href: '/admin/settings', icon: Settings },
@@ -184,11 +186,7 @@ function SidebarContent({
 
 // ─── Sidebar component ────────────────────────────────────────────────────────
 
-export function Sidebar({
-  isAdmin = false,
-  collapsed,
-  onToggleCollapsed,
-}: SidebarProps) {
+export function Sidebar({ isAdmin = false, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
 
   const toggleCollapsed = () => onToggleCollapsed(!collapsed);

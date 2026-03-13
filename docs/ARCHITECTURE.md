@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-13 (v6)
+> 최종 업데이트: 2026-03-13 (v7)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -35,6 +35,7 @@ graph TB
         SCH["Schedulers<br/>pg-boss"]
         EVT["Event Handlers<br/>discord.js v14"]
         SVC["Service Layer<br/>RSS · Fine · Curation · Score"]
+        BOT_API["Express API :3001<br/>수동 트리거 엔드포인트<br/>rate limit 10/min"]
         SENTRY_BOT["Sentry SDK<br/>에러 모니터링 + PII 스크러빙"]
     end
 
@@ -65,6 +66,8 @@ graph TB
     SCH --> SVC
     SVC --> DB
     Bot -->|service_role key| TABLES
+    API -->|POST /api/trigger/*| BOT_API
+    BOT_API --> SCH
 
     Web -->|HTTPS| DB
     MW --> AUTH
@@ -243,6 +246,7 @@ flowchart TD
 | Admin | `/admin/fines` | 벌금 관리 | 관리자 전용 |
 | Admin | `/admin/scores` | 점수 관리 | 관리자 전용 |
 | Admin | `/admin/curation` | 큐레이션 소스 관리 (현재 숨김) | 관리자 전용 |
+| Admin | `/admin/bot-operations` | 봇 수동 실행 | 관리자 전용 |
 | Admin | `/admin/settings` | 설정 | 관리자 전용 |
 
 ### 미들웨어 보호 로직
@@ -398,7 +402,7 @@ erDiagram
 |--------|-----------|---------|
 | Desktop (md+) | 좌측 고정 사이드바 (접기/펼치기) | `Sidebar` |
 | Mobile 사용자 (<md) | 하단 고정 탭 바 (5개: 랭킹/포스트/홈/게시판/스터디원) | `BottomNav` |
-| Mobile 관리자 (<md) | 하단 고정 탭 바 (5개: 멤버/회차/출석/벌금/점수) | `BottomNav` |
+| Mobile 관리자 (<md) | 하단 고정 탭 바 (6개: 멤버/회차/출석/벌금/점수/봇) | `BottomNav` |
 
 - **Header**: 로고(커스텀 SVG 픽토그램, 사용자→`/dashboard`, 관리자→`/admin`) + 다크모드 토글 + 프로필 드롭다운 (사용자↔관리자 전환)
 - **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (7섹션: Nav/Hero/Stats/Bento/HowItWorks/Marquee/CTA). 큐시즘 블루 그라디언트 (`#0091FF→#004DFF`), Framer Motion 애니메이션, DB 스탯 ISR 60s
@@ -413,11 +417,12 @@ erDiagram
 |------|------|------|
 | RSS Poller | 5분 | active 멤버 RSS 피드 수집 |
 | Attendance Checker | 매주 화 00:00 | 지각/결석 판정 |
-| Fine Reminder | 매일 10:00 | 미납 벌금 DM 리마인드 |
+| Fine Reminder | 매일 10:00 | 미납 벌금 DM 리마인드 (1일 간격) |
 | Curation Crawler | 매일 09:00 | 외부 컨텐츠 크롤링 |
 | Daily Content | 매일 10:00 | 큐레이션 컨텐츠 공유 |
 | Round Reporter | 회차 종료 시 | 회차 리포트 자동 생성 → #공지사항 |
 | Round Start | 매주 월 00:00 | 회차 시작 안내 + active 멤버 멘션 → #공지사항 |
+| Weekly Ranking | 매주 일 22:00 | 주간 활동 점수 랭킹 → #주간-랭킹 |
 
 ## 보안
 

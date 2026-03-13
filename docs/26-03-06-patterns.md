@@ -345,3 +345,45 @@ import { MemberAvatar } from '@/components/ui/member-avatar';
 | `showName` | boolean | 이름 표시 + 링크 포함 |
 | `noLink` | boolean | 링크 비활성화 |
 | `isAdmin` | boolean | 관리자 뱃지 표시 |
+
+## 봇 작업 프록시 패턴
+
+웹 관리자 대시보드에서 봇 스케줄러를 수동 트리거하는 프록시 API:
+
+```
+[Web Admin UI] → POST /api/admin/bot-operations/{operationId}
+  → withAdminAuth (관리자 인증)
+  → fetch(BOT_API_URL + endpoint, { signal: AbortController(30s) })
+  → [Bot Express API :3001] → /api/trigger/{operationId}
+  → rate limit (10/min) → isRunning guard → 작업 실행
+```
+
+### 봇 API 서버 (`api-server.ts`)
+
+```ts
+// Express 서버 (포트 3001), 각 스케줄러에 대한 POST 트리거 엔드포인트
+// rate limit: 10 requests/min per endpoint
+// 각 핸들러는 isRunning/isSending 가드로 중복 실행 방지
+// 응답: { success, message, data? } 또는 409 (이미 실행 중)
+```
+
+### 웹 프록시 라우트 (`[operationId]/route.ts`)
+
+```ts
+// OPERATION_ENDPOINT_MAP으로 operationId → bot endpoint 매핑
+// AbortController 30초 타임아웃
+// 에러 분류: AbortError(타임아웃), ECONNREFUSED(봇 미실행), 409(중복 실행), 기타
+```
+
+### 지원 작업 목록
+
+| operationId | 설명 | 스케줄 |
+|-------------|------|--------|
+| `rss-poll` | RSS 피드 수집 | 매 30분 |
+| `attendance-check` | 출석 체크 | 회차 종료 후 |
+| `fine-reminder` | 미납 벌금 알림 | 매일 |
+| `round-report` | 회차 리포트 | 회차 종료 후 |
+| `round-start` | 회차 시작 알림 | 회차 시작일 |
+| `curation-crawl` | 큐레이션 크롤링 | 매일 09:00 |
+| `curation-share` | 큐레이션 공유 | 매일 10:05 |
+| `weekly-ranking` | 주간 랭킹 | 매주 일요일 22:00 |

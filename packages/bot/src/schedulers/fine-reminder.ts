@@ -1,12 +1,13 @@
 /**
  * Fine Reminder Scheduler
- * 미납 벌금 3일마다 리마인드
+ * 미납 벌금 매일 리마인드
  * Requirements: 8.4
  */
 
 import { Client } from 'discord.js';
 import { getFineService } from '../services/fine.service';
 import { sendFineReminder } from '../handlers/dm-handler';
+import logger from '../lib/logger';
 
 /**
  * Result of a fine reminder cycle
@@ -41,12 +42,12 @@ export class FineReminder {
   }
 
   /**
-   * Send reminders for all unpaid fines that are older than 3 days
-   * Requirements: 8.4 - Send reminder every 3 days for unpaid fines
+   * Send reminders for all unpaid fines that are older than 1 day
+   * Requirements: 8.4 - Send daily reminder for unpaid fines
    */
   async sendReminders(): Promise<FineReminderResult> {
     if (this.isRunning) {
-      console.log('[FineReminder] Reminder already in progress, skipping');
+      logger.info('[FineReminder] Reminder already in progress, skipping');
       return {
         timestamp: new Date(),
         processedCount: 0,
@@ -57,7 +58,7 @@ export class FineReminder {
     }
 
     if (!this.client) {
-      console.error('[FineReminder] Discord client not set');
+      logger.error('[FineReminder] Discord client not set');
       return {
         timestamp: new Date(),
         processedCount: 0,
@@ -79,33 +80,26 @@ export class FineReminder {
       // Get all unpaid fines with member info
       const finesWithInfo = await fineService.getFinesWithMemberInfo();
 
-      // P1 #10: 3일마다 리마인드 로직 수정
-      // lastReminderAt을 확인하여 정확히 3일 간격으로 리마인드 발송
+      // 매일 리마인드 로직: lastReminderAt 확인하여 1일 간격으로 발송
       const now = new Date();
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
       const finesNeedingReminder = finesWithInfo.filter(({ fine }) => {
-        // 미납 벌금만 대상
         if (fine.status !== 'PENDING') return false;
 
         const createdAt = fine.createdAt ? new Date(fine.createdAt) : new Date();
 
-        // 벌금 생성 후 최소 3일 경과했는지 확인
-        const threeDaysSinceCreation = new Date(createdAt.getTime() + 3 * 24 * 60 * 60 * 1000);
-        if (now < threeDaysSinceCreation) return false;
+        // 벌금 생성 후 최소 1일 경과했는지 확인
+        if (now.getTime() - createdAt.getTime() < ONE_DAY_MS) return false;
 
-        // 마지막 리마인드가 없거나, 3일 이상 경과했는지 확인
+        // 마지막 리마인드가 없거나, 1일 이상 경과했는지 확인
         const lastReminderAt = fine.lastReminderAt ? new Date(fine.lastReminderAt) : null;
-        if (!lastReminderAt) {
-          // 첫 리마인드: 생성 3일 이후 경과함 (위에서 이미 확인됨)
-          return true;
-        }
+        if (!lastReminderAt) return true;
 
-        // 이전 리마인드로부터 3일 이상 경과했는지 확인
-        const threeDaysSinceLastReminder = new Date(lastReminderAt.getTime() + 3 * 24 * 60 * 60 * 1000);
-        return now >= threeDaysSinceLastReminder;
+        return now.getTime() - lastReminderAt.getTime() >= ONE_DAY_MS;
       });
 
-      console.log(
+      logger.info(
         `[FineReminder] Found ${finesNeedingReminder.length} fines needing reminders`
       );
 
@@ -136,13 +130,13 @@ export class FineReminder {
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          console.error(`[FineReminder] Error sending reminder: ${errorMsg}`);
+          logger.error(`[FineReminder] Error sending reminder: ${errorMsg}`);
           errors.push(`Failed to send reminder for fine ${fine.id}: ${errorMsg}`);
           failedCount++;
         }
       }
 
-      console.log(
+      logger.info(
         `[FineReminder] Completed - sent ${sentCount}, failed ${failedCount}`
       );
 
@@ -155,7 +149,7 @@ export class FineReminder {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[FineReminder] Error: ${errorMsg}`);
+      logger.error(`[FineReminder] Error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -175,8 +169,19 @@ export class FineReminder {
    * Useful for admin operations or testing
    */
   async sendAllReminders(): Promise<FineReminderResult> {
+    if (this.isRunning) {
+      logger.info('[FineReminder] Reminder already in progress, skipping manual run');
+      return {
+        timestamp: new Date(),
+        processedCount: 0,
+        sentCount: 0,
+        failedCount: 0,
+        errors: ['Reminder already in progress'],
+      };
+    }
+
     if (!this.client) {
-      console.error('[FineReminder] Discord client not set');
+      logger.error('[FineReminder] Discord client not set');
       return {
         timestamp: new Date(),
         processedCount: 0,
@@ -186,6 +191,7 @@ export class FineReminder {
       };
     }
 
+    this.isRunning = true;
     const startTime = new Date();
     const errors: string[] = [];
     let sentCount = 0;
@@ -195,7 +201,7 @@ export class FineReminder {
       const fineService = getFineService();
       const finesWithInfo = await fineService.getFinesWithMemberInfo();
 
-      console.log(
+      logger.info(
         `[FineReminder] Manually sending reminders for ${finesWithInfo.length} unpaid fines`
       );
 
@@ -220,6 +226,7 @@ export class FineReminder {
 
           if (success) {
             sentCount++;
+            await fineService.updateLastReminderAt(fine.id);
           } else {
             failedCount++;
           }
@@ -230,7 +237,7 @@ export class FineReminder {
         }
       }
 
-      console.log(
+      logger.info(
         `[FineReminder] Manual reminders completed - sent ${sentCount}, failed ${failedCount}`
       );
 
@@ -243,7 +250,7 @@ export class FineReminder {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[FineReminder] Manual reminder error: ${errorMsg}`);
+      logger.error(`[FineReminder] Manual reminder error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -253,6 +260,8 @@ export class FineReminder {
         failedCount: 0,
         errors,
       };
+    } finally {
+      this.isRunning = false;
     }
   }
 }

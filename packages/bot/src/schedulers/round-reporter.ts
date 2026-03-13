@@ -6,6 +6,7 @@
 
 import { Client } from 'discord.js';
 import { eq, count } from 'drizzle-orm';
+import logger from '../lib/logger';
 import {
   getDb,
   attendance,
@@ -26,16 +27,7 @@ import {
   type AttendanceSummary,
   type RoundReportData,
 } from '../services/notification.service';
-
-/**
- * Format KST date to ISO date string (YYYY-MM-DD)
- * P0 #6: KST 기준 날짜 포맷팅 (UTC+9)
- */
-function formatKSTDate(date: Date): string {
-  const kstOffset = 9 * 60 * 60 * 1000; // UTC+9
-  const kstDate = new Date(date.getTime() + kstOffset);
-  return kstDate.toISOString().split('T')[0]!;
-}
+import { formatKSTDate } from '@blog-study/shared/utils';
 
 /**
  * Result of a round report cycle
@@ -146,7 +138,7 @@ export class RoundReporter {
    */
   async sendRoundReport(): Promise<RoundReportResult> {
     if (this.isRunning) {
-      console.log('[RoundReporter] Report already in progress, skipping');
+      logger.info('[RoundReporter] Report already in progress, skipping');
       return {
         timestamp: new Date(),
         roundNumber: 0,
@@ -167,7 +159,7 @@ export class RoundReporter {
 
       // Check if grace period has ended
       if (!isGracePeriodEnded(currentRound)) {
-        console.log('[RoundReporter] Grace period not yet ended, skipping report');
+        logger.info('[RoundReporter] Grace period not yet ended, skipping report');
         return {
           timestamp: startTime,
           roundNumber: currentRound.roundNumber,
@@ -178,7 +170,7 @@ export class RoundReporter {
         };
       }
 
-      console.log(`[RoundReporter] Generating report for round ${currentRound.roundNumber}`);
+      logger.info(`[RoundReporter] Generating report for round ${currentRound.roundNumber}`);
 
       // Build report data
       const reportData = await buildRoundReportDataForRound(currentRound);
@@ -191,14 +183,14 @@ export class RoundReporter {
         errors.push('Failed to send round report');
       }
 
-      console.log(`[RoundReporter] Round ${currentRound.roundNumber} report ${sent ? 'sent' : 'failed'}`);
+      logger.info(`[RoundReporter] Round ${currentRound.roundNumber} report ${sent ? 'sent' : 'failed'}`);
 
       // P0 #7: 회차 종료 후 isCurrent 플래그 업데이트
       // 다음 회차가 있으면 해당 회차를 current로 설정
       const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
       if (nextRound) {
         await setCurrentRound(nextRound.roundNumber);
-        console.log(`[RoundReporter] Updated current round to ${nextRound.roundNumber}`);
+        logger.info(`[RoundReporter] Updated current round to ${nextRound.roundNumber}`);
       } else {
         // 다음 회차가 없으면 현재 회차의 isCurrent를 false로 변경
         const db = getDb();
@@ -206,7 +198,7 @@ export class RoundReporter {
           .update(rounds)
           .set({ isCurrent: false })
           .where(eq(rounds.id, currentRound.id));
-        console.log(`[RoundReporter] No next round, unset isCurrent for round ${currentRound.roundNumber}`);
+        logger.info(`[RoundReporter] No next round, unset isCurrent for round ${currentRound.roundNumber}`);
       }
 
       return {
@@ -219,7 +211,7 @@ export class RoundReporter {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[RoundReporter] Error: ${errorMsg}`);
+      logger.error(`[RoundReporter] Error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -241,6 +233,19 @@ export class RoundReporter {
    * P0 #6: KST 타임존 기준으로 날짜 비교
    */
   async sendRoundStartAnnouncement(): Promise<RoundReportResult> {
+    if (this.isRunning) {
+      logger.info('[RoundReporter] Already in progress, skipping announcement');
+      return {
+        timestamp: new Date(),
+        roundNumber: 0,
+        reportSent: false,
+        newRoundStarted: false,
+        newRoundNumber: null,
+        errors: ['Already in progress'],
+      };
+    }
+
+    this.isRunning = true;
     const startTime = new Date();
     const errors: string[] = [];
 
@@ -256,7 +261,7 @@ export class RoundReporter {
 
       if (isTodayRoundStart) {
         // 오늘이 현재 회차 시작일 - 알림 발송
-        console.log(`[RoundReporter] Sending start announcement for round ${currentRound.roundNumber}`);
+        logger.info(`[RoundReporter] Sending start announcement for round ${currentRound.roundNumber}`);
 
         const notificationService = getNotificationService();
         const sent = await notificationService.sendRoundStartAnnouncement(currentRound);
@@ -282,7 +287,7 @@ export class RoundReporter {
         // 오늘이 다음 회차 시작일 - 회차 전환 + 알림 발송
         await setCurrentRound(nextRound.roundNumber);
 
-        console.log(`[RoundReporter] Starting round ${nextRound.roundNumber}`);
+        logger.info(`[RoundReporter] Starting round ${nextRound.roundNumber}`);
 
         const notificationService = getNotificationService();
         const sent = await notificationService.sendRoundStartAnnouncement(nextRound);
@@ -302,7 +307,7 @@ export class RoundReporter {
       }
 
       // 회차 시작일이 아님
-      console.log('[RoundReporter] Not a round start day, skipping announcement');
+      logger.info('[RoundReporter] Not a round start day, skipping announcement');
       return {
         timestamp: startTime,
         roundNumber: currentRound.roundNumber,
@@ -313,7 +318,7 @@ export class RoundReporter {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[RoundReporter] Error: ${errorMsg}`);
+      logger.error(`[RoundReporter] Error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -324,6 +329,8 @@ export class RoundReporter {
         newRoundNumber: null,
         errors,
       };
+    } finally {
+      this.isRunning = false;
     }
   }
 
@@ -349,7 +356,7 @@ export class RoundReporter {
         };
       }
 
-      console.log(`[RoundReporter] Manually generating report for round ${roundNumber}`);
+      logger.info(`[RoundReporter] Manually generating report for round ${roundNumber}`);
 
       // Build report data
       const reportData = await buildRoundReportDataForRound(round);
@@ -372,7 +379,7 @@ export class RoundReporter {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[RoundReporter] Manual report error: ${errorMsg}`);
+      logger.error(`[RoundReporter] Manual report error: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {

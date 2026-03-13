@@ -92,16 +92,19 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/error.tsx` | 관리자 에러 바운더리 |
 | `packages/web/src/components/ui/member-avatar.tsx` | 재사용 아바타 컴포넌트 (링크+관리자뱃지) |
 | `packages/web/src/components/board/tiptap-editor.tsx` | Tiptap 리치 에디터 (H1-H3, 구분선, 코드블록, 링크, 한글 IME 대응) |
-| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자: 랭킹/포스트/홈/게시판/스터디원, 관리자 모드 미표시) |
+| `packages/web/src/components/layout/bottom-nav.tsx` | 모바일 하단 탭 바 (사용자: 랭킹/포스트/홈/게시판/스터디원, 관리자: 멤버/회차/출석/벌금/점수/봇) |
 | `packages/web/src/components/layout/notice-banner.tsx` | 글로벌 공지 배너 (제목+내용 미리보기, 접기/닫기) |
 | `packages/web/src/components/layout/pull-to-refresh.tsx` | Pull-to-Refresh 컴포넌트 (PWA 터치 제스처) |
 | `packages/web/src/hooks/use-pull-to-refresh.ts` | Pull-to-Refresh 훅 (`window.location.reload()` 기반) |
 | `packages/web/src/app/api/notice-banner/route.ts` | 활성 공지 배너 조회 API |
+| `packages/web/src/app/(admin)/admin/bot-operations/page.tsx` | 봇 수동 실행 대시보드 (관리자 전용) |
+| `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
+| `packages/bot/src/api-server.ts` | 봇 HTTP API 서버 (Express, 수동 트리거 엔드포인트, rate limit 10/min) |
 | `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation 채널) |
 | `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
 | `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |
@@ -146,7 +149,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **폰트**: Pretendard Variable
 - **기본 아바타**: DiceBear `fun-emoji` 스타일 (`getDefaultAvatar()` in `utils.ts`)
 - **아바타 리소스**: [DiceBear](https://www.dicebear.com/styles/) - 30+ 스타일, seed 기반 결정적 아바타 생성, API: `https://api.dicebear.com/9.x/{style}/svg?seed={seed}`
-- **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (사용자 전용, 관리자 모드 미표시)
+- **레이아웃**: 데스크톱 사이드바 + 모바일 하단 탭 바 (사용자/관리자 모드별 탭 자동 전환)
 - **사이드바**: 모드 전환은 헤더 프로필 드롭다운에서만 가능 (사이드바에 토글 없음)
 - **큐레이션**: 현재 네비게이션에서 숨김 (TODO: 나중에 활성화 예정), 페이지/로직은 유지
 - **포스트**: 최신순/인기순 탭, 무한 스크롤, 썸네일(OG 이미지)+그라디언트 폴백, 인기순 상위 3개 금/은/동 메달

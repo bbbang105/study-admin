@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Banknote,
+  Bot,
   CalendarCheck,
   CalendarRange,
   FileText,
@@ -38,6 +39,7 @@ const adminNavItems: NavItem[] = [
   { title: '출석', href: '/admin/attendance', icon: CalendarCheck },
   { title: '벌금', href: '/admin/fines', icon: Banknote },
   { title: '점수', href: '/admin/scores', icon: Star },
+  { title: '봇', href: '/admin/bot-operations', icon: Bot },
   // TODO: 큐레이션 기능 나중에 활성화 예정
   // { title: '큐레이션', href: '/admin/curation', icon: Newspaper },
 ];
