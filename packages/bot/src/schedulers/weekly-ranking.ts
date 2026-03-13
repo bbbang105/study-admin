@@ -92,8 +92,8 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
   // Get activity scores for each member
   // P0 #5: 이번 주 기간 점수만 필터링
   const weekDates = getWeekDates();
-  const weekStartDate = new Date(weekDates.startDate + 'T00:00:00.000+09:00');
-  const weekEndDate = new Date(weekDates.endDate + 'T23:59:59.999+09:00');
+  const weekStartDate = weekDates.startDate + 'T00:00:00.000+09:00';
+  const weekEndDate = weekDates.endDate + 'T23:59:59.999+09:00';
 
   const scoreStats = await db
     .select({
