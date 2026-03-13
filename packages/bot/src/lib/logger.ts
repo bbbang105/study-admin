@@ -8,6 +8,15 @@ import pino from 'pino';
 const isDev = process.env.NODE_ENV !== 'production';
 
 /**
+ * Serialize error to string for logging
+ * Handles Error objects and converts them to their message
+ */
+export function serializeError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+/**
  * Create a pino logger instance
  * - Development: Pretty-printed colored logs to console
  * - Production: JSON logs to stdout (for systemd/journal)

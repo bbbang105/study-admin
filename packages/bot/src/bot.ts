@@ -1,5 +1,5 @@
 import { Client, Events, GatewayIntentBits, } from 'discord.js';
-import logger from './lib/logger';
+import logger, { serializeError } from './lib/logger';
 
 /**
  * Create and configure the Discord bot client
@@ -34,7 +34,7 @@ export function setupEventHandlers(client: Client): void {
 
   // Error handling
   client.on(Events.Error, (error) => {
-    logger.error({ error }, 'Discord client error');
+    logger.error({ error: serializeError(error) }, 'Discord client error');
   });
 
   client.on(Events.Warn, (warning) => {

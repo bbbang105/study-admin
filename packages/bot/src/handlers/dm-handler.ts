@@ -13,7 +13,7 @@ import {
   getFineService,
   formatFineReason,
 } from '../services';
-import logger from '../lib/logger';
+import logger, { serializeError } from '../lib/logger';
 
 /**
  * Add a pending fine confirmation for a user
@@ -27,7 +27,7 @@ export async function addPendingConfirmation(_discordId: string, fineId: string)
       .set({ pendingConfirmation: true })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    logger.error({ fineId, error }, 'Failed to add pending confirmation');
+    logger.error({ fineId, error: serializeError(error) }, 'Failed to add pending confirmation');
   }
 }
 
@@ -43,7 +43,7 @@ export async function removePendingConfirmation(_discordId: string, fineId: stri
       .set({ pendingConfirmation: false })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    logger.error({ fineId, error }, 'Failed to remove pending confirmation');
+    logger.error({ fineId, error: serializeError(error) }, 'Failed to remove pending confirmation');
   }
 }
 
@@ -96,7 +96,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: true,
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to send error reply');
+      logger.error({ error: serializeError(error) }, 'Failed to send error reply');
     }
     return;
   }
@@ -115,17 +115,17 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: false,
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to send confirmation reply');
+      logger.error({ error: serializeError(error) }, 'Failed to send confirmation reply');
     }
   } catch (error) {
-    logger.error({ fineId, error }, 'Failed to mark fine as paid');
+    logger.error({ fineId, error: serializeError(error) }, 'Failed to mark fine as paid');
     try {
       await interaction.reply({
         content: '❌ 납부 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.',
         ephemeral: true,
       });
     } catch (replyError) {
-      logger.error({ error: replyError }, 'Failed to send error reply');
+      logger.error({ error: serializeError(replyError) }, 'Failed to send error reply');
     }
   }
 }
@@ -182,7 +182,7 @@ export async function sendFineNotification(
     logger.info({ discordId, fineId }, 'Fine notification sent');
     return true;
   } catch (error) {
-    logger.error({ discordId, error }, 'Failed to send fine notification');
+    logger.error({ discordId, error: serializeError(error) }, 'Failed to send fine notification');
     return false;
   }
 }
@@ -240,7 +240,7 @@ export async function sendFineReminder(
     logger.info({ discordId, fineId }, 'Fine reminder sent');
     return true;
   } catch (error) {
-    logger.error({ discordId, error }, 'Failed to send fine reminder');
+    logger.error({ discordId, error: serializeError(error) }, 'Failed to send fine reminder');
     return false;
   }
 }
@@ -256,7 +256,7 @@ export function setupDMHandler(client: Client): void {
     try {
       await handleButtonInteraction(interaction);
     } catch (error) {
-      logger.error({ error }, 'Error handling button interaction');
+      logger.error({ error: serializeError(error) }, 'Error handling button interaction');
     }
   });
 
