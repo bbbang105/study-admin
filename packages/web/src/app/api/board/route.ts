@@ -49,13 +49,21 @@ export async function GET(request: NextRequest) {
     };
 
     // Pinned notices (when no category filter, or filtering by notice)
-    const pinnedPosts =
+    const pinnedPostsRaw =
       !category || category === 'notice'
         ? await database
-            .select(selectFields)
+            .select({
+              ...selectFields,
+              pollCount: count(boardPolls.id).mapWith(Number),
+            })
             .from(boardPosts)
             .innerJoin(members, eq(boardPosts.memberId, members.id))
+            .leftJoin(boardPolls, and(
+              eq(boardPolls.postId, boardPosts.id),
+              isNull(boardPolls.deletedAt)
+            ))
             .where(and(isNull(boardPosts.deletedAt), eq(boardPosts.isPinned, true)))
+            .groupBy(boardPosts.id, members.id)
             .orderBy(desc(boardPosts.createdAt))
         : [];
 
@@ -67,11 +75,19 @@ export async function GET(request: NextRequest) {
       .from(boardPosts)
       .where(and(...normalConditions));
 
-    const normalPosts = await database
-      .select(selectFields)
+    const normalPostsRaw = await database
+      .select({
+        ...selectFields,
+        pollCount: count(boardPolls.id).mapWith(Number),
+      })
       .from(boardPosts)
       .innerJoin(members, eq(boardPosts.memberId, members.id))
+      .leftJoin(boardPolls, and(
+        eq(boardPolls.postId, boardPosts.id),
+        isNull(boardPolls.deletedAt)
+      ))
       .where(and(...normalConditions))
+      .groupBy(boardPosts.id, members.id)
       .orderBy(desc(boardPosts.createdAt))
       .limit(pageSize)
       .offset(offset);
@@ -80,7 +96,7 @@ export async function GET(request: NextRequest) {
     const adminDiscordIds = await getAdminDiscordIds();
 
     // Mask secret posts for non-owner non-admin
-    const maskSecret = (post: (typeof normalPosts)[number]) => {
+    const maskSecret = (post: (typeof normalPostsRaw)[number]) => {
       if (post.isSecret && post.memberId !== auth.memberId && !auth.isAdmin) {
         return {
           ...post,
@@ -91,6 +107,7 @@ export async function GET(request: NextRequest) {
           memberDiscordId: '',
           isMasked: true,
           memberIsAdmin: false,
+          pollCount: 0,
         };
       }
       return {
@@ -101,8 +118,8 @@ export async function GET(request: NextRequest) {
     };
 
     return successResponse({
-      pinnedPosts: pinnedPosts.map(maskSecret),
-      posts: normalPosts.map(maskSecret),
+      pinnedPosts: pinnedPostsRaw.map(maskSecret),
+      posts: normalPostsRaw.map(maskSecret),
       pagination: createPaginationMeta(page, pageSize, countResult?.total ?? 0),
     });
   } catch (error) {

@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutList,
+  BarChart3,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -44,6 +45,7 @@ interface BoardPost {
   isSecret: boolean;
   isPinned: boolean;
   commentCount: number;
+  pollCount: number;
   createdAt: string;
   isMasked: boolean;
 }
@@ -139,12 +141,20 @@ function PostTableRow({ post }: { post: BoardPost }) {
           >
             {post.isMasked ? '비밀글입니다' : post.title}
           </Link>
-          {post.commentCount > 0 && (
-            <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
-              <MessageSquare className="h-3 w-3" />
-              {post.commentCount}
-            </span>
-          )}
+          <div className="shrink-0 flex items-center gap-1">
+            {post.pollCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 font-medium" title="투표 있음">
+                <BarChart3 className="h-3 w-3" />
+                {post.pollCount}
+              </span>
+            )}
+            {post.commentCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
+                <MessageSquare className="h-3 w-3" />
+                {post.commentCount}
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
@@ -206,6 +216,15 @@ function PostCard({ post }: { post: BoardPost }) {
             />
             <span>·</span>
             <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
+            {post.pollCount > 0 && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
+                  <BarChart3 className="h-3 w-3" />
+                  {post.pollCount}
+                </span>
+              </>
+            )}
             {post.commentCount > 0 && (
               <>
                 <span>·</span>
@@ -247,12 +266,20 @@ function PinnedTableRow({ post }: { post: BoardPost }) {
           >
             {post.title}
           </Link>
-          {post.commentCount > 0 && (
-            <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
-              <MessageSquare className="h-3 w-3" />
-              {post.commentCount}
-            </span>
-          )}
+          <div className="shrink-0 flex items-center gap-1">
+            {post.pollCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 font-medium" title="투표 있음">
+                <BarChart3 className="h-3 w-3" />
+                {post.pollCount}
+              </span>
+            )}
+            {post.commentCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
+                <MessageSquare className="h-3 w-3" />
+                {post.commentCount}
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
@@ -312,6 +339,15 @@ function PinnedCard({ post }: { post: BoardPost }) {
             />
             <span>·</span>
             <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
+            {post.pollCount > 0 && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
+                  <BarChart3 className="h-3 w-3" />
+                  {post.pollCount}
+                </span>
+              </>
+            )}
             {post.commentCount > 0 && (
               <>
                 <span>·</span>
