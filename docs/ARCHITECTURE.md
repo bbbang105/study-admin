@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-13 (v5)
+> 최종 업데이트: 2026-03-13 (v6)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -35,6 +35,7 @@ graph TB
         SCH["Schedulers<br/>pg-boss"]
         EVT["Event Handlers<br/>discord.js v14"]
         SVC["Service Layer<br/>RSS · Fine · Curation · Score"]
+        SENTRY_BOT["Sentry SDK<br/>에러 모니터링 + PII 스크러빙"]
     end
 
     subgraph DB["Supabase · PostgreSQL"]
@@ -71,6 +72,7 @@ graph TB
     API --> TABLES
     PAGES --> API
     SENTRY_WEB -->|tunnel /api/_sentry-tunnel| SENTRY
+    SENTRY_BOT -->|HTTPS| SENTRY
     SENTRY -->|Alert| DISCORD_WH
 ```
 
@@ -83,6 +85,7 @@ mindmap
       discord.js v14
       pg-boss Job Queue
       feedsmith RSS
+      Sentry 에러 모니터링
     Web
       Next.js 16 App Router
       React 19
@@ -437,7 +440,8 @@ erDiagram
 | **API 성공** | `successResponse(data, message?, status?)` 통일 | `lib/api-error.ts` |
 | **캐시** | `withCache(response, maxAge, scope?)` — 읽기 API에 Cache-Control 적용 | `lib/api-error.ts` |
 | **클라이언트 에러** | Error Boundary → `Sentry.captureException()` — 사용자/관리자/전역 | `(user)/error.tsx`, `(admin)/error.tsx`, `global-error.tsx` |
-| **에러 모니터링** | Sentry SDK (DSN 가드, `beforeSend` PII 스크러빙, tunnel route) | `sentry.*.config.ts`, `instrumentation.ts`, `next.config.ts` |
+| **웹 에러 모니터링** | Sentry SDK (DSN 가드, `beforeSend` PII 스크러빙, tunnel route) | `sentry.*.config.ts`, `instrumentation.ts`, `next.config.ts` |
+| **봇 에러 모니터링** | Sentry Node SDK (`sendDefaultPii: false`, DB URL/토큰 마스킹) | `bot/src/lib/sentry.ts` |
 | **404** | 커스텀 Not Found 페이지 | `not-found.tsx` |
 | **사용자 피드백** | sonner 토스트 (`toast.success()`, `toast.error()`) | `layout.tsx` (`<Toaster />`) |
 
@@ -502,4 +506,5 @@ graph LR
 | Tiptap | 3.20 | Rich text editor |
 | shadcn/ui | latest | UI components |
 | Framer Motion | 12.x | Landing page animations |
-| @sentry/nextjs | 10.43 | Error monitoring + source maps |
+| @sentry/nextjs | 10.43 | Web error monitoring + source maps |
+| @sentry/node | 10.43 | Bot error monitoring |

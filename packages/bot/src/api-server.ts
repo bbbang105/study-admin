@@ -6,6 +6,7 @@
 import express, { type Express } from 'express';
 import rateLimit from 'express-rate-limit';
 import logger from './lib/logger';
+import { Sentry } from './lib/sentry';
 import {
   getRssPoller,
   getAttendanceChecker,
@@ -47,6 +48,7 @@ export function createBotApiServer(): Express {
       const result = await rssPoller.poll();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] RSS poll error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -65,6 +67,7 @@ export function createBotApiServer(): Express {
       const result = await attendanceChecker.check();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Attendance check error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -83,6 +86,7 @@ export function createBotApiServer(): Express {
       const result = await fineReminder.sendReminders();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Fine reminder error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -101,6 +105,7 @@ export function createBotApiServer(): Express {
       const result = await roundReporter.sendRoundReport();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Round report error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -114,6 +119,7 @@ export function createBotApiServer(): Express {
       const result = await roundReporter.sendRoundStartAnnouncement();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Round start error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -132,6 +138,7 @@ export function createBotApiServer(): Express {
       const result = await curationCrawler.crawl();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Curation crawl error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -150,6 +157,7 @@ export function createBotApiServer(): Express {
       const result = await curationCrawler.shareDailyContent();
       res.json({ success: true, result });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Curation share error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
@@ -177,6 +185,7 @@ export function createBotApiServer(): Express {
 
       res.json({ success: true, result: serializedResult });
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({ error }, '[API] Weekly ranking error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'

@@ -5,6 +5,7 @@
 
 import { PgBoss } from 'pg-boss';
 import logger from './lib/logger';
+import { Sentry } from './lib/sentry';
 
 let boss: PgBoss | null = null;
 
@@ -16,7 +17,10 @@ export async function startJobQueue(connectionString: string): Promise<PgBoss> {
   // Simple connection string - use default pg-boss settings
   boss = new PgBoss(connectionString);
 
-  boss.on('error', (error: Error) => logger.error({ error }, '[pg-boss] Error'));
+  boss.on('error', (error: Error) => {
+    logger.error({ error }, '[pg-boss] Error');
+    Sentry.captureException(error);
+  });
   await boss.start();
   logger.info('[pg-boss] Started');
 

@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@blog-study/shared": "workspace:*",
+    "@sentry/node": "^10.43.0",
     "@types/express": "^5.0.6",
     "@types/express-rate-limit": "^6.0.2",
     "axios": "^1.13.5",

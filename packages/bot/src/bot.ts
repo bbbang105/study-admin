@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, } from 'discord.js';
 import logger, { serializeError } from './lib/logger';
-import { reportError } from './lib/error-webhook';
+import { Sentry } from './lib/sentry';
 
 /**
  * Create and configure the Discord bot client
@@ -34,17 +34,10 @@ export function setupEventHandlers(client: Client): void {
   });
 
   // Error handling
-  client.on(Events.Error, async (error) => {
+  client.on(Events.Error, (error) => {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logger.error({ error: serializeError(errorObj) }, 'Discord client error');
-
-    // Send critical error notification to Discord webhook
-    await reportError(errorObj, {
-      location: 'Discord.Client',
-      event: 'error',
-    }).catch(() => {
-      // Ignore webhook errors
-    });
+    Sentry.captureException(errorObj);
   });
 
   client.on(Events.Warn, (warning) => {
@@ -74,6 +67,7 @@ export function setupGracefulShutdown(client: Client, onShutdown?: () => Promise
       await onShutdown();
     }
     client.destroy();
+    await Sentry.flush(2000);
     process.exit(0);
   };
 
