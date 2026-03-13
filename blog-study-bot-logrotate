@@ -1,0 +1,25 @@
+# Blog Study Discord Bot - Logrotate Configuration
+#
+# NOTE: This configuration is for future file logging setup.
+# Current implementation uses systemd journal, so logs are managed by journald.
+# View logs with: journalctl -u blog-study-bot -f
+#
+# To enable file logging:
+# 1. Configure pino to write to file (update logger.ts)
+# 2. Install: sudo cp blog-study-bot-logrotate /etc/logrotate.d/blog-study-bot
+# 3. Update file permissions to match your EC2 user (e.g., ubuntu, ec2-user)
+
+/var/log/blog-study-bot/*.log {
+    daily                   # Rotate daily
+    rotate 7                # Keep 7 days of logs
+    compress                # Compress old logs with gzip
+    delaycompress           # Compress the next day (not immediately)
+    missingok               # No error if log file is missing
+    notifempty              # Don't rotate if log is empty
+    create 0640 $USER $USER  # Create new log file with current user permissions
+    sharedscripts           # Run scripts once for all logs
+    postrotate
+        # Send SIGUSR1 to bot to reopen log files (if using file logging)
+        # pkill -SIGUSR1 -f "node.*bot"
+    endscript
+}
