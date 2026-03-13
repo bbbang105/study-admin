@@ -45,6 +45,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           adminData = { isAdmin: false };
         }
 
+        // 미인증 시 로그인 리다이렉트
+        if (adminResponse.status === 401) {
+          router.push('/login?redirect=/admin');
+          return;
+        }
+
         if (!adminResponse.ok || !adminData.isAdmin) {
           setShowAccessDenied(true);
           setLoading(false);
