@@ -1,11 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart3, Clock, Users, Lock, Check } from 'lucide-react';
+import { BarChart3, Clock, Users, Lock, Check, X } from 'lucide-react';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
 import { PollVoteModal } from './poll-vote-modal';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import Link from 'next/link';
 
 // ─────────────────────────────────────────────
 // Types
@@ -39,6 +46,7 @@ export interface Poll {
 }
 
 interface PollDisplayProps {
+  postId: string;
   poll: Poll;
   onRefresh: () => void;
 }
@@ -80,15 +88,17 @@ function getPollTypeLabel(pollType: string): string {
 // Component
 // ─────────────────────────────────────────────
 
-export function PollDisplay({ poll, onRefresh }: PollDisplayProps) {
+export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
   const [voteModalOpen, setVoteModalOpen] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [votersModalOpen, setVotersModalOpen] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<PollOption | null>(null);
 
   const handleVote = async (optionIds: string[]) => {
     setVoting(true);
     try {
       const res = await fetch(
-        `/api/board/poll/${poll.id}/vote`,
+        `/api/board/${postId}/polls/${poll.id}/vote`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -114,6 +124,11 @@ export function PollDisplay({ poll, onRefresh }: PollDisplayProps) {
   };
 
   const canVote = !poll.isExpired && !poll.hasVoted;
+
+  const handleShowVoters = (option: PollOption) => {
+    setSelectedOption(option);
+    setVotersModalOpen(true);
+  };
 
   return (
     <>
@@ -194,17 +209,35 @@ export function PollDisplay({ poll, onRefresh }: PollDisplayProps) {
 
                 {/* Voters (non-anonymous only) */}
                 {poll.pollType !== 'anonymous' && option.voters.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
-                    {option.voters.map((voter) => (
-                      <MemberAvatar
-                        key={voter.memberId}
-                        memberId={voter.memberId}
-                        name={voter.name}
-                        seed={voter.discordId || voter.name}
-                        imageUrl={voter.profileImage}
-                        size="sm"
-                      />
-                    ))}
+                  <div className="flex items-center justify-between gap-2 mt-2.5">
+                    <div className="flex flex-wrap gap-2">
+                      {option.voters.slice(0, 5).map((voter) => (
+                        <div
+                          key={voter.memberId}
+                          className="flex items-center gap-1.5 rounded-full bg-muted/50 pl-0.5 pr-2 py-0.5"
+                          title={voter.name}
+                        >
+                          <MemberAvatar
+                            memberId={voter.memberId}
+                            name={voter.name}
+                            seed={voter.discordId || voter.name}
+                            imageUrl={voter.profileImage}
+                            size="sm"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {voter.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/30"
+                      onClick={() => handleShowVoters(option)}
+                    >
+                      상세보기 {option.voters.length}명
+                    </Button>
                   </div>
                 )}
               </div>
@@ -237,6 +270,60 @@ export function PollDisplay({ poll, onRefresh }: PollDisplayProps) {
         poll={poll}
         onVote={handleVote}
       />
+
+      {/* Voters modal */}
+      <Dialog open={votersModalOpen} onOpenChange={setVotersModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center justify-between">
+              <span>투표자 목록</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {selectedOption?.optionText}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {selectedOption?.voters.map((voter) => (
+              <Link
+                key={voter.memberId}
+                href={`/members/${voter.memberId}`}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                onClick={() => setVotersModalOpen(false)}
+              >
+                <MemberAvatar
+                  memberId={voter.memberId}
+                  name={voter.name}
+                  seed={voter.discordId || voter.name}
+                  imageUrl={voter.profileImage}
+                  size="md"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-sm">{voter.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(voter.votedAt).toLocaleString('ko-KR', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setVotersModalOpen(false)}
+            >
+              닫기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, Lock, Megaphone } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, Megaphone, BarChart3 } from 'lucide-react';
 import { TiptapEditor } from '@/components/board/tiptap-editor';
+import { PollManagerModal, type Poll } from '@/components/board/poll-manager-modal';
 import { BOARD_CATEGORIES } from '@/lib/board-config';
 import {
   Select,
@@ -39,6 +40,8 @@ export default function BoardEditPage() {
   const [initialContent, setInitialContent] = useState<object | null>(null);
   const [isSecret, setIsSecret] = useState(false);
   const [isNoticeBanner, setIsNoticeBanner] = useState(false);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollManagerOpen, setPollManagerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +51,11 @@ export default function BoardEditPage() {
       setFetchError(null);
 
       try {
-        const [postRes, meRes, adminRes] = await Promise.all([
+        const [postRes, meRes, adminRes, pollsRes] = await Promise.all([
           fetch(`/api/board/${id}`),
           fetch('/api/auth/me'),
           fetch('/api/admin/check'),
+          fetch(`/api/board/${id}/polls`),
         ]);
 
         const adminData = adminRes.ok ? await adminRes.json() : null;
@@ -94,6 +98,12 @@ export default function BoardEditPage() {
           setContent(post.content);
         }
         setContentText(post.contentText ?? '');
+
+        // Load polls
+        if (pollsRes.ok) {
+          const pollsResult = await pollsRes.json();
+          setPolls(pollsResult.data.polls || []);
+        }
       } catch {
         setFetchError('서버 오류가 발생했습니다. 다시 시도해주세요.');
       } finally {
@@ -331,6 +341,16 @@ export default function BoardEditPage() {
         </Button>
         <Button
           type="button"
+          variant="outline"
+          onClick={() => setPollManagerOpen(true)}
+          disabled={submitting}
+          className="sm:w-auto border-sky-500 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/20"
+        >
+          <BarChart3 className="h-4 w-4 mr-2" />
+          투표 관리
+        </Button>
+        <Button
+          type="button"
           onClick={handleSubmit}
           disabled={submitting}
           className="bg-sky-500 hover:bg-sky-600 text-white sm:w-auto"
@@ -345,6 +365,15 @@ export default function BoardEditPage() {
           )}
         </Button>
       </div>
+
+      {/* Poll Manager Modal */}
+      <PollManagerModal
+        open={pollManagerOpen}
+        onOpenChange={setPollManagerOpen}
+        postId={id}
+        initialPolls={polls}
+        onPollsUpdate={setPolls}
+      />
     </div>
   );
 }

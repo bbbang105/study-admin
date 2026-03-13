@@ -335,7 +335,12 @@ export default function BoardDetailPage() {
       {polls.length > 0 && (
         <div className="space-y-4">
           {polls.map((poll) => (
-            <PollDisplay key={poll.id} poll={poll} onRefresh={refreshPolls} />
+            <PollDisplay
+              key={poll.id}
+              postId={postId}
+              poll={poll}
+              onRefresh={refreshPolls}
+            />
           ))}
         </div>
       )}
