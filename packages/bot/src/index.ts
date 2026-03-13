@@ -8,6 +8,7 @@ import { registerAllJobs } from './scheduler-registry';
 import { setupActivityHandler } from './handlers/activity-handler';
 import { setupDMHandler } from './handlers/dm-handler';
 import { initNotificationService } from './services/notification.service';
+import { startBotApiServer } from './api-server';
 import logger, { serializeError } from './lib/logger';
 import { initErrorWebhook, reportError } from './lib/error-webhook';
 
@@ -47,6 +48,11 @@ async function main(): Promise<void> {
   setupGracefulShutdown(client, async () => {
     await stopJobQueue();
   });
+
+  // Start HTTP API server for manual triggers
+  const apiPort = parseInt(process.env.BOT_API_PORT || '3001', 10);
+  startBotApiServer(apiPort);
+  logger.info(`Bot API server started on port ${apiPort}`);
 
   // Start the bot
   await startBot(client, env.DISCORD_TOKEN);
