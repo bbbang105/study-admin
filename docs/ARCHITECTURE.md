@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-12 (v4)
+> 최종 업데이트: 2026-03-13 (v5)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -51,6 +51,12 @@ graph TB
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
         API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board · ..."]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
+        SENTRY_WEB["Sentry SDK<br/>에러 모니터링 + PII 스크러빙"]
+    end
+
+    subgraph Monitoring["Sentry · Error Tracking"]
+        SENTRY["Sentry Cloud<br/>kusitms-pf org"]
+        DISCORD_WH["Discord Webhook<br/>#서버-에러"]
     end
 
     Discord <-->|WebSocket| Bot
@@ -64,6 +70,8 @@ graph TB
     SUPA_CLIENT --> AUTH
     API --> TABLES
     PAGES --> API
+    SENTRY_WEB -->|tunnel /api/_sentry-tunnel| SENTRY
+    SENTRY -->|Alert| DISCORD_WH
 ```
 
 ## 기술 스택
@@ -83,6 +91,7 @@ mindmap
       Tiptap Rich Editor
       sonner Toast
       Framer Motion 애니메이션
+      Sentry 에러 모니터링
       PWA 홈 화면 추가
       Supabase Auth
         Discord OAuth
@@ -415,7 +424,7 @@ erDiagram
 | **인가** | Discord ID 기반 관리자 체크 (`ADMIN_DISCORD_IDS`) | `lib/admin.ts` |
 | **XSS** | Tiptap JSON content 새니타이즈 (`javascript:`, `data:`, `vbscript:` 프로토콜 차단) | `lib/sanitize.ts` → `api/board/` |
 | **SSRF** | 외부 URL fetch 전 `isSafeUrl()` 체크 (private IP, localhost 차단) | `lib/rss-detect.ts` → `api/posts/manual/`, `api/admin/curation/crawl/` |
-| **CSP** | Content-Security-Policy 헤더 (`frame-ancestors 'none'`, 허용 도메인 화이트리스트) | `next.config.js` |
+| **CSP** | Content-Security-Policy 헤더 (`frame-ancestors 'none'`, 허용 도메인 화이트리스트) | `next.config.ts` |
 | **SQL Injection** | Drizzle ORM 파라미터화 쿼리 (raw SQL 사용 안 함) | 전체 API Routes |
 | **CSRF** | Supabase Auth 쿠키 `SameSite=Lax` | Supabase 기본 설정 |
 | **입력 검증** | description 새니타이즈 (제어 문자/제로 너비 유니코드 제거, 300자 제한) | `lib/sanitize.ts` |
@@ -427,7 +436,8 @@ erDiagram
 | **API 에러** | 표준 `ApiError` 클래스 + `Errors` 팩토리 (`401`/`403`/`404`/`400`) | `lib/api-error.ts` |
 | **API 성공** | `successResponse(data, message?, status?)` 통일 | `lib/api-error.ts` |
 | **캐시** | `withCache(response, maxAge, scope?)` — 읽기 API에 Cache-Control 적용 | `lib/api-error.ts` |
-| **클라이언트 에러** | Error Boundary (`error.tsx`) — 사용자/관리자 그룹별 | `(user)/error.tsx`, `(admin)/error.tsx` |
+| **클라이언트 에러** | Error Boundary → `Sentry.captureException()` — 사용자/관리자/전역 | `(user)/error.tsx`, `(admin)/error.tsx`, `global-error.tsx` |
+| **에러 모니터링** | Sentry SDK (DSN 가드, `beforeSend` PII 스크러빙, tunnel route) | `sentry.*.config.ts`, `instrumentation.ts`, `next.config.ts` |
 | **404** | 커스텀 Not Found 페이지 | `not-found.tsx` |
 | **사용자 피드백** | sonner 토스트 (`toast.success()`, `toast.error()`) | `layout.tsx` (`<Toaster />`) |
 
@@ -492,3 +502,4 @@ graph LR
 | Tiptap | 3.20 | Rich text editor |
 | shadcn/ui | latest | UI components |
 | Framer Motion | 12.x | Landing page animations |
+| @sentry/nextjs | 10.43 | Error monitoring + source maps |

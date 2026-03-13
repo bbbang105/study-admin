@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 
@@ -11,7 +12,7 @@ export default function UserError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('User page error:', error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
