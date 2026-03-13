@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2, Edit2, Users, Lock, AlertCircle } from 'lucide-react';
+import { Trash2, Edit2, Users, Lock, AlertCircle, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 // ─────────────────────────────────────────────
@@ -81,6 +89,7 @@ export function PollManagerModal({
   const [polls, setPolls] = useState<Poll[]>([]);
   const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Load polls when modal opens
   useEffect(() => {
@@ -344,29 +353,89 @@ export function PollManagerModal({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">마감시간 연장</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {EXPIRY_OPTIONS.map((option) => (
-                          <Button
-                            key={option.hours}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const newExpiresAt = new Date(
-                                new Date(editingPoll.expiresAt).getTime() +
-                                  option.hours * 60 * 60 * 1000
-                              ).toISOString();
+                      <Label className="text-sm font-medium">마감시간</Label>
+                      <div className="space-y-2">
+                        {/* Date picker */}
+                        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {editingPoll.expiresAt
+                                ? format(new Date(editingPoll.expiresAt), 'yyyy년 MM월 dd일', { locale: ko })
+                                : '날짜 선택'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={editingPoll.expiresAt ? new Date(editingPoll.expiresAt) : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const currentExpiresAt = new Date(editingPoll.expiresAt);
+                                  date.setHours(currentExpiresAt.getHours(), currentExpiresAt.getMinutes());
+                                  setEditingPoll({
+                                    ...editingPoll,
+                                    expiresAt: date.toISOString(),
+                                  });
+                                }
+                                setCalendarOpen(false);
+                              }}
+                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        {/* Time picker */}
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="time"
+                            value={
+                              editingPoll.expiresAt
+                                ? format(new Date(editingPoll.expiresAt), 'HH:mm')
+                                : ''
+                            }
+                            onChange={(e) => {
+                              const [hours, minutes] = e.target.value.split(':').map(Number);
+                              const date = new Date(editingPoll.expiresAt);
+                              date.setHours(hours || 0, minutes || 0);
                               setEditingPoll({
                                 ...editingPoll,
-                                expiresAt: newExpiresAt,
+                                expiresAt: date.toISOString(),
                               });
                             }}
-                            className="h-7 text-xs"
-                          >
-                            +{option.label}
-                          </Button>
-                        ))}
+                            className="flex-1"
+                          />
+                        </div>
+
+                        {/* Quick extend buttons */}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {EXPIRY_OPTIONS.map((option) => (
+                            <Button
+                              key={option.hours}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const newExpiresAt = new Date(
+                                  new Date(editingPoll.expiresAt).getTime() +
+                                    option.hours * 60 * 60 * 1000
+                                ).toISOString();
+                                setEditingPoll({
+                                  ...editingPoll,
+                                  expiresAt: newExpiresAt,
+                                });
+                              }}
+                              className="h-7 text-xs"
+                            >
+                              +{option.label}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
