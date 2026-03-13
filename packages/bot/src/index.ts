@@ -8,27 +8,28 @@ import { registerAllJobs } from './scheduler-registry';
 import { setupActivityHandler } from './handlers/activity-handler';
 import { setupDMHandler } from './handlers/dm-handler';
 import { initNotificationService } from './services/notification.service';
+import logger from './lib/logger';
 
 async function main(): Promise<void> {
-  console.log('🚀 Blog Study Discord Bot starting...');
+  logger.info('Blog Study Discord Bot starting...');
 
   // Load environment variables
   const env = loadBotEnv();
-  console.log('✅ Environment variables loaded');
+  logger.info('Environment variables loaded');
 
   // Create bot client
   const client = createBotClient();
-  console.log('✅ Bot client created');
+  logger.debug('Bot client created');
 
   // Setup event handlers
   setupEventHandlers(client);
   setupActivityHandler(client);
   setupDMHandler(client);
-  console.log('✅ Event handlers configured');
+  logger.debug('Event handlers configured');
 
   // Initialize notification service
   initNotificationService(client);
-  console.log('✅ Notification service initialized');
+  logger.debug('Notification service initialized');
 
   // Start pg-boss job queue and register all scheduled jobs
   const boss = await startJobQueue(env.DATABASE_URL_DIRECT);
@@ -44,6 +45,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('❌ Failed to start bot:', error);
+  logger.error({ error }, 'Failed to start bot');
   process.exit(1);
 });

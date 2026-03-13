@@ -13,6 +13,7 @@ import {
   getFineService,
   formatFineReason,
 } from '../services';
+import logger from '../lib/logger';
 
 /**
  * Add a pending fine confirmation for a user
@@ -26,7 +27,7 @@ export async function addPendingConfirmation(_discordId: string, fineId: string)
       .set({ pendingConfirmation: true })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    console.error(`❌ Failed to add pending confirmation for fine ${fineId}:`, error);
+    logger.error({ fineId, error }, 'Failed to add pending confirmation');
   }
 }
 
@@ -42,7 +43,7 @@ export async function removePendingConfirmation(_discordId: string, fineId: stri
       .set({ pendingConfirmation: false })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    console.error(`❌ Failed to remove pending confirmation for fine ${fineId}:`, error);
+    logger.error({ fineId, error }, 'Failed to remove pending confirmation');
   }
 }
 
@@ -95,7 +96,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: true,
       });
     } catch (error) {
-      console.error('❌ Failed to send error reply:', error);
+      logger.error({ error }, 'Failed to send error reply');
     }
     return;
   }
@@ -106,7 +107,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
     await fineService.markPaid(fineId);
     await removePendingConfirmation(discordId, fineId);
 
-    console.log(`✅ Fine ${fineId} marked as paid for user ${discordId}`);
+    logger.info({ fineId, discordId }, 'Fine marked as paid');
 
     try {
       await interaction.reply({
@@ -114,17 +115,17 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: false,
       });
     } catch (error) {
-      console.error('❌ Failed to send confirmation reply:', error);
+      logger.error({ error }, 'Failed to send confirmation reply');
     }
   } catch (error) {
-    console.error(`❌ Failed to mark fine ${fineId} as paid:`, error);
+    logger.error({ fineId, error }, 'Failed to mark fine as paid');
     try {
       await interaction.reply({
         content: '❌ 납부 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.',
         ephemeral: true,
       });
     } catch (replyError) {
-      console.error('❌ Failed to send error reply:', replyError);
+      logger.error({ error: replyError }, 'Failed to send error reply');
     }
   }
 }
@@ -145,7 +146,7 @@ export async function sendFineNotification(
   try {
     const user = await client.users.fetch(discordId);
     if (!user) {
-      console.error(`❌ User ${discordId} not found`);
+      logger.error({ discordId }, 'User not found');
       return false;
     }
 
@@ -178,10 +179,10 @@ export async function sendFineNotification(
     // Track pending confirmation in DB
     await addPendingConfirmation(discordId, fineId);
 
-    console.log(`📤 Fine notification sent to ${discordId} for fine ${fineId}`);
+    logger.info({ discordId, fineId }, 'Fine notification sent');
     return true;
   } catch (error) {
-    console.error(`❌ Failed to send fine notification to ${discordId}:`, error);
+    logger.error({ discordId, error }, 'Failed to send fine notification');
     return false;
   }
 }
@@ -203,7 +204,7 @@ export async function sendFineReminder(
   try {
     const user = await client.users.fetch(discordId);
     if (!user) {
-      console.error(`❌ User ${discordId} not found`);
+      logger.error({ discordId }, 'User not found');
       return false;
     }
 
@@ -236,10 +237,10 @@ export async function sendFineReminder(
     // Ensure pending confirmation is tracked in DB
     await addPendingConfirmation(discordId, fineId);
 
-    console.log(`📤 Fine reminder sent to ${discordId} for fine ${fineId}`);
+    logger.info({ discordId, fineId }, 'Fine reminder sent');
     return true;
   } catch (error) {
-    console.error(`❌ Failed to send fine reminder to ${discordId}:`, error);
+    logger.error({ discordId, error }, 'Failed to send fine reminder');
     return false;
   }
 }
@@ -255,9 +256,9 @@ export function setupDMHandler(client: Client): void {
     try {
       await handleButtonInteraction(interaction);
     } catch (error) {
-      console.error('❌ Error handling button interaction:', error);
+      logger.error({ error }, 'Error handling button interaction');
     }
   });
 
-  console.log('📬 DM handler setup complete (button-based, DB-persistent)');
+  logger.info('DM handler setup complete (button-based, DB-persistent)');
 }

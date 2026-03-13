@@ -1,0 +1,17 @@
+# Blog Study Discord Bot - Logrotate Configuration
+# Install: sudo cp blog-study-bot-logrotate /etc/logrotate.d/blog-study-bot
+
+/var/log/blog-study-bot/*.log {
+    daily                   # Rotate daily
+    rotate 7                # Keep 7 days of logs
+    compress                # Compress old logs with gzip
+    delaycompress           # Compress the next day (not immediately)
+    missingok               # No error if log file is missing
+    notifempty              # Don't rotate if log is empty
+    create 0640 ubuntu ubuntu  # Create new log file with permissions
+    sharedscripts           # Run scripts once for all logs
+    postrotate
+        # Send SIGUSR1 to bot to reopen log files (if using file logging)
+        # pkill -SIGUSR1 -f "node.*bot"
+    endscript
+}

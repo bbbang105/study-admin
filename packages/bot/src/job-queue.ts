@@ -4,6 +4,7 @@
  */
 
 import { PgBoss } from 'pg-boss';
+import logger from './lib/logger';
 
 let boss: PgBoss | null = null;
 
@@ -14,9 +15,9 @@ let boss: PgBoss | null = null;
 export async function startJobQueue(connectionString: string): Promise<PgBoss> {
   boss = new PgBoss(connectionString);
 
-  boss.on('error', (error: Error) => console.error('[pg-boss] Error:', error));
+  boss.on('error', (error: Error) => logger.error({ error }, '[pg-boss] Error'));
   await boss.start();
-  console.log('[pg-boss] Started');
+  logger.info('[pg-boss] Started');
 
   // Wait for pg-boss to initialize tables
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -40,6 +41,6 @@ export async function stopJobQueue(): Promise<void> {
   if (boss) {
     await boss.stop({ graceful: true, timeout: 30000 });
     boss = null;
-    console.log('[pg-boss] Stopped');
+    logger.info('[pg-boss] Stopped');
   }
 }

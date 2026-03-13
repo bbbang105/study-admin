@@ -7,6 +7,7 @@ import type { Client, Message } from 'discord.js';
 import { Events } from 'discord.js';
 import { ActivityScoreType } from '@blog-study/shared/db';
 import { getScoreService } from '../services/score.service';
+import logger from '../lib/logger';
 
 const MIN_MESSAGE_LENGTH = 10;
 
@@ -40,7 +41,7 @@ export function setupActivityHandler(client: Client): void {
 
       await scoreService.grantScore(memberId, type);
     } catch (error) {
-      console.error('Activity score error (message):', error);
+      logger.error({ error }, 'Activity score error (message)');
     }
   });
 
@@ -63,9 +64,9 @@ export function setupActivityHandler(client: Client): void {
 
       await scoreService.grantScore(memberId, ActivityScoreType.DISCORD_REACTION);
     } catch (error) {
-      console.error('Activity score error (reaction):', error);
+      logger.error({ error }, 'Activity score error (reaction)');
     }
   });
 
-  console.log('🎯 Activity score handler registered');
+  logger.info('Activity score handler registered');
 }
