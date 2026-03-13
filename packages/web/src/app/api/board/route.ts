@@ -14,7 +14,7 @@ import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
 import { sanitizeTiptapContent } from '@/lib/sanitize';
 
-const { boardPosts, members } = sharedDb;
+const { boardPosts, members, boardPolls, boardPollOptions } = sharedDb;
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,7 +116,15 @@ export async function POST(request: NextRequest) {
     if (!auth) return Errors.unauthorized().toResponse();
 
     const body = await request.json();
-    const { category, title, content, contentText, isSecret, isNoticeBanner } = body;
+    const {
+      category,
+      title,
+      content,
+      contentText,
+      isSecret,
+      isNoticeBanner,
+      polls,
+    } = body;
 
     // Validation
     if (!category || !title?.trim() || !content || !contentText?.trim()) {
@@ -132,10 +140,31 @@ export async function POST(request: NextRequest) {
       return Errors.forbidden('공지는 관리자만 작성할 수 있습니다.').toResponse();
     }
 
+    // Validate polls if provided
+    if (polls && Array.isArray(polls) && polls.length > 0) {
+      for (const poll of polls) {
+        if (!poll.question?.trim()) {
+          return Errors.badRequest('투표 질문을 입력해주세요.').toResponse();
+        }
+        if (!poll.pollType || !['single', 'multiple', 'date', 'anonymous'].includes(poll.pollType)) {
+          return Errors.badRequest('유효하지 않은 투표 유형입니다.').toResponse();
+        }
+        if (!poll.options || !Array.isArray(poll.options) || poll.options.length < 2) {
+          return Errors.badRequest('선택지는 최소 2개 이상이어야 합니다.').toResponse();
+        }
+        if (poll.options.some((opt: string) => !opt.trim())) {
+          return Errors.badRequest('모든 선택지에 내용을 입력해주세요.').toResponse();
+        }
+        if (!poll.expiresAt) {
+          return Errors.badRequest('투표 마감시간을 설정해주세요.').toResponse();
+        }
+      }
+    }
+
     const database = getDb();
     const bannerEnabled = category === 'notice' && Boolean(isNoticeBanner);
 
-    const [newPost] = await database.transaction(async (tx) => {
+    const result = await database.transaction(async (tx) => {
       // If enabling banner, disable all existing banners first
       if (bannerEnabled) {
         await tx
@@ -144,7 +173,8 @@ export async function POST(request: NextRequest) {
           .where(eq(boardPosts.isNoticeBanner, true));
       }
 
-      return tx
+      // Create post
+      const createdPosts = await tx
         .insert(boardPosts)
         .values({
           memberId: auth.memberId,
@@ -157,9 +187,51 @@ export async function POST(request: NextRequest) {
           isNoticeBanner: bannerEnabled,
         })
         .returning();
+
+      const post = createdPosts[0];
+
+      if (!post) {
+        throw new Error('Failed to create post');
+      }
+
+      // Create polls if provided
+      if (polls && Array.isArray(polls) && polls.length > 0) {
+        for (const poll of polls) {
+          // Create poll
+          const newPolls = await tx
+            .insert(boardPolls)
+            .values({
+              postId: post.id,
+              question: poll.question.trim(),
+              pollType: poll.pollType,
+              expiresAt: new Date(poll.expiresAt),
+              allowAddOption: true,
+            })
+            .returning();
+
+          const newPoll = newPolls[0];
+
+          if (!newPoll) {
+            throw new Error('Failed to create poll');
+          }
+
+          // Create poll options
+          await tx.insert(boardPollOptions).values(
+            poll.options
+              .filter((opt: string) => opt.trim())
+              .map((opt: string, idx: number) => ({
+                pollId: newPoll.id,
+                optionText: opt.trim(),
+                optionOrder: idx,
+              }))
+          );
+        }
+      }
+
+      return post;
     });
 
-    return successResponse(newPost, '게시글이 작성되었습니다.', 201);
+    return successResponse(result, '게시글이 작성되었습니다.', 201);
   } catch (error) {
     return errorResponse(error);
   }

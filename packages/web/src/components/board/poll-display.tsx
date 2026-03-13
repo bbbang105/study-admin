@@ -1,0 +1,242 @@
+'use client';
+
+import { useState } from 'react';
+import { BarChart3, Clock, Users, Lock, Check } from 'lucide-react';
+import { MemberAvatar } from '@/components/ui/member-avatar';
+import { Button } from '@/components/ui/button';
+import { PollVoteModal } from './poll-vote-modal';
+import { toast } from 'sonner';
+
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
+export interface PollOption {
+  id: string;
+  optionText: string;
+  voteCount: number;
+  percentage: number;
+  voted: boolean;
+  voters: Array<{
+    memberId: string;
+    name: string;
+    profileImage: string | null;
+    discordId: string;
+    votedAt: string;
+  }>;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  pollType: 'single' | 'multiple' | 'date' | 'anonymous';
+  expiresAt: string;
+  allowAddOption: boolean;
+  isExpired: boolean;
+  hasVoted: boolean;
+  totalVotes: number;
+  options: PollOption[];
+}
+
+interface PollDisplayProps {
+  poll: Poll;
+  onRefresh: () => void;
+}
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+function formatExpiresAt(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMs < 0) return '마감됨';
+  if (diffHours < 1) return '1시간 이내 마감';
+  if (diffHours < 24) return `${diffHours}시간 후 마감`;
+  if (diffDays < 7) return `${diffDays}일 후 마감`;
+  return date.toLocaleDateString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getPollTypeLabel(pollType: string): string {
+  const labels = {
+    single: '단일 선택',
+    multiple: '복수 선택',
+    date: '날짜 투표',
+    anonymous: '익명 투표',
+  };
+  return labels[pollType as keyof typeof labels] || pollType;
+}
+
+// ─────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────
+
+export function PollDisplay({ poll, onRefresh }: PollDisplayProps) {
+  const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const [voting, setVoting] = useState(false);
+
+  const handleVote = async (optionIds: string[]) => {
+    setVoting(true);
+    try {
+      const res = await fetch(
+        `/api/board/poll/${poll.id}/vote`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ optionIds }),
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.message || result.error?.message || '투표에 실패했습니다.');
+        return;
+      }
+
+      toast.success(result.message || '투표가 완료되었습니다.');
+      onRefresh();
+    } catch {
+      toast.error('서버 오류가 발생했습니다.');
+    } finally {
+      setVoting(false);
+      setVoteModalOpen(false);
+    }
+  };
+
+  const canVote = !poll.isExpired && !poll.hasVoted;
+
+  return (
+    <>
+      <div className="rounded-lg border border-border/60 bg-card p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <BarChart3 className="h-5 w-5 text-sky-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="font-semibold leading-tight">{poll.question}</h3>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatExpiresAt(poll.expiresAt)}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {poll.totalVotes}명 참여
+                </span>
+                {poll.pollType === 'anonymous' && (
+                  <span className="inline-flex items-center gap-1">
+                    <Lock className="h-3 w-3" />
+                    익명
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+              {getPollTypeLabel(poll.pollType)}
+            </span>
+          </div>
+        </div>
+
+        {/* Options */}
+        <div className="space-y-3">
+          {poll.options.map((option) => (
+            <div
+              key={option.id}
+              className={`relative overflow-hidden rounded-lg border p-3 transition-colors ${
+                option.voted
+                  ? 'border-primary/50 bg-primary/5'
+                  : 'border-border/60 bg-muted/20'
+              }`}
+            >
+              {/* Progress bar background */}
+              {option.percentage > 0 && (
+                <div
+                  className="absolute inset-0 bg-primary/5 transition-all"
+                  style={{ width: `${option.percentage}%` }}
+                />
+              )}
+
+              {/* Content */}
+              <div className="relative">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    {option.voted && (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    )}
+                    <span className="font-medium text-sm">{option.optionText}</span>
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {option.voteCount}표 ({option.percentage}%)
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                {option.percentage > 0 && (
+                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${option.percentage}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* Voters (non-anonymous only) */}
+                {poll.pollType !== 'anonymous' && option.voters.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {option.voters.map((voter) => (
+                      <MemberAvatar
+                        key={voter.memberId}
+                        memberId={voter.memberId}
+                        name={voter.name}
+                        seed={voter.discordId || voter.name}
+                        imageUrl={voter.profileImage}
+                        size="sm"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Action button */}
+        {canVote && (
+          <Button
+            onClick={() => setVoteModalOpen(true)}
+            disabled={voting}
+            className="w-full bg-sky-500 text-white hover:bg-sky-600"
+          >
+            {voting ? '투표 중...' : '투표하기'}
+          </Button>
+        )}
+
+        {poll.isExpired && !poll.hasVoted && (
+          <div className="text-center text-sm text-muted-foreground py-2">
+            마감된 투표입니다
+          </div>
+        )}
+      </div>
+
+      {/* Vote modal */}
+      <PollVoteModal
+        open={voteModalOpen}
+        onOpenChange={setVoteModalOpen}
+        poll={poll}
+        onVote={handleVote}
+      />
+    </>
+  );
+}

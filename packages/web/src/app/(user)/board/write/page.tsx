@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Lock, Megaphone } from 'lucide-react';
 
 import { TiptapEditor } from '@/components/board/tiptap-editor';
+import { PollEditor, type Poll } from '@/components/board/poll-editor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ export default function BoardWritePage() {
   const [contentText, setContentText] = useState('');
   const [isSecret, setIsSecret] = useState(false);
   const [isNoticeBanner, setIsNoticeBanner] = useState(false);
+  const [polls, setPolls] = useState<Poll[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +85,7 @@ export default function BoardWritePage() {
           contentText: contentText.trim(),
           isSecret,
           isNoticeBanner: category === 'notice' ? isNoticeBanner : false,
+          polls: polls.length > 0 ? polls : undefined,
         }),
       });
 
@@ -192,6 +195,12 @@ export default function BoardWritePage() {
               onChange={handleEditorChange}
               placeholder="내용을 입력해주세요..."
             />
+          </div>
+
+          {/* Polls */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">투표 (선택사항)</Label>
+            <PollEditor polls={polls} onPollsChange={setPolls} />
           </div>
 
           {/* Notice Banner Toggle (admin + notice only) */}
