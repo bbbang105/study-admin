@@ -1,4 +1,5 @@
 import { Client, Events, GatewayIntentBits, } from 'discord.js';
+import logger from './lib/logger';
 
 /**
  * Create and configure the Discord bot client
@@ -25,17 +26,19 @@ export function createBotClient(): Client {
 export function setupEventHandlers(client: Client): void {
   // Ready event
   client.once(Events.ClientReady, (readyClient) => {
-    console.log(`✅ Bot logged in as ${readyClient.user.tag}`);
-    console.log(`📊 Serving ${readyClient.guilds.cache.size} guild(s)`);
+    logger.info({
+      botTag: readyClient.user.tag,
+      guilds: readyClient.guilds.cache.size,
+    }, 'Bot logged in');
   });
 
   // Error handling
   client.on(Events.Error, (error) => {
-    console.error('❌ Discord client error:', error);
+    logger.error({ error }, 'Discord client error');
   });
 
   client.on(Events.Warn, (warning) => {
-    console.warn('⚠️ Discord client warning:', warning);
+    logger.warn({ warning }, 'Discord client warning');
   });
 }
 
@@ -56,7 +59,7 @@ export async function startBot(
  */
 export function setupGracefulShutdown(client: Client, onShutdown?: () => Promise<void>): void {
   const shutdown = async (signal: string) => {
-    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+    logger.info({ signal }, 'Received shutdown signal, shutting down gracefully...');
     if (onShutdown) {
       await onShutdown();
     }

@@ -17,6 +17,7 @@ import type { AttendanceStatusType, Member, Post, Round } from '@blog-study/shar
 import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 import { ConfigKeys, getConfigValue } from './round.service';
+import logger from '../lib/logger';
 
 /**
  * Error codes for notification operations
@@ -364,7 +365,7 @@ export class NotificationService {
     const channelId = await getConfigValue(configKey);
 
     if (!channelId) {
-      console.warn(`[NotificationService] ${label} channel not configured`);
+      logger.warn({ channelType: label }, '[NotificationService] Channel not configured');
       return null;
     }
 
@@ -373,10 +374,10 @@ export class NotificationService {
       if (channel instanceof TextChannel) {
         return channel;
       }
-      console.warn(`[NotificationService] ${label} channel is not a text channel`);
+      logger.warn({ channelType: label }, '[NotificationService] Channel is not a text channel');
       return null;
     } catch (error) {
-      console.error(`[NotificationService] Failed to fetch ${label} channel:`, error);
+      logger.error({ channelType: label, error }, '[NotificationService] Failed to fetch channel');
       return null;
     }
   }
@@ -390,17 +391,17 @@ export class NotificationService {
     const channel = await this.getAnnouncementChannel();
     
     if (!channel) {
-      console.error('[NotificationService] Cannot send post notification: channel not configured');
+      logger.error('[NotificationService] Cannot send post notification: channel not configured');
       return false;
     }
 
     try {
       const message = buildPostNotificationMessage(input);
       await channel.send(message);
-      console.log(`[NotificationService] Sent post notification for: ${input.post.title}`);
+      logger.info({ postTitle: input.post.title }, '[NotificationService] Sent post notification');
       return true;
     } catch (error) {
-      console.error('[NotificationService] Failed to send post notification:', error);
+      logger.error({ error }, '[NotificationService] Failed to send post notification');
       return false;
     }
   }
@@ -413,17 +414,17 @@ export class NotificationService {
     const channel = await this.getNoticeChannel();
     
     if (!channel) {
-      console.error('[NotificationService] Cannot send round report: channel not configured');
+      logger.error('[NotificationService] Cannot send round report: channel not configured');
       return false;
     }
 
     try {
       const message = buildRoundReportMessage(data);
       await channel.send(message);
-      console.log(`[NotificationService] Sent round report for round ${data.round.roundNumber}`);
+      logger.info({ roundNumber: data.round.roundNumber }, '[NotificationService] Sent round report');
       return true;
     } catch (error) {
-      console.error('[NotificationService] Failed to send round report:', error);
+      logger.error({ error }, '[NotificationService] Failed to send round report');
       return false;
     }
   }
@@ -436,7 +437,7 @@ export class NotificationService {
     const channel = await this.getNoticeChannel();
 
     if (!channel) {
-      console.error('[NotificationService] Cannot send round start: channel not configured');
+      logger.error('[NotificationService] Cannot send round start: channel not configured');
       return false;
     }
 
@@ -450,10 +451,13 @@ export class NotificationService {
 
       const message = buildRoundStartMessage(round, activeMembers);
       await channel.send(message);
-      console.log(`[NotificationService] Sent round start announcement for round ${round.roundNumber} (${activeMembers.length} active members)`);
+      logger.info({
+        roundNumber: round.roundNumber,
+        activeMemberCount: activeMembers.length
+      }, '[NotificationService] Sent round start announcement');
       return true;
     } catch (error) {
-      console.error('[NotificationService] Failed to send round start announcement:', error);
+      logger.error({ error }, '[NotificationService] Failed to send round start announcement');
       return false;
     }
   }

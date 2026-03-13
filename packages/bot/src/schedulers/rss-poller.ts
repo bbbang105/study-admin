@@ -7,6 +7,7 @@
 import { getMemberService } from '../services/member.service';
 import { getRssService, type RssFeedItem, type PollResult } from '../services/rss.service';
 import { MemberStatus, type Member } from '@blog-study/shared/db';
+import logger from '../lib/logger';
 
 /**
  * Result of a polling cycle
@@ -85,7 +86,10 @@ export class RssPoller {
     } catch (error) {
       // Requirements: 6.5 - Log error and continue processing other feeds
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[RssPoller] Error polling ${member.discordUsername}: ${errorMessage}`);
+      logger.error({
+        member: member.discordUsername,
+        error: errorMessage,
+      }, 'Error polling member RSS feed');
       
       return {
         memberId: member.id,
@@ -102,7 +106,7 @@ export class RssPoller {
    */
   async poll(): Promise<PollingCycleResult> {
     if (this.isRunning) {
-      console.log('[RssPoller] Polling already in progress, skipping');
+      logger.warn('[RssPoller] Polling already in progress, skipping');
       return {
         timestamp: new Date(),
         membersPolled: 0,
@@ -119,7 +123,7 @@ export class RssPoller {
 
     try {
       const members = await this.getMembersToPoll();
-      console.log(`[RssPoller] Polling ${members.length} active members`);
+      logger.info({ memberCount: members.length }, '[RssPoller] Polling active members');
 
       for (const member of members) {
         const result = await this.pollMember(member);
@@ -134,17 +138,20 @@ export class RssPoller {
           try {
             await this.onNewPost(member, result.newItems);
           } catch (callbackError) {
-            const errorMsg = callbackError instanceof Error 
-              ? callbackError.message 
+            const errorMsg = callbackError instanceof Error
+              ? callbackError.message
               : String(callbackError);
-            console.error(`[RssPoller] Callback error for ${member.discordUsername}: ${errorMsg}`);
+            logger.error({
+              member: member.discordUsername,
+              error: errorMsg,
+            }, '[RssPoller] Callback error');
             errors.push(`Callback error for ${member.discordUsername}: ${errorMsg}`);
           }
         }
       }
 
       const totalNewItems = results.reduce((sum, r) => sum + r.newItems.length, 0);
-      console.log(`[RssPoller] Completed - ${totalNewItems} new items found`);
+      logger.info({ totalNewItems }, '[RssPoller] Polling completed');
 
       return {
         timestamp: startTime,

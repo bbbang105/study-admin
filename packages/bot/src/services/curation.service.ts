@@ -15,6 +15,7 @@ import {
   type NewCurationItem,
   CurationCategory,
 } from '@blog-study/shared/db';
+import logger from '../lib/logger';
 import { getKeywordService } from './keyword.service';
 
 /**
@@ -342,7 +343,7 @@ export class CurationService {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[CurationService] Error crawling ${source.name}: ${errorMessage}`);
+        logger.error({ source: source.name, error: errorMessage }, '[CurationService] Error crawling source');
         
         results.push({
           sourceId: source.id,

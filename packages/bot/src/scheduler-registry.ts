@@ -22,6 +22,7 @@ import { sendFineNotification } from './handlers/dm-handler';
 import { getDb, members, ActivityScoreType, curationSources } from '@blog-study/shared/db';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
+import logger from './lib/logger';
 
 /**
  * Job definitions with cron schedules
@@ -96,7 +97,10 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             // - markLate(): PENDING 상태일 때만 LATE로 변경 (기존 LATE/ABSENT 유지)
             // - fineService.create(): 동일 회차 벌금이 이미 있으면 기존 벌금 반환
             await attendanceService.markLate(member.id, currentRound.id);
-            console.log(`⏰ ${member.name} 지각 처리 (${currentRound.roundNumber}회차)`);
+            logger.info({
+              member: member.name,
+              round: currentRound.roundNumber,
+            }, 'Late submission marked');
 
             // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
             const fine = await fineService.create(member.id, currentRound.id, 'late');
@@ -112,7 +116,10 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             // 정상 제출
             // markSubmitted()는 내부에서 PENDING 상태일 때만 SUBMITTED로 변경 (기존 LATE/ABSENT 유지)
             await attendanceService.markSubmitted(member.id, currentRound.id);
-            console.log(`✅ ${member.name} 제출 완료 (${currentRound.roundNumber}회차)`);
+            logger.info({
+              member: member.name,
+              round: currentRound.roundNumber,
+            }, 'Submission completed');
           }
         }
 
@@ -145,7 +152,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         .limit(1);
 
       if (!member) {
-        console.error(`❌ Member not found: ${attendance.memberId}`);
+        logger.error({ memberId: attendance.memberId }, 'Member not found');
         return;
       }
 
@@ -162,9 +169,16 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         round.roundNumber
       );
 
-      console.log(`❌ ${member.name} 결석 벌금 부과 (${round.roundNumber}회차, ${fine.amount}원)`);
+      logger.info({
+        member: member.name,
+        round: round.roundNumber,
+        amount: fine.amount,
+      }, 'Absent fine imposed');
     } catch (error) {
-      console.error(`❌ Failed to process absent callback for ${attendance.memberId}:`, error);
+      logger.error({
+        memberId: attendance.memberId,
+        error
+      }, 'Failed to process absent callback');
     }
   });
 
@@ -265,8 +279,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   // THEN schedule all cron jobs (after queues are created)
   for (const job of JOB_DEFINITIONS) {
     await boss.schedule(job.name, job.cron);
-    console.log(`  📅 Scheduled: ${job.name} (${job.cron})`);
+    logger.debug({ job: job.name, cron: job.cron }, 'Scheduled job');
   }
 
-  console.log(`✅ All ${JOB_DEFINITIONS.length} scheduled jobs registered`);
+  logger.info({ jobCount: JOB_DEFINITIONS.length }, 'All scheduled jobs registered');
 }
