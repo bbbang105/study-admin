@@ -21,7 +21,7 @@ deploy/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
-| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션) |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Sentry (에러 모니터링) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | 배포 | AWS EC2 Docker (bot), Vercel (web), Supabase (DB + Auth) |
@@ -108,6 +108,12 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/Dockerfile` | 봇 Docker 이미지 (multi-stage, node:22-alpine) |
 | `.github/workflows/bot-deploy.yml` | 봇 CI/CD (CI Gate → ECR 빌드/푸시 → SSH 배포) |
 | `.github/workflows/ci.yml` | PR/push CI (lint, typecheck, test, build) |
+| `packages/web/next.config.ts` | Next.js 설정 + Sentry `withSentryConfig` 래핑 |
+| `packages/web/sentry.client.config.ts` | Sentry 클라이언트 SDK 초기화 (DSN 가드, PII 스크러빙) |
+| `packages/web/sentry.server.config.ts` | Sentry 서버 SDK 초기화 |
+| `packages/web/sentry.edge.config.ts` | Sentry Edge SDK 초기화 |
+| `packages/web/instrumentation.ts` | Next.js instrumentation hook (Sentry 서버/엣지 등록) |
+| `packages/web/src/app/global-error.tsx` | 전역 에러 바운더리 (Sentry 전송 + 다크모드 대응) |
 
 ## 인증 구조
 
@@ -150,9 +156,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (큐시즘 블루 그라디언트 `#0091FF→#004DFF`, Framer Motion 풀 애니메이션, DB 스탯 ISR 60s, 인증 유저 `/dashboard` 리다이렉트)
 - **로고**: 커스텀 SVG 픽토그램 (펜촉+화살표, 큐시즘 블루 그라디언트), `icon.svg`/`icon-192.png`/`icon-512.png`
 - **토스트**: sonner (`<Toaster />` in root layout, `position="bottom-center"`, `richColors`)
-- **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — 리셋 버튼 포함
+- **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — Sentry 전송 + 리셋 버튼, `global-error.tsx` — 전역 폴백 (다크모드 인라인 스타일)
 - **404 페이지**: `not-found.tsx` — 대시보드 링크 포함
-- **CSP**: `next.config.js`에 Content-Security-Policy 헤더 설정
+- **CSP**: `next.config.ts`에 Content-Security-Policy 헤더 설정
 - **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
 ## 에이전트 활용 가이드
@@ -192,6 +198,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - `SUPABASE_SERVICE_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT` (DB)
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_GUILD_ID`
 - `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
+- `NEXT_PUBLIC_SENTRY_DSN` (Sentry 에러 모니터링, web 전용)
+- `SENTRY_AUTH_TOKEN` (소스맵 업로드, Vercel/CI에서만 설정)
 
 **env 파일 위치** (2곳):
 - `.env.local` — 루트 (shared/bot용)
@@ -230,7 +238,7 @@ npx drizzle-kit push --force
 - **파이프라인**: `dev` push → CI Gate (lint+typecheck+test) → ECR 빌드(ARM64) → SSH 배포
 - **트리거**: `packages/bot/**`, `packages/shared/**` 변경 시 + `workflow_dispatch`
 - **EC2**: illdan-mgmt (t4g ARM64), `~/study-admin-bot/deploy.sh` + `.env`
-- **ECR**: `101548339709.dkr.ecr.ap-northeast-2.amazonaws.com/study-admin-bot`
+- **ECR**: `699475955307.dkr.ecr.ap-northeast-2.amazonaws.com/study-admin-bot`
 - **deploy.sh**: ECR 로그인 → pull → 컨테이너 교체 → health check → Discord 웹훅 알림
 - **주의**: `deploy/bot/deploy.sh`는 커밋하지 않음 (EC2에 직접 배치)
 
