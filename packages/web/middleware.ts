@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-import { isAdminDiscordId } from '@/lib/admin';
 
 const protectedRoutes = [
   '/dashboard',
@@ -40,23 +39,13 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 관리자 라우트 — 미인증 시 로그인, 비관리자 시 대시보드 리다이렉트
+  // 관리자 라우트 — 미인증 시 로그인 리다이렉트 (관리자 권한 체크는 admin layout에서 처리)
   if (adminRoutes.some((route) => pathname.startsWith(route))) {
     if (!isAuthenticated) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-
-    const discordIdentity = user?.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
-    const discordId = discordIdentity?.id;
-
-    if (!discordId || !isAdminDiscordId(discordId)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
     return supabaseResponse;
   }
 
@@ -64,7 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)'],
 };

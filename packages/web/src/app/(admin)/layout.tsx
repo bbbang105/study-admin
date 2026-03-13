@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout';
 import {
   AlertDialog,
@@ -30,9 +31,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     const checkAdminAccess = async () => {
       try {
-        // Check admin status
-        const adminResponse = await fetch('/api/admin/check');
-        const adminData = await adminResponse.json();
+        // Check admin status + user info in parallel
+        const [adminResponse, userResponse] = await Promise.all([
+          fetch('/api/admin/check'),
+          fetch('/api/auth/me'),
+        ]);
+
+        const adminText = await adminResponse.text();
+        let adminData: { isAdmin?: boolean };
+        try {
+          adminData = adminText ? JSON.parse(adminText) : { isAdmin: false };
+        } catch {
+          adminData = { isAdmin: false };
+        }
 
         if (!adminResponse.ok || !adminData.isAdmin) {
           setShowAccessDenied(true);
@@ -42,8 +53,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         setIsAdmin(true);
 
-        // Get user info
-        const userResponse = await fetch('/api/auth/me');
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUser({
@@ -69,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.push('/');
       router.refresh();
     } catch {
-      console.error('Logout failed');
+      toast.error('로그아웃에 실패했습니다. 다시 시도해주세요.');
     }
   }, [router]);
 
