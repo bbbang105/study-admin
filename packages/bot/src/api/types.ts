@@ -12,10 +12,14 @@ import type {
 } from '../schedulers';
 
 // Weekly ranking result type (re-export from scheduler)
-export type { WeeklyRankingResult } from '../schedulers/weekly-ranking';
+import type { WeeklyRankingResult } from '../schedulers/weekly-ranking';
 
 // Curation share result type (re-export from scheduler)
-export type { ShareResult as CurationShareResult } from '../schedulers/curation-crawler';
+import type { ShareResult } from '../schedulers/curation-crawler';
+
+// Re-export with alias
+export type { WeeklyRankingResult };
+export type CurationShareResult = ShareResult;
 
 /**
  * Operation status

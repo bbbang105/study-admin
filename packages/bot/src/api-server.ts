@@ -3,7 +3,7 @@
  * Express server for manual trigger endpoints from web dashboard
  */
 
-import express from 'express';
+import express, { type Express } from 'express';
 import {
   getRssPoller,
   getAttendanceChecker,
@@ -13,7 +13,7 @@ import {
   getWeeklyRanking,
 } from './schedulers';
 
-export function createBotApiServer() {
+export function createBotApiServer(): Express {
   const app = express();
 
   // Middleware
@@ -203,7 +203,7 @@ export function createBotApiServer() {
 /**
  * Start the API server
  */
-export function startBotApiServer(port: number = 3001) {
+export function startBotApiServer(port: number = 3001): Express {
   const app = createBotApiServer();
 
   app.listen(port, () => {

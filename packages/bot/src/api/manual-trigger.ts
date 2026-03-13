@@ -19,7 +19,7 @@ import type {
   CurationCycleResult,
 } from '../schedulers';
 import type { WeeklyRankingResult } from '../schedulers/weekly-ranking';
-import type { CurationShareResult } from '../schedulers/curation-crawler';
+import type { CurationShareResult } from './types';
 import { OperationErrorCode } from './types';
 
 /**
