@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,14 +39,10 @@ const categoryLabels: Record<string, string> = {
   ranking: '랭킹',
 };
 
-export function BotOperationCard({ operation, onTrigger, isLoading: externalLoading }: BotOperationCardProps) {
-  const [internalLoading, setInternalLoading] = useState(false);
-  const isLoading = externalLoading || internalLoading;
-
+export function BotOperationCard({ operation, onTrigger, isLoading = false }: BotOperationCardProps) {
   const handleTrigger = async () => {
     if (isLoading || operation.running) return;
 
-    setInternalLoading(true);
     try {
       await onTrigger(operation.id);
       toast.success(`${operation.name} 작업이 시작되었습니다`);
@@ -55,8 +50,6 @@ export function BotOperationCard({ operation, onTrigger, isLoading: externalLoad
       toast.error(
         error instanceof Error ? error.message : '작업 실행에 실패했습니다'
       );
-    } finally {
-      setInternalLoading(false);
     }
   };
 

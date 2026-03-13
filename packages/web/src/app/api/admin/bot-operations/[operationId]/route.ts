@@ -2,11 +2,8 @@ import { NextRequest } from 'next/server';
 import { withAdminAuth } from '@/lib/admin';
 import { Errors, successResponse } from '@/lib/api-error';
 
-/**
- * Bot API endpoint URL (EC2 server)
- * TODO: Move to environment variable
- */
 const BOT_API_URL = process.env.BOT_API_URL || 'http://localhost:3001';
+const BOT_API_SECRET = process.env.BOT_API_SECRET;
 
 /**
  * Map operation IDs to bot API endpoints
@@ -37,7 +34,8 @@ export const POST = withAdminAuth(async (
   request: NextRequest,
   _adminAuth
 ) => {
-  const operationId = request.url.split('/').pop();
+  const { pathname } = new URL(request.url);
+  const operationId = pathname.split('/').pop();
 
   if (!operationId || !isValidOperationId(operationId)) {
     return Errors.notFound('알 수 없는 작업 ID입니다').toResponse();
@@ -46,18 +44,23 @@ export const POST = withAdminAuth(async (
   const endpoint = OPERATION_ENDPOINT_MAP[operationId]!;
   const botUrl = `${BOT_API_URL}${endpoint}`;
 
-  console.log(`[Bot Operations] Forwarding request to bot: ${botUrl}`);
+  console.log(`[Bot Operations] Triggering: ${operationId}`);
 
   try {
     // Forward request to bot server
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     const response = await fetch(botUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(BOT_API_SECRET && { 'Authorization': `Bearer ${BOT_API_SECRET}` }),
       },
-      // Don't forward body for now (not needed for triggers)
-      // body: request.body,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -69,7 +72,7 @@ export const POST = withAdminAuth(async (
       }
 
       return Errors.externalServiceError(
-        `봇 서버 오류: ${response.status} ${errorText}`
+        '봇 서버에서 오류가 발생했습니다.'
       ).toResponse();
     }
 
@@ -83,6 +86,13 @@ export const POST = withAdminAuth(async (
   } catch (error) {
     console.error(`[Bot Operations] Failed to reach bot server:`, error);
 
+    // Check if it's a timeout error
+    if (error instanceof Error && error.name === 'AbortError') {
+      return Errors.externalServiceError(
+        '봇 서버 응답 시간 초과 (30초)'
+      ).toResponse();
+    }
+
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
 
     // Check if it's a connection error
@@ -92,6 +102,6 @@ export const POST = withAdminAuth(async (
       ).toResponse();
     }
 
-    return Errors.externalServiceError(errorMessage).toResponse();
+    return Errors.externalServiceError('봇 서버 통신 오류').toResponse();
   }
 });

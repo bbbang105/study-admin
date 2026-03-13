@@ -26,7 +26,7 @@ export const GET = withAdminAuth(async () => {
     {
       id: 'fine-reminder',
       name: '벌금 알림',
-      description: '미납 벌금이 있는 멤버에게 3일마다 리마인드 DM을 발송합니다',
+      description: '미납 벌금이 있는 멤버에게 매일 리마인드 DM을 발송합니다',
       category: 'fine',
       schedule: '매일 10:00',
       running: false,

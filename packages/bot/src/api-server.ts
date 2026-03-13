@@ -3,7 +3,7 @@
  * Express server for manual trigger endpoints from web dashboard
  */
 
-import express, { type Express } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import logger from './lib/logger';
 import { Sentry } from './lib/sentry';
@@ -16,11 +16,32 @@ import {
   getWeeklyRanking,
 } from './schedulers';
 
+const BOT_API_SECRET = process.env.BOT_API_SECRET;
+
+/**
+ * Bearer token authentication middleware for trigger endpoints
+ */
+function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // 시크릿 미설정 시 인증 스킵 (로컬 개발용)
+  if (!BOT_API_SECRET) {
+    next();
+    return;
+  }
+
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token !== BOT_API_SECRET) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  next();
+}
+
 export function createBotApiServer(): Express {
   const app = express();
 
   // Middleware
-  app.use(express.json());
+  app.use(express.json({ limit: '10kb' }));
 
   // Rate limiting for trigger endpoints (10 requests per minute)
   const triggerLimiter = rateLimit({
@@ -36,8 +57,8 @@ export function createBotApiServer(): Express {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Operation trigger endpoints (with rate limiting)
-  app.post('/api/trigger/rss-poll', triggerLimiter, async (_req, res) => {
+  // Operation trigger endpoints (auth + rate limiting)
+  app.post('/api/trigger/rss-poll', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const rssPoller = getRssPoller();
 
@@ -50,13 +71,11 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] RSS poll error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/attendance-check', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/attendance-check', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const attendanceChecker = getAttendanceChecker();
 
@@ -69,13 +88,11 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Attendance check error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/fine-reminder', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/fine-reminder', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const fineReminder = getFineReminder();
 
@@ -88,13 +105,11 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Fine reminder error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/round-report', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/round-report', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
 
@@ -107,27 +122,28 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Round report error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/round-start', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/round-start', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
+
+      if (roundReporter.isReporting()) {
+        return res.status(409).json({ error: '회차 작업이 이미 실행 중입니다' });
+      }
+
       const result = await roundReporter.sendRoundStartAnnouncement();
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Round start error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/curation-crawl', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/curation-crawl', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -140,13 +156,11 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Curation crawl error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/curation-share', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/curation-share', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -159,13 +173,11 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Curation share error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 
-  app.post('/api/trigger/weekly-ranking', triggerLimiter, async (_req, res) => {
+  app.post('/api/trigger/weekly-ranking', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
       const weeklyRanking = getWeeklyRanking();
 
@@ -187,9 +199,7 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '[API] Weekly ranking error');
-      res.status(500).json({
-        error: error instanceof Error ? error.message : '알 수 없는 오류'
-      });
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
 

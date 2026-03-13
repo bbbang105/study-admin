@@ -36,7 +36,7 @@ const JOB_DEFINITIONS = [
   { name: 'round-report', cron: '5 0 * * 2' },
   { name: 'round-start', cron: '0 0 * * 1' },
   { name: 'curation-crawl', cron: '0 23 * * *' },
-  { name: 'curation-share', cron: '0 10 * * *' },
+  { name: 'curation-share', cron: '5 10 * * *' },
   { name: 'weekly-ranking', cron: '0 13 * * 0' },  // 매주 일요일 22:00 KST
 ] as const;
 

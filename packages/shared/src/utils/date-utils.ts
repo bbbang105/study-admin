@@ -245,3 +245,10 @@ export function validateRoundStartsOnMonday(roundDates: RoundDates): boolean {
 export function validateRoundEndsOnSunday(roundDates: RoundDates): boolean {
   return isSunday(roundDates.endDate);
 }
+
+/**
+ * KST 기준 날짜를 ISO date string (YYYY-MM-DD)으로 포맷
+ */
+export function formatKSTDate(date: Date): string {
+  return date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+}
