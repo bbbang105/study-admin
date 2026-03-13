@@ -71,7 +71,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/supabase/client.ts` | 브라우저용 Supabase 클라이언트 |
 | `packages/web/src/lib/supabase/server.ts` | 서버용 Supabase 클라이언트 (cookies) |
 | `packages/web/src/lib/supabase/middleware.ts` | 미들웨어용 세션 갱신 |
-| `packages/web/middleware.ts` | 라우트 보호 (protected/admin/auth) |
+| `packages/web/src/app/(user)/layout.tsx` | 사용자 레이아웃 (인증 체크 + 상태별 리다이렉트) |
 | `packages/web/src/app/auth/callback/route.ts` | OAuth 콜백 + 상태별 리다이렉트 |
 | `packages/web/src/lib/admin.ts` | 관리자 권한 체크 (`withAdminAuth`) |
 | `packages/web/src/lib/member-config.ts` | 멤버 상태별 라벨/뱃지 설정 |
@@ -123,8 +123,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 
 - **웹**: Supabase Auth → Discord OAuth → `user.identities[].id` (Discord ID) → `members.discord_id` 매칭
 - **봇**: `service_role` key로 직접 DB 접근 (스케줄러/이벤트 핸들러 전용, 슬래시 커맨드 없음)
-- **미들웨어**: `@supabase/ssr`의 `updateSession()`으로 세션 자동 갱신
-- **관리자**: `ADMIN_DISCORD_IDS` 환경변수로 Discord ID 기반 권한 체크
+- **미들웨어**: 없음 (Next.js 16 + Sentry withSentryConfig 비호환). 인증 체크는 각 layout에서 처리
+- **관리자**: `(admin)/layout.tsx`에서 `/api/admin/check` 호출 → 미인증 시 로그인, 비관리자 시 접근 거부 다이얼로그. API는 `withAdminAuth` 래퍼로 서버사이드 권한 체크
 - **API Route**: `createClient()` → `getUser()` → `identities` 배열에서 Discord ID 추출
 - **상태 리다이렉트**: `auth/callback` + `(user)/layout.tsx`에서 이중 체크 → 상태별 차단 페이지로 리다이렉트
 - **랜딩 페이지**: 서버 사이드 `getUser()` 체크 → 인증 유저는 `/dashboard`로 redirect

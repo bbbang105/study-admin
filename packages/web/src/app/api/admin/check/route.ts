@@ -26,9 +26,6 @@ export async function GET() {
     // The 403 is returned when trying to access admin-only resources
     return NextResponse.json({
       isAdmin: adminAuth.isAdmin,
-      userId: adminAuth.userId,
-      discordId: adminAuth.discordId,
-      message: adminAuth.isAdmin ? '관리자 권한이 확인되었습니다.' : '관리자 권한이 없습니다.',
     });
   } catch (error) {
     console.error('Admin check error:', error);

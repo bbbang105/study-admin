@@ -20,6 +20,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     const fetchUser = async () => {
       try {
         const response = await fetch('/api/auth/me');
+        if (!response.ok) {
+          // 미인증 시 로그인 리다이렉트
+          router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
 
@@ -50,8 +55,8 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         }
         setCheckedPathname(pathname);
       } catch {
-        // User not authenticated, middleware will handle redirect
-        setCheckedPathname(pathname);
+        // 네트워크 에러 시 로그인 리다이렉트
+        router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       }
     };
     fetchUser();
