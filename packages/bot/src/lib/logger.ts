@@ -27,7 +27,7 @@ const logger = pino({
   formatters: {
     level: (label) => ({ level: label }),
   },
-  // ISO 8601 timestamp
+  // ISO 8601 timestamp with timezone offset
   timestamp: pino.stdTimeFunctions.isoTime,
   // Development: pretty print
   ...(isDev && {
@@ -35,6 +35,7 @@ const logger = pino({
       target: 'pino-pretty',
       options: {
         colorize: true,
+        // Display timestamp in KST (Asia/Seoul) format
         translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
         ignore: 'pid,hostname',
         singleLine: false,
