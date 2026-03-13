@@ -90,6 +90,7 @@ export function PollManagerModal({
   const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // Load polls when modal opens
   useEffect(() => {

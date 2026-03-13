@@ -69,6 +69,8 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
   });
   const [options, setOptions] = useState<string[]>(['', '']);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [dateOptions, setDateOptions] = useState<Date[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleAddPoll = () => {
     // Validation
@@ -82,10 +84,24 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
       return;
     }
 
-    const validOptions = options.filter((opt) => opt.trim());
-    if (validOptions.length < 2) {
-      alert('선택지는 최소 2개 이상이어야 합니다.');
-      return;
+    // For date polls, use selected dates as options
+    let finalOptions: string[];
+    if (newPoll.pollType === 'date') {
+      if (dateOptions.length < 2) {
+        alert('날짜는 최소 2개 이상 선택해야 합니다.');
+        return;
+      }
+      // Format dates as strings
+      finalOptions = dateOptions
+        .sort((a, b) => a.getTime() - b.getTime())
+        .map(date => format(date, 'yyyy-MM-dd'));
+    } else {
+      const validOptions = options.filter((opt) => opt.trim());
+      if (validOptions.length < 2) {
+        alert('선택지는 최소 2개 이상이어야 합니다.');
+        return;
+      }
+      finalOptions = validOptions;
     }
 
     if (!newPoll.expiresAt) {
@@ -98,7 +114,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
       question: newPoll.question.trim(),
       pollType: newPoll.pollType,
       expiresAt: newPoll.expiresAt,
-      options: validOptions,
+      options: finalOptions,
     };
 
     onPollsChange([...polls, poll]);
@@ -109,6 +125,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
     setOptions(['', '']);
+    setDateOptions([]);
   };
 
   const handleRemovePoll = (index: number) => {
@@ -303,42 +320,127 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
             </div>
           </div>
 
-          {/* Options */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              선택지 (최소 2개)
-            </Label>
-            {options.map((option, index) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  placeholder={`선택지 ${index + 1}`}
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  className="flex-1 text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveOption(index)}
-                  disabled={options.length <= 2}
-                  className="h-9 w-9 shrink-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddOption}
-              className="w-full"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              선택지 추가
-            </Button>
-          </div>
+          {/* Options or Date Picker */}
+          {newPoll.pollType === 'date' ? (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                날짜 선택 (최소 2개)
+              </Label>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateOptions.length > 0
+                      ? `${dateOptions.length}개 날짜 선택됨`
+                      : '날짜 선택'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="p-3">
+                    <CalendarComponent
+                      mode="multiple"
+                      selected={dateOptions}
+                      onSelect={(dates) => {
+                        if (dates) {
+                          setDateOptions(dates as Date[]);
+                        }
+                      }}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className="rounded-md border"
+                      classNames={{
+                        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                        month: "space-y-4",
+                        caption: "flex justify-center pt-1 relative items-center",
+                        caption_label: "text-sm font-medium",
+                        nav: "space-x-1 flex items-center",
+                        nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                        nav_button_previous: "absolute left-1",
+                        nav_button_next: "absolute right-1",
+                        table: "w-full border-collapse space-y-1",
+                        head_row: "flex",
+                        head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                        row: "flex w-full mt-2",
+                        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                        day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md transition-colors",
+                        day_range_end: "day-range-end",
+                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                        day_today: "bg-accent text-accent-foreground",
+                        day_outside: "day-outside text-muted-foreground opacity-50",
+                        day_disabled: "text-muted-foreground opacity-50",
+                        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                        day_hidden: "invisible",
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Selected dates */}
+              {dateOptions.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg">
+                  {dateOptions
+                    .sort((a, b) => a.getTime() - b.getTime())
+                    .map((date, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-1 px-2 py-1 bg-background border rounded-md text-sm"
+                      >
+                        <span>{format(date, 'MM월 dd일 (E)', { locale: ko })}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDateOptions(dateOptions.filter((_, i) => i !== index));
+                          }}
+                          className="ml-1 text-muted-foreground hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                선택지 (최소 2개)
+              </Label>
+              {options.map((option, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    placeholder={`선택지 ${index + 1}`}
+                    value={option}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                    className="flex-1 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveOption(index)}
+                    disabled={options.length <= 2}
+                    className="h-9 w-9 shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddOption}
+                className="w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                선택지 추가
+              </Button>
+            </div>
+          )}
 
           {/* Add poll button */}
           <Button
