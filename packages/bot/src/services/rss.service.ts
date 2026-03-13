@@ -8,7 +8,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseFeed } from 'feedsmith';
 import { detectBlogPlatform, type BlogPlatform } from '@blog-study/shared/utils';
-import { reportError } from '../lib/error-webhook';
 
 /**
  * Error codes for RSS operations
@@ -242,20 +241,7 @@ export class RssService {
           });
           parseFeed(res.data);
           return { success: true, rssUrl, platform };
-        } catch (error) {
-          // Check for HTTP 500 errors and report to webhook
-          if (axios.isAxiosError(error)) {
-            const status = error.response?.status;
-            if (status && status >= 500) {
-              const errorObj = new Error(`HTTP ${status} error fetching RSS: ${rssUrl}`);
-              reportError(errorObj, {
-                location: 'RssService.detectRssUrl',
-                url: rssUrl,
-                status,
-                blogUrl,
-              }).catch(() => {});
-            }
-          }
+        } catch {
           // Fall through to HTML discovery
         }
       }
@@ -318,7 +304,6 @@ export class RssService {
         timeout: this.httpTimeout,
         headers: { 'User-Agent': 'BlogStudyBot/1.0' },
         responseType: 'text',
-        validateStatus: (status) => status < 500, // Treat 500+ as error
       });
 
       const result = parseFeed(response.data);
@@ -346,19 +331,6 @@ export class RssService {
 
       return items;
     } catch (error) {
-      // Check for HTTP 500 errors and report to webhook
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        if (status && status >= 500) {
-          const errorObj = new Error(`HTTP ${status} error fetching RSS feed: ${rssUrl}`);
-          reportError(errorObj, {
-            location: 'RssService.fetchFeed',
-            url: rssUrl,
-            status,
-          }).catch(() => {});
-        }
-      }
-
       if (error instanceof RssError) throw error;
       throw new RssError(
         RssErrorCodes.RSS_FETCH_FAILED,
