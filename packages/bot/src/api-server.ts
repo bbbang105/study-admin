@@ -4,6 +4,8 @@
  */
 
 import express, { type Express } from 'express';
+import rateLimit from 'express-rate-limit';
+import logger from './lib/logger';
 import {
   getRssPoller,
   getAttendanceChecker,
@@ -19,7 +21,16 @@ export function createBotApiServer(): Express {
   // Middleware
   app.use(express.json());
 
-  // Simple API key auth (TODO: use proper auth)
+  // Rate limiting for trigger endpoints (10 requests per minute)
+  const triggerLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 requests per minute
+    message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Simple API key auth
   const API_KEY = process.env.BOT_API_KEY || 'dev-api-key-change-in-production';
 
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -42,8 +53,8 @@ export function createBotApiServer(): Express {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Operation trigger endpoints
-  app.post('/api/trigger/rss-poll', requireAuth, async (_req, res) => {
+  // Operation trigger endpoints (with rate limiting)
+  app.post('/api/trigger/rss-poll', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const rssPoller = getRssPoller();
 
@@ -54,14 +65,14 @@ export function createBotApiServer(): Express {
       const result = await rssPoller.poll();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] RSS poll error:', error);
+      logger.error({ error }, '[API] RSS poll error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/attendance-check', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/attendance-check', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const attendanceChecker = getAttendanceChecker();
 
@@ -72,14 +83,14 @@ export function createBotApiServer(): Express {
       const result = await attendanceChecker.check();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Attendance check error:', error);
+      logger.error({ error }, '[API] Attendance check error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/fine-reminder', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/fine-reminder', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const fineReminder = getFineReminder();
 
@@ -90,14 +101,14 @@ export function createBotApiServer(): Express {
       const result = await fineReminder.sendReminders();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Fine reminder error:', error);
+      logger.error({ error }, '[API] Fine reminder error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/round-report', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/round-report', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
 
@@ -108,27 +119,27 @@ export function createBotApiServer(): Express {
       const result = await roundReporter.sendRoundReport();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Round report error:', error);
+      logger.error({ error }, '[API] Round report error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/round-start', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/round-start', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
       const result = await roundReporter.sendRoundStartAnnouncement();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Round start error:', error);
+      logger.error({ error }, '[API] Round start error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/curation-crawl', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/curation-crawl', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -139,14 +150,14 @@ export function createBotApiServer(): Express {
       const result = await curationCrawler.crawl();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Curation crawl error:', error);
+      logger.error({ error }, '[API] Curation crawl error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/curation-share', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/curation-share', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -157,14 +168,14 @@ export function createBotApiServer(): Express {
       const result = await curationCrawler.shareDailyContent();
       res.json({ success: true, result });
     } catch (error) {
-      console.error('[API] Curation share error:', error);
+      logger.error({ error }, '[API] Curation share error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
     }
   });
 
-  app.post('/api/trigger/weekly-ranking', requireAuth, async (_req, res) => {
+  app.post('/api/trigger/weekly-ranking', triggerLimiter, requireAuth, async (_req, res) => {
     try {
       const weeklyRanking = getWeeklyRanking();
 
@@ -184,13 +195,7 @@ export function createBotApiServer(): Express {
 
       res.json({ success: true, result: serializedResult });
     } catch (error) {
-      console.error('[API] Weekly ranking error:', error);
-      // Log full error details
-      if (error instanceof Error) {
-        console.error('[API] Error stack:', error.stack);
-        console.error('[API] Error name:', error.name);
-        console.error('[API] Error message:', error.message);
-      }
+      logger.error({ error }, '[API] Weekly ranking error');
       res.status(500).json({
         error: error instanceof Error ? error.message : '알 수 없는 오류'
       });
@@ -207,7 +212,7 @@ export function startBotApiServer(port: number = 3001): Express {
   const app = createBotApiServer();
 
   app.listen(port, () => {
-    console.log(`[Bot API Server] Listening on port ${port}`);
+    logger.info({ port }, 'Bot API Server started');
   });
 
   return app;
