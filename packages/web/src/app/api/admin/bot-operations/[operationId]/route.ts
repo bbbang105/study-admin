@@ -54,8 +54,9 @@ export const POST = withAdminAuth(async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Add authentication header if bot server requires it
         'X-Admin-Trigger': 'true',
+        // Add API key for production authentication
+        ...(process.env.BOT_API_KEY && { 'X-API-Key': process.env.BOT_API_KEY }),
       },
       // Don't forward body for now (not needed for triggers)
       // body: request.body,
