@@ -30,31 +30,13 @@ export function createBotApiServer(): Express {
     legacyHeaders: false,
   });
 
-  // Simple API key auth
-  const API_KEY = process.env.BOT_API_KEY || 'dev-api-key-change-in-production';
-
-  const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Skip auth in development
-    if (process.env.NODE_ENV === 'development') {
-      return next();
-    }
-
-    const authKey = req.headers['x-api-key'] as string || req.headers['authorization'] as string;
-
-    if (!authKey || authKey !== API_KEY) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    next();
-  };
-
   // Health check
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   // Operation trigger endpoints (with rate limiting)
-  app.post('/api/trigger/rss-poll', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/rss-poll', triggerLimiter, async (_req, res) => {
     try {
       const rssPoller = getRssPoller();
 
@@ -72,7 +54,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/attendance-check', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/attendance-check', triggerLimiter, async (_req, res) => {
     try {
       const attendanceChecker = getAttendanceChecker();
 
@@ -90,7 +72,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/fine-reminder', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/fine-reminder', triggerLimiter, async (_req, res) => {
     try {
       const fineReminder = getFineReminder();
 
@@ -108,7 +90,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/round-report', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/round-report', triggerLimiter, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
 
@@ -126,7 +108,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/round-start', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/round-start', triggerLimiter, async (_req, res) => {
     try {
       const roundReporter = getRoundReporter();
       const result = await roundReporter.sendRoundStartAnnouncement();
@@ -139,7 +121,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/curation-crawl', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/curation-crawl', triggerLimiter, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -157,7 +139,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/curation-share', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/curation-share', triggerLimiter, async (_req, res) => {
     try {
       const curationCrawler = getCurationCrawler();
 
@@ -175,7 +157,7 @@ export function createBotApiServer(): Express {
     }
   });
 
-  app.post('/api/trigger/weekly-ranking', triggerLimiter, requireAuth, async (_req, res) => {
+  app.post('/api/trigger/weekly-ranking', triggerLimiter, async (_req, res) => {
     try {
       const weeklyRanking = getWeeklyRanking();
 
