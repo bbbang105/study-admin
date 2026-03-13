@@ -39,4 +39,7 @@ COPY --from=builder /app/packages/bot/dist ./packages/bot/dist
 
 ENV NODE_ENV=production
 
+# Expose API server port
+EXPOSE 3001
+
 CMD ["node", "packages/bot/dist/index.js"]

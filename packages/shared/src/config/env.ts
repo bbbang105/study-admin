@@ -58,6 +58,7 @@ const botEnvSchema = z.object({
   ...appEnvSchema.shape,
   ...studyEnvSchema.shape,
   DATABASE_URL_DIRECT: z.string().min(1, 'DATABASE_URL_DIRECT is required'),
+  DISCORD_ERROR_WEBHOOK_URL: z.string().url().optional(), // Error webhook URL (optional)
 });
 
 // Partial schema for web-only usage
@@ -152,4 +153,11 @@ export function isDevelopment(): boolean {
  */
 export function isTest(): boolean {
   return process.env.NODE_ENV === 'test';
+}
+
+/**
+ * Get Discord error webhook URL (optional)
+ */
+export function getErrorWebhookUrl(): string | undefined {
+  return process.env.DISCORD_ERROR_WEBHOOK_URL;
 }

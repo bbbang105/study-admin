@@ -13,6 +13,7 @@ let boss: PgBoss | null = null;
  * @param connectionString - Direct PostgreSQL connection string (not pooled)
  */
 export async function startJobQueue(connectionString: string): Promise<PgBoss> {
+  // Simple connection string - use default pg-boss settings
   boss = new PgBoss(connectionString);
 
   boss.on('error', (error: Error) => logger.error({ error }, '[pg-boss] Error'));
