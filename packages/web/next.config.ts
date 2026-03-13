@@ -69,4 +69,9 @@ export default withSentryConfig(nextConfig, {
 
   // Disable Sentry telemetry
   telemetry: false,
+
+  // Disable middleware auto-instrumentation (Next.js 16 Edge Runtime compatibility)
+  webpack: {
+    autoInstrumentMiddleware: false,
+  },
 });
