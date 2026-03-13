@@ -39,6 +39,9 @@ importers:
       '@blog-study/shared':
         specifier: workspace:*
         version: link:../shared
+      '@sentry/node':
+        specifier: ^10.43.0
+        version: 10.43.0
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6

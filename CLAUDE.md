@@ -20,7 +20,7 @@ deploy/
 | 영역 | 기술 |
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
-| Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐) |
+| Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐), Sentry (에러 모니터링) |
 | Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Sentry (에러 모니터링) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
@@ -78,6 +78,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/rss-detect.ts` | 블로그 URL → RSS URL 자동 감지 |
 | `packages/web/src/app/(user)/layout.tsx` | 사용자 레이아웃 (상태 체크 + 리다이렉트) |
 | `packages/web/src/app/` | Next.js 페이지/라우트 |
+| `packages/bot/src/lib/sentry.ts` | 봇 Sentry SDK 초기화 (PII 스크러빙, DB URL/토큰 마스킹) |
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 (이벤트 핸들러만) |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
 | `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
@@ -199,6 +200,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_GUILD_ID`
 - `ADMIN_DISCORD_IDS` (관리자 Discord ID, 쉼표 구분)
 - `NEXT_PUBLIC_SENTRY_DSN` (Sentry 에러 모니터링, web 전용)
+- `SENTRY_DSN` (Sentry 에러 모니터링, bot 전용)
 - `SENTRY_AUTH_TOKEN` (소스맵 업로드, Vercel/CI에서만 설정)
 
 **env 파일 위치** (2곳):

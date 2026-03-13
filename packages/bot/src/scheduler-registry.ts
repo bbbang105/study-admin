@@ -24,6 +24,7 @@ import { extractOgImage } from '@blog-study/shared/utils';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
 import logger from './lib/logger';
+import { Sentry } from './lib/sentry';
 
 /**
  * Job definitions with cron schedules
@@ -180,6 +181,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         amount: fine.amount,
       }, 'Absent fine imposed');
     } catch (error) {
+      Sentry.captureException(error);
       logger.error({
         memberId: attendance.memberId,
         error
