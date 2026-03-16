@@ -68,27 +68,40 @@ export async function POST(
       return Errors.badRequest('단일 선택 투표는 1개만 선택할 수 있습니다.').toResponse();
     }
 
-    // For single/multiple votes, delete existing votes first (allow changing)
-    if (poll.pollType === 'single' || poll.pollType === 'multiple') {
-      await database
-        .delete(boardPollVotes)
-        .where(
-          and(
-            eq(boardPollVotes.pollId, pollId),
-            eq(boardPollVotes.memberId, auth.memberId)
-          )
-        );
+    // For single/multiple/date votes, delete existing votes first (allow changing)
+    // Use transaction to prevent race conditions
+    if (poll.pollType === 'single' || poll.pollType === 'multiple' || poll.pollType === 'date') {
+      await database.transaction(async (tx) => {
+        await tx
+          .delete(boardPollVotes)
+          .where(
+            and(
+              eq(boardPollVotes.pollId, pollId),
+              eq(boardPollVotes.memberId, auth.memberId)
+            )
+          );
+
+        // Insert new votes
+        const votesToInsert = optionIds.map((optionId: string) => ({
+          pollId,
+          optionId,
+          memberId: poll.pollType === 'anonymous' ? null : auth.memberId,
+          anonymousId: poll.pollType === 'anonymous' ? crypto.randomUUID() : null,
+        }));
+
+        await tx.insert(boardPollVotes).values(votesToInsert);
+      });
+    } else {
+      // 익명 투표는 기존 투표 유지 (중복 투표 허용)
+      const votesToInsert = optionIds.map((optionId: string) => ({
+        pollId,
+        optionId,
+        memberId: null,
+        anonymousId: crypto.randomUUID(),
+      }));
+
+      await database.insert(boardPollVotes).values(votesToInsert);
     }
-
-    // Insert new votes
-    const votesToInsert = optionIds.map((optionId: string) => ({
-      pollId,
-      optionId,
-      memberId: poll.pollType === 'anonymous' ? null : auth.memberId,
-      anonymousId: poll.pollType === 'anonymous' ? crypto.randomUUID() : null,
-    }));
-
-    await database.insert(boardPollVotes).values(votesToInsert);
 
     return successResponse({ success: true }, '투표가 완료되었습니다.');
   } catch (error) {

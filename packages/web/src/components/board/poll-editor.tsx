@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Plus, Trash2, BarChart3, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,14 +74,20 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleAddPoll = () => {
+    // Check if poll already exists
+    if (polls.length >= 1) {
+      toast.error('게시글당 투표는 1개만 생성할 수 있습니다.');
+      return;
+    }
+
     // Validation
     if (!newPoll.question?.trim()) {
-      alert('질문을 입력해주세요.');
+      toast.error('질문을 입력해주세요.');
       return;
     }
 
     if (!newPoll.pollType) {
-      alert('투표 유형을 선택해주세요.');
+      toast.error('투표 유형을 선택해주세요.');
       return;
     }
 
@@ -88,7 +95,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
     let finalOptions: string[];
     if (newPoll.pollType === 'date') {
       if (dateOptions.length < 2) {
-        alert('날짜는 최소 2개 이상 선택해야 합니다.');
+        toast.error('날짜는 최소 2개 이상 선택해야 합니다.');
         return;
       }
       // Format dates as strings
@@ -98,14 +105,14 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
     } else {
       const validOptions = options.filter((opt) => opt.trim());
       if (validOptions.length < 2) {
-        alert('선택지는 최소 2개 이상이어야 합니다.');
+        toast.error('선택지는 최소 2개 이상이어야 합니다.');
         return;
       }
       finalOptions = validOptions;
     }
 
     if (!newPoll.expiresAt) {
-      alert('마감시간을 설정해주세요.');
+      toast.error('마감시간을 설정해주세요.');
       return;
     }
 
@@ -144,7 +151,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
 
   const handleRemoveOption = (index: number) => {
     if (options.length <= 2) {
-      alert('선택지는 최소 2개 이상이어야 합니다.');
+      toast.error('선택지는 최소 2개 이상이어야 합니다.');
       return;
     }
     setOptions(options.filter((_, i) => i !== index));
@@ -162,7 +169,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
       {/* Existing polls */}
       {polls.length > 0 && (
         <div className="space-y-3">
-          <Label className="text-sm font-medium">추가된 투표</Label>
+          <Label className="text-sm font-medium">투표</Label>
           {polls.map((poll, index) => (
             <div
               key={index}
@@ -189,8 +196,9 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
         </div>
       )}
 
-      {/* New poll form */}
-      <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 p-4">
+      {/* New poll form - only show if no poll exists */}
+      {polls.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 p-4">
         <div className="space-y-4">
           {/* Question */}
           <div className="space-y-1.5">
@@ -453,6 +461,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }

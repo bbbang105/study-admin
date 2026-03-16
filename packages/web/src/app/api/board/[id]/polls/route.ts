@@ -154,8 +154,8 @@ export async function GET(
     );
 
     const response = successResponse({ polls: pollData });
-    // Cache for 30 seconds
-    return withCache(response, 30, 'private');
+    // 5초 캐시로 투표 후 빠른 반영 + 성능 확보
+    return withCache(response, 5, 'private');
   } catch (error) {
     return errorResponse(error);
   }
