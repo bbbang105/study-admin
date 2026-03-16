@@ -4,16 +4,12 @@
  * Requirements: 13.2, 13.6
  */
 
-import {
-  Client,
-  EmbedBuilder,
-  TextChannel,
-  type MessageCreateOptions,
-} from 'discord.js';
-import { getCurationService, type CrawlResult, type CrawledContent } from '../services/curation.service';
-import { getConfigValue, ConfigKeys } from '../services/round.service';
+import { Client, EmbedBuilder, type MessageCreateOptions, TextChannel, } from 'discord.js';
+import { type CrawledContent, type CrawlResult, getCurationService } from '../services/curation.service';
+import { ConfigKeys, getConfigValue } from '../services/round.service';
 import { getKeywordService, type KeywordStat } from '../services/keyword.service';
 import type { CurationItem, CurationSource } from '@blog-study/shared/db';
+import logger from '../lib/logger';
 
 /**
  * Result of a curation cycle
@@ -168,14 +164,14 @@ export class CurationCrawler {
    */
   async getCurationChannel(): Promise<TextChannel | null> {
     if (!this.client) {
-      console.warn('[CurationCrawler] Discord client not set');
+      logger.warn('📰 [큐레이션] Discord 클라이언트 미설정');
       return null;
     }
 
-    const channelId = await getConfigValue(ConfigKeys.CURATION_CHANNEL);
+    const channelId = await getConfigValue(ConfigKeys.CURATION_CHANNEL_ID);
     
     if (!channelId) {
-      console.warn('[CurationCrawler] Curation channel not configured');
+      logger.warn('📰 [큐레이션] 큐레이션 채널 미설정');
       return null;
     }
 
@@ -184,10 +180,10 @@ export class CurationCrawler {
       if (channel instanceof TextChannel) {
         return channel;
       }
-      console.warn('[CurationCrawler] Curation channel is not a text channel');
+      logger.warn('📰 [큐레이션] 큐레이션 채널이 텍스트 채널이 아님');
       return null;
     } catch (error) {
-      console.error('[CurationCrawler] Failed to fetch curation channel:', error);
+      logger.error({ error }, '📰 [큐레이션] 큐레이션 채널 조회 실패');
       return null;
     }
   }
@@ -198,7 +194,7 @@ export class CurationCrawler {
    */
   async crawl(): Promise<CurationCycleResult> {
     if (this.isCrawling) {
-      console.log('[CurationCrawler] Crawling already in progress, skipping');
+      logger.warn('📰 [큐레이션] 크롤링이 이미 진행 중, 스킵');
       return {
         timestamp: new Date(),
         sourcesProcessed: 0,
@@ -223,7 +219,7 @@ export class CurationCrawler {
         errors.push(`${failed.sourceName}: ${failed.error}`);
       }
 
-      console.log(`[CurationCrawler] Completed - ${totalNewItems} new items from ${results.length} sources`);
+      logger.info(`📰 [큐레이션] 크롤링 완료 - ${results.length}개 소스에서 ${totalNewItems}개 신규 아이템`);
 
       return {
         timestamp: startTime,
@@ -234,7 +230,7 @@ export class CurationCrawler {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[CurationCrawler] Crawl error: ${errorMessage}`);
+      logger.error(`📰 [큐레이션] 크롤링 에러: ${errorMessage}`);
       errors.push(errorMessage);
 
       return {
@@ -255,7 +251,7 @@ export class CurationCrawler {
    */
   async shareDailyContent(): Promise<ShareResult> {
     if (this.isSharing) {
-      console.log('[CurationCrawler] Sharing already in progress, skipping');
+      logger.warn('📰 [큐레이션] 공유가 이미 진행 중, 스킵');
       return {
         success: false,
         item: null,
@@ -280,7 +276,7 @@ export class CurationCrawler {
       const item = await curationService.selectDailyContent();
 
       if (!item) {
-        console.log('[CurationCrawler] No unshared content available');
+        logger.info('📰 [큐레이션] 공유할 컨텐츠 없음');
         return {
           success: false,
           item: null,
@@ -306,7 +302,7 @@ export class CurationCrawler {
       // Mark as shared
       await curationService.markAsShared(item.id);
 
-      console.log(`[CurationCrawler] Shared content: ${item.title}`);
+      logger.info(`📰 [큐레이션] 컨텐츠 공유 완료: ${item.title}`);
 
       return {
         success: true,
@@ -314,7 +310,7 @@ export class CurationCrawler {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[CurationCrawler] Share error: ${errorMessage}`);
+      logger.error(`📰 [큐레이션] 공유 에러: ${errorMessage}`);
 
       return {
         success: false,

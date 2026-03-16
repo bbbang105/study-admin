@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { LayoutDashboard, LogOut, Moon, Shield, Sun, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LogOut, Moon, Settings, Shield, Sun, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -159,6 +159,21 @@ export function Header({ user, isAdmin = false, onLogout }: HeaderProps) {
                     )}
                     {isAdmin ? '사용자' : '관리자'}
                   </button>
+
+                  {/* Settings (admin only) */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        router.push('/admin/settings');
+                      }}
+                    >
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      설정
+                    </button>
+                  )}
 
                   {/* Logout */}
                   <button

@@ -6,7 +6,8 @@
 
 import { getAttendanceService } from '../services/attendance.service';
 import { getCurrentRound, isGracePeriodEnded } from '../services/round.service';
-import { AttendanceStatus, type Attendance, type Round } from '@blog-study/shared/db';
+import { type Attendance, AttendanceStatus, type Round } from '@blog-study/shared/db';
+import logger from '../lib/logger';
 
 /**
  * Result of an attendance check cycle
@@ -57,7 +58,7 @@ export class AttendanceChecker {
    */
   async check(): Promise<AttendanceCheckResult> {
     if (this.isRunning) {
-      console.log('[AttendanceChecker] Check already in progress, skipping');
+      logger.warn('✅ [출석] 체크가 이미 진행 중, 스킵');
       return {
         timestamp: new Date(),
         roundId: 0,
@@ -79,7 +80,7 @@ export class AttendanceChecker {
       
       // Check if grace period has ended for this round
       if (!isGracePeriodEnded(currentRound)) {
-        console.log('[AttendanceChecker] Grace period not yet ended, skipping');
+        logger.info('✅ [출석] 유예 기간 미종료, 스킵');
         return {
           timestamp: startTime,
           roundId: currentRound.id,
@@ -90,7 +91,7 @@ export class AttendanceChecker {
         };
       }
 
-      console.log(`[AttendanceChecker] Processing round ${currentRound.roundNumber}`);
+      logger.info(`✅ [출석] ${currentRound.roundNumber}회차 출석 처리 시작`);
 
       // Process grace period end - mark all pending as absent
       const attendanceService = getAttendanceService();
@@ -112,14 +113,14 @@ export class AttendanceChecker {
             const errorMsg = callbackError instanceof Error
               ? callbackError.message
               : String(callbackError);
-            console.error(`[AttendanceChecker] Callback error for ${record.memberId}: ${errorMsg}`);
+            logger.error(`✅ [출석] 콜백 에러 (${record.memberId}): ${errorMsg}`);
             errors.push(`Callback error for ${record.memberId}: ${errorMsg}`);
           }
         }
       }
 
-      console.log(
-        `[AttendanceChecker] Completed - ${absentRecords.length} members marked absent`
+      logger.info(
+        `✅ [출석] 처리 완료 - ${absentRecords.length}명 결석 처리`
       );
 
       return {
@@ -132,7 +133,7 @@ export class AttendanceChecker {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[AttendanceChecker] Error: ${errorMsg}`);
+      logger.error(`✅ [출석] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -158,7 +159,7 @@ export class AttendanceChecker {
     const absentMembers: string[] = [];
 
     try {
-      console.log(`[AttendanceChecker] Manually processing round ID ${roundId}`);
+      logger.info(`✅ [출석] 수동 처리 시작 (회차 ID: ${roundId})`);
 
       const attendanceService = getAttendanceService();
       const updatedRecords = await attendanceService.processGracePeriodEnd(roundId);
@@ -171,8 +172,8 @@ export class AttendanceChecker {
         absentMembers.push(record.memberId);
       }
 
-      console.log(
-        `[AttendanceChecker] Manual check completed - ${absentRecords.length} members marked absent`
+      logger.info(
+        `✅ [출석] 수동 처리 완료 - ${absentRecords.length}명 결석 처리`
       );
 
       return {
@@ -185,7 +186,7 @@ export class AttendanceChecker {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[AttendanceChecker] Manual check error: ${errorMsg}`);
+      logger.error(`✅ [출석] 수동 처리 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {

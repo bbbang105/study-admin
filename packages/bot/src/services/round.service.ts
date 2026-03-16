@@ -47,10 +47,11 @@ export class RoundError extends Error {
 export const ConfigKeys = {
   STUDY_START_DATE: 'study_start_date',
   TOTAL_ROUNDS: 'total_rounds',
-  ANNOUNCEMENT_CHANNEL: 'announcement_channel',
-  NOTICE_CHANNEL: 'notice_channel',
-  CURATION_CHANNEL: 'curation_channel',
-  RANKING_CHANNEL: 'ranking_channel',
+  ANNOUNCEMENT_CHANNEL_ID: 'announcement_channel_id',
+  NOTICE_CHANNEL_ID: 'notice_channel_id',
+  CURATION_CHANNEL_ID: 'curation_channel_id',
+  RANKING_CHANNEL_ID: 'ranking_channel_id',
+  BOT_LOG_CHANNEL_ID: 'bot_log_channel_id',
 } as const;
 
 /**

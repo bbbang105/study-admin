@@ -3,16 +3,16 @@
  * Express server for manual trigger endpoints from web dashboard
  */
 
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import logger from './lib/logger';
 import { Sentry } from './lib/sentry';
 import {
-  getRssPoller,
   getAttendanceChecker,
+  getCurationCrawler,
   getFineReminder,
   getRoundReporter,
-  getCurationCrawler,
+  getRssPoller,
   getWeeklyRanking,
 } from './schedulers';
 
@@ -70,7 +70,7 @@ export function createBotApiServer(): Express {
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] RSS poll error');
+      logger.error({ error }, '🌐 [API] RSS 폴링 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -87,7 +87,7 @@ export function createBotApiServer(): Express {
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Attendance check error');
+      logger.error({ error }, '🌐 [API] 출석 체크 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -100,11 +100,11 @@ export function createBotApiServer(): Express {
         return res.status(409).json({ error: '벌금 알림이 이미 실행 중입니다' });
       }
 
-      const result = await fineReminder.sendReminders();
+      const result = await fineReminder.sendAllReminders();
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Fine reminder error');
+      logger.error({ error }, '🌐 [API] 벌금 리마인더 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -113,15 +113,15 @@ export function createBotApiServer(): Express {
     try {
       const roundReporter = getRoundReporter();
 
-      if (roundReporter.isReporting()) {
+      if (roundReporter.isSending()) {
         return res.status(409).json({ error: '회차 리포트가 이미 실행 중입니다' });
       }
 
-      const result = await roundReporter.sendRoundReport();
+      const result = await roundReporter.sendRoundReport(true);
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Round report error');
+      logger.error({ error }, '🌐 [API] 회차 리포트 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -130,15 +130,15 @@ export function createBotApiServer(): Express {
     try {
       const roundReporter = getRoundReporter();
 
-      if (roundReporter.isReporting()) {
+      if (roundReporter.isSending()) {
         return res.status(409).json({ error: '회차 작업이 이미 실행 중입니다' });
       }
 
-      const result = await roundReporter.sendRoundStartAnnouncement();
+      const result = await roundReporter.sendRoundStartAnnouncement(true);
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Round start error');
+      logger.error({ error }, '🌐 [API] 회차 시작 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -155,7 +155,7 @@ export function createBotApiServer(): Express {
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Curation crawl error');
+      logger.error({ error }, '🌐 [API] 큐레이션 크롤링 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -172,7 +172,7 @@ export function createBotApiServer(): Express {
       res.json({ success: true, result });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Curation share error');
+      logger.error({ error }, '🌐 [API] 큐레이션 공유 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -198,7 +198,7 @@ export function createBotApiServer(): Express {
       res.json({ success: true, result: serializedResult });
     } catch (error) {
       Sentry.captureException(error);
-      logger.error({ error }, '[API] Weekly ranking error');
+      logger.error({ error }, '🌐 [API] 주간 랭킹 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
@@ -213,7 +213,7 @@ export function startBotApiServer(port: number = 3001): Express {
   const app = createBotApiServer();
 
   app.listen(port, () => {
-    logger.info({ port }, 'Bot API Server started');
+    logger.info({ port }, '🌐 [API] Bot API 서버 시작 완료');
   });
 
   return app;

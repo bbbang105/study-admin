@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Play, Clock } from 'lucide-react';
+import { Clock, Loader2, Play } from 'lucide-react';
 
 export interface BotOperation {
   id: string;
@@ -13,6 +13,8 @@ export interface BotOperation {
   category: string;
   schedule: string;
   running: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 interface BotOperationCardProps {
@@ -39,17 +41,19 @@ const categoryLabels: Record<string, string> = {
   ranking: '랭킹',
 };
 
-export function BotOperationCard({ operation, onTrigger, isLoading = false }: BotOperationCardProps) {
+export function BotOperationCard({
+  operation,
+  onTrigger,
+  isLoading = false,
+}: BotOperationCardProps) {
   const handleTrigger = async () => {
-    if (isLoading || operation.running) return;
+    if (isLoading || operation.running || operation.disabled) return;
 
     try {
       await onTrigger(operation.id);
       toast.success(`${operation.name} 작업이 시작되었습니다`);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : '작업 실행에 실패했습니다'
-      );
+      toast.error(error instanceof Error ? error.message : '작업 실행에 실패했습니다');
     }
   };
 
@@ -66,14 +70,21 @@ export function BotOperationCard({ operation, onTrigger, isLoading = false }: Bo
   );
 
   return (
-    <Card className="group hover:shadow-md transition-shadow">
+    <Card
+      className={`group transition-shadow ${operation.disabled ? 'border-dashed border-border/50' : 'hover:shadow-md'}`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 space-y-1">
-            <CardTitle className="text-lg">{operation.name}</CardTitle>
-            <CardDescription className="line-clamp-2">
-              {operation.description}
-            </CardDescription>
+            <CardTitle className="text-lg">
+              {operation.name}
+              {operation.disabled && (
+                <Badge variant="secondary" className="ml-2 text-[10px] font-normal">
+                  {operation.disabledReason || '미사용'}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="line-clamp-2">{operation.description}</CardDescription>
           </div>
           <Badge
             variant="outline"
@@ -90,11 +101,15 @@ export function BotOperationCard({ operation, onTrigger, isLoading = false }: Bo
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t">
-          {statusIndicator}
+          {operation.disabled ? (
+            <span className="text-xs text-muted-foreground">비활성화됨</span>
+          ) : (
+            statusIndicator
+          )}
           <Button
             size="sm"
             onClick={handleTrigger}
-            disabled={isLoading || operation.running}
+            disabled={isLoading || operation.running || operation.disabled}
             className="gap-2"
           >
             {isLoading ? (

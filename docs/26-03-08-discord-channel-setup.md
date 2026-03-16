@@ -90,8 +90,8 @@ Developer Portal → OAuth2 → URL Generator:
 
 | 채널 | 봇 동작 | 연동 코드 |
 |------|---------|----------|
-| `#새-글-알림` | RSS 폴링(5분마다)으로 멤버 블로그 신규 글 감지 → 임베드 발송. 회차 시작 시 활성 멤버 멘션 + 기간 안내 | `notification.service.ts` → `announcement_channel` |
-| `#큐레이션-브리핑` | 매일 KST 8시, 큐레이션 소스에서 크롤한 트렌드 글 요약 발송 | `curation-crawler.ts` → `curation_channel` |
+| `#새-글-알림` | RSS 폴링(5분마다)으로 멤버 블로그 신규 글 감지 → 임베드 발송. 회차 시작 시 활성 멤버 멘션 + 기간 안내 | `notification.service.ts` → `announcement_channel_id` |
+| `#큐레이션-브리핑` | 매일 KST 8시, 큐레이션 소스에서 크롤한 트렌드 글 요약 발송 | `curation-crawler.ts` → `curation_channel_id` |
 | `#주간-랭킹` | 매주 월요일, 점수 시스템 기반 주간 순위표 발송 | `score.service.ts` (스케줄러 추가 구현 필요) |
 
 ### 💬 커뮤니티
@@ -130,9 +130,9 @@ Developer Portal → OAuth2 → URL Generator:
 
 | Config Key | 연결 채널 | 사용처 |
 |------------|----------|--------|
-| `announcement_channel` | `#새-글-알림` | RSS 신규 글 노티 |
-| `notice_channel` | `#공지사항` | 회차 시작/종료 안내 (미설정 시 `announcement_channel`로 폴백) |
-| `curation_channel` | `#큐레이션-브리핑` | 큐레이션 트렌드 공유 |
+| `announcement_channel_id` | `#새-글-알림` | RSS 신규 글 노티 |
+| `notice_channel_id` | `#공지사항` | 회차 시작/종료 안내 (미설정 시 `announcement_channel_id`로 폴백) |
+| `curation_channel_id` | `#큐레이션-브리핑` | 큐레이션 트렌드 공유 |
 
 > 채널 생성 후 각 채널 ID를 복사해서 DB에 등록해야 봇이 동작함.
 > 웹 관리자 페이지 또는 직접 SQL로 설정 가능.
@@ -179,12 +179,12 @@ Developer Portal → OAuth2 → URL Generator:
 ```sql
 -- 새 글 알림 채널
 INSERT INTO study_configs (key, value)
-VALUES ('announcement_channel', '채널ID')
+VALUES ('announcement_channel_id', '채널ID')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- 큐레이션 브리핑 채널
 INSERT INTO study_configs (key, value)
-VALUES ('curation_channel', '채널ID')
+VALUES ('curation_channel_id', '채널ID')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 ```
 

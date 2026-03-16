@@ -1,21 +1,13 @@
 /**
  * Weekly Ranking Scheduler
- * 매주 일요일 22:00에 전체 멤버 랭킹 발송
+ * 매주 일요일 10:00에 전체 멤버 랭킹 발송
  */
 
-import { Client, EmbedBuilder, bold } from 'discord.js';
+import { bold, Client, EmbedBuilder } from 'discord.js';
 import { count, eq, sql } from 'drizzle-orm';
 import logger from '../lib/logger';
-import {
-  getDb,
-  members,
-  posts,
-  activityScores,
-  MemberStatus,
-  ActivityScoreType,
-} from '@blog-study/shared/db';
-import { getConfigValue, ConfigKeys } from '../services/round.service';
-import { formatKSTDate } from '@blog-study/shared/utils';
+import { activityScores, ActivityScoreType, getDb, members, MemberStatus, posts } from '@blog-study/shared/db';
+import { ConfigKeys, getConfigValue } from '../services/round.service';
 
 /**
  * Result of a weekly ranking cycle
@@ -35,52 +27,27 @@ interface MemberRanking {
   memberId: string;
   name: string;
   nickname: string;
+  discordId: string;
   discordUsername: string;
   totalScore: number;
   postCount: number;
-  discordScore: number;
+  webActivityScore: number;
   rank: number;
 }
 
 /**
- * Get the week start and end dates (Monday to Sunday) in KST
- */
-function getWeekDates(): { startDate: string; endDate: string } {
-  const now = new Date();
-  const day = now.getDay(); // 0 (Sunday) to 6 (Saturday)
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  return {
-    startDate: formatKSTDate(monday),
-    endDate: formatKSTDate(sunday),
-  };
-}
-
-/**
- * Get KST current date string
- */
-function getKSTDateString(): string {
-  return formatKSTDate(new Date());
-}
-
-/**
- * Get all active members with their ranking data
+ * 전체 누적 기준 멤버 랭킹 조회
  */
 async function getMemberRankings(): Promise<MemberRanking[]> {
   const db = getDb();
 
-  // Get all active members with post counts
+  // active 멤버 + 포스트 수
   const membersWithPosts = await db
     .select({
       memberId: members.id,
       name: members.name,
       nickname: members.nickname,
+      discordId: members.discordId,
       discordUsername: members.discordUsername,
       postCount: count(posts.id),
     })
@@ -89,49 +56,40 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     .where(eq(members.status, MemberStatus.ACTIVE))
     .groupBy(members.id);
 
-  // Get activity scores for each member
-  // 이번 주 기간 점수만 필터링 (date 컬럼 사용 — KST 날짜 문자열)
-  const weekDates = getWeekDates();
-
+  // 전체 누적 점수 (주간 필터 없음 — 웹 랭킹과 동일)
   const scoreStats = await db
     .select({
       memberId: activityScores.memberId,
       totalScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-      discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.BOARD_POST}, ${ActivityScoreType.POST_COMMENT}, ${ActivityScoreType.BOARD_COMMENT}, ${ActivityScoreType.POST_VIEW}) THEN ${activityScores.points} ELSE 0 END), 0)`,
+      webActivityScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.BOARD_POST}, ${ActivityScoreType.POST_COMMENT}, ${ActivityScoreType.BOARD_COMMENT}, ${ActivityScoreType.POST_VIEW}) THEN ${activityScores.points} ELSE 0 END), 0)`,
     })
     .from(activityScores)
-    .where(
-      sql`${activityScores.date} >= ${weekDates.startDate} AND ${activityScores.date} <= ${weekDates.endDate}`
-    )
     .groupBy(activityScores.memberId);
 
-  // Create score maps
   const totalScoreMap = new Map<string, number>();
-  const discordScoreMap = new Map<string, number>();
+  const webActivityMap = new Map<string, number>();
 
   for (const stat of scoreStats) {
     totalScoreMap.set(stat.memberId, Number(stat.totalScore));
-    discordScoreMap.set(stat.memberId, Number(stat.discordScore));
+    webActivityMap.set(stat.memberId, Number(stat.webActivityScore));
   }
 
-  // Build rankings
   const rankings: MemberRanking[] = membersWithPosts.map((member) => ({
     memberId: member.memberId,
     name: member.name,
     nickname: member.nickname,
+    discordId: member.discordId,
     discordUsername: member.discordUsername,
     totalScore: totalScoreMap.get(member.memberId) ?? 0,
     postCount: Number(member.postCount),
-    discordScore: discordScoreMap.get(member.memberId) ?? 0,
-    rank: 0, // Will be set after sorting
+    webActivityScore: webActivityMap.get(member.memberId) ?? 0,
+    rank: 0,
   }));
 
-  // Sort by total score (primary), then post count (secondary)
   rankings.sort((a, b) =>
     b.totalScore - a.totalScore || b.postCount - a.postCount
   );
 
-  // Assign ranks
   rankings.forEach((ranking, index) => {
     ranking.rank = index + 1;
   });
@@ -140,58 +98,43 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
 }
 
 /**
- * Create Discord embed for weekly ranking
+ * Discord 임베드 생성
  */
 function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
-  const weekDates = getWeekDates();
-  const today = getKSTDateString();
-
-  // Format dates for display
-  const startDateDisplay = weekDates.startDate.replace(/-/g, '.');
-  const endDateDisplay = weekDates.endDate.replace(/-/g, '.');
-  const todayDisplay = today.replace(/-/g, '.');
-
   const embed = new EmbedBuilder()
     .setTitle('🏆 주간 랭킹')
-    .setDescription(
-      `**기간:** ${startDateDisplay} ~ ${endDateDisplay}\n` +
-      `**발송일:** ${todayDisplay} 22:00\n\n` +
-      `${bold('활동 점수(총점)')}를 기준으로 정렬되었습니다.`
-    )
-    .setColor(0x0091FF) // Questing Blue
+    .setDescription('누적 활동 점수 기준 전체 랭킹입니다.')
+    .setColor(0x0091FF)
     .setTimestamp();
 
-  // Add podium (top 3)
+  // 포디움 (Top 3)
   const top3 = rankings.slice(0, 3);
   if (top3.length > 0) {
-    let podiumText = '';
-
     const medals = ['🥇', '🥈', '🥉'];
+    let podiumText = '';
 
     for (let i = 0; i < top3.length; i++) {
       const r = top3[i]!;
       const medal = medals[i] ?? '🏅';
-      const name = r.nickname || r.name;
-      const webActivity = r.discordScore > 0 ? ` | 활동 ${r.discordScore}점` : '';
-      podiumText += `${medal} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${webActivity})\n`;
+      const activity = r.webActivityScore > 0 ? ` | 활동 ${r.webActivityScore}pt` : '';
+      podiumText += `${medal} <@${r.discordId}> — ${bold(`${r.totalScore}pt`)} (포스트 ${r.postCount}개${activity})\n`;
     }
 
     embed.addFields({
-      name: '👑 포디움',
-      value: podiumText || '등록된 멤버가 없습니다.',
+      name: '# 👑 포디움',
+      value: podiumText.length > 1024 ? podiumText.substring(0, 1021) + '...' : podiumText,
       inline: false,
     });
   }
 
-  // Add full rankings (top 15)
+  // 전체 랭킹 (Top 15)
   const displayRankings = rankings.slice(0, 15);
   let rankingText = '';
 
   for (const r of displayRankings) {
-    const name = r.nickname || r.name;
-    const rankDisplay = r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] ?? `${r.rank}위` : `${r.rank}위`;
-    const webActivity = r.discordScore > 0 ? ` | 활동 ${r.discordScore}점` : '';
-    rankingText += `${rankDisplay} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${webActivity})\n`;
+    const rankDisplay = r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] ?? `${r.rank}.` : `${r.rank}.`;
+    const activity = r.webActivityScore > 0 ? ` | 활동 ${r.webActivityScore}pt` : '';
+    rankingText += `${rankDisplay} <@${r.discordId}> — ${r.totalScore}pt (포스트 ${r.postCount}개${activity})\n`;
   }
 
   if (rankings.length > 15) {
@@ -199,8 +142,10 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
   }
 
   embed.addFields({
-    name: `📊 전체 랭킹 (총 ${rankings.length}명)`,
-    value: rankingText || '등록된 멤버가 없습니다.',
+    name: `# 📊 전체 랭킹 (${rankings.length}명)`,
+    value: (rankingText || '등록된 멤버가 없습니다.').length > 1024
+      ? rankingText.substring(0, 1021) + '...'
+      : rankingText || '등록된 멤버가 없습니다.',
     inline: false,
   });
 
@@ -208,44 +153,32 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
 }
 
 /**
- * Weekly Ranking class for scheduling weekly ranking announcements
+ * Weekly Ranking class
  */
 export class WeeklyRanking {
   private isRunning = false;
   private client: Client | null = null;
 
-  /**
-   * Set the Discord client for sending notifications
-   */
   setClient(client: Client): void {
     this.client = client;
   }
 
-  /**
-   * Get the Discord client
-   */
   getClient(): Client | null {
     return this.client;
   }
 
-  /**
-   * Check if the scheduler is currently running
-   */
   isSending(): boolean {
     return this.isRunning;
   }
 
-  /**
-   * Send weekly ranking report
-   */
   async sendWeeklyRanking(): Promise<WeeklyRankingResult> {
     if (this.isRunning) {
-      logger.info('[WeeklyRanking] Already in progress, skipping');
+      logger.info('🏆 [주간 랭킹] 이미 실행 중, 건너뜀');
       return {
         timestamp: new Date(),
         rankingSent: false,
         totalMembers: 0,
-        errors: ['Already in progress'],
+        errors: ['이미 실행 중'],
         warnings: [],
       };
     }
@@ -257,17 +190,16 @@ export class WeeklyRanking {
 
     try {
       if (!this.client) {
-        throw new Error('Discord client not set');
+        throw new Error('Discord client 미설정');
       }
 
-      logger.info('[WeeklyRanking] Fetching member rankings...');
+      logger.info('🏆 [주간 랭킹] 멤버 랭킹 조회 중...');
 
-      // Get rankings
       const rankings = await getMemberRankings();
 
       if (rankings.length === 0) {
-        logger.info('[WeeklyRanking] No active members found');
-        warnings.push('랭킹 기간에 활성 멤버가 없습니다');
+        logger.info('🏆 [주간 랭킹] 활성 멤버 없음');
+        warnings.push('활성 멤버 없음');
 
         return {
           timestamp: startTime,
@@ -278,28 +210,24 @@ export class WeeklyRanking {
         };
       }
 
-      logger.info(`[WeeklyRanking] Found ${rankings.length} active members`);
+      logger.info(`🏆 [주간 랭킹] ${rankings.length}명 조회 완료`);
 
-      // Get ranking channel ID
-      const channelId = await getConfigValue(ConfigKeys.RANKING_CHANNEL);
+      const channelId = await getConfigValue(ConfigKeys.RANKING_CHANNEL_ID);
 
       if (!channelId) {
-        throw new Error('Ranking channel not configured. Please set RANKING_CHANNEL in config.');
+        throw new Error('ranking_channel_id 미설정');
       }
 
-      // Create embed
       const embed = createRankingEmbed(rankings);
-
-      // Send to channel
       const channel = await this.client.channels.fetch(channelId);
 
       if (!channel || !channel.isTextBased() || channel.isDMBased()) {
-        throw new Error(`Invalid ranking channel: ${channelId}`);
+        throw new Error(`유효하지 않은 채널: ${channelId}`);
       }
 
       await channel.send({ embeds: [embed] });
 
-      logger.info(`[WeeklyRanking] Weekly ranking sent successfully (${rankings.length} members)`);
+      logger.info(`🏆 [주간 랭킹] 발송 완료 ✅ (${rankings.length}명)`);
 
       return {
         timestamp: startTime,
@@ -310,7 +238,7 @@ export class WeeklyRanking {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[WeeklyRanking] Error: ${errorMsg}`);
+      logger.error(`🏆 [주간 랭킹] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -329,9 +257,6 @@ export class WeeklyRanking {
 // Singleton instance
 let weeklyRankingInstance: WeeklyRanking | null = null;
 
-/**
- * Get the WeeklyRanking singleton instance
- */
 export function getWeeklyRanking(): WeeklyRanking {
   if (!weeklyRankingInstance) {
     weeklyRankingInstance = new WeeklyRanking();
@@ -339,9 +264,6 @@ export function getWeeklyRanking(): WeeklyRanking {
   return weeklyRankingInstance;
 }
 
-/**
- * Reset the singleton (useful for testing)
- */
 export function resetWeeklyRanking(): void {
   weeklyRankingInstance = null;
 }
