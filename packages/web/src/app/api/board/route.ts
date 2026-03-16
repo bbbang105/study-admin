@@ -14,9 +14,8 @@ import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
 import { sanitizeDescription, sanitizeTiptapContent } from '@/lib/sanitize';
 import { grantWebScore } from '@/lib/score';
-import { sendPushToMembers } from '@/lib/push';
 
-const { boardPosts, members, boardPolls, boardPollOptions, ActivityScoreType, MemberStatus } = sharedDb;
+const { boardPosts, members, boardPolls, boardPollOptions, ActivityScoreType } = sharedDb;
 
 export async function GET(request: NextRequest) {
   try {
@@ -257,24 +256,6 @@ export async function POST(request: NextRequest) {
       ActivityScoreType.BOARD_POST,
       sanitizeDescription(title.trim().slice(0, 50))
     ).catch((err) => console.error('[score] grantWebScore failed:', err));
-
-    // 공지사항인 경우 활성 멤버 전체에게 알림
-    if (category === 'notice') {
-      const activeMembers = await database
-        .select({ id: members.id })
-        .from(members)
-        .where(eq(members.status, MemberStatus.ACTIVE));
-
-      sendPushToMembers(
-        activeMembers.map((m) => m.id),
-        {
-          title: '📢 새 공지사항',
-          body: title.trim(),
-          clickUrl: `/board/${result.id}`,
-          data: { type: 'board_notice', postId: result.id },
-        }
-      ).catch((err) => console.error('[push] Notice notification failed:', err));
-    }
 
     return successResponse(result, '게시글이 작성되었습니다.', 201);
   } catch (error) {

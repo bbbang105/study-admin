@@ -10,7 +10,6 @@ import {
   serial,
   text,
   timestamp,
-  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -501,56 +500,6 @@ export const boardPollVotes = pgTable(
   })
 );
 
-// ── FCM Tokens ─────────────────────────────────────────────────────────────
-
-export const fcmTokens = pgTable(
-  'fcm_tokens',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    memberId: uuid('member_id')
-      .notNull()
-      .references(() => members.id, { onDelete: 'cascade' }),
-    token: text('token').notNull(),
-    deviceInfo: text('device_info'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    lastUsedAt: timestamp('last_used_at', { withTimezone: true }).defaultNow(),
-  },
-  (table) => ({
-    memberIdIdx: index('idx_fcm_tokens_member_id').on(table.memberId),
-    memberTokenUnique: unique('member_token_unique').on(table.memberId, table.token),
-  })
-);
-
-// ── Notification Preferences ─────────────────────────────────────────────────
-
-export const NotificationType = {
-  BOARD_COMMENT: 'board_comment',
-  BOARD_REPLY: 'board_reply',
-  POST_COMMENT: 'post_comment',
-  POST_REPLY: 'post_reply',
-  BOARD_NOTICE: 'board_notice',
-} as const;
-
-export type NotificationTypeType = (typeof NotificationType)[keyof typeof NotificationType];
-
-export const notificationPreferences = pgTable(
-  'notification_preferences',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    memberId: uuid('member_id')
-      .notNull()
-      .references(() => members.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 30 }).notNull(),
-    enabled: boolean('enabled').notNull().default(true),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  },
-  (table) => ({
-    memberTypeUnique: unique('member_type_unique').on(table.memberId, table.type),
-    memberIdIdx: index('idx_notification_preferences_member_id').on(table.memberId),
-  })
-);
-
 // ============================================
 // Relations
 // ============================================
@@ -564,22 +513,6 @@ export const membersRelations = relations(members, ({ many }) => ({
   postComments: many(postComments),
   boardPosts: many(boardPosts),
   boardComments: many(boardComments),
-  fcmTokens: many(fcmTokens),
-  notificationPreferences: many(notificationPreferences),
-}));
-
-export const fcmTokensRelations = relations(fcmTokens, ({ one }) => ({
-  member: one(members, {
-    fields: [fcmTokens.memberId],
-    references: [members.id],
-  }),
-}));
-
-export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
-  member: one(members, {
-    fields: [notificationPreferences.memberId],
-    references: [members.id],
-  }),
 }));
 
 export const roundsRelations = relations(rounds, ({ many }) => ({
@@ -778,9 +711,3 @@ export type NewBoardPollOption = typeof boardPollOptions.$inferInsert;
 
 export type BoardPollVote = typeof boardPollVotes.$inferSelect;
 export type NewBoardPollVote = typeof boardPollVotes.$inferInsert;
-
-export type FcmToken = typeof fcmTokens.$inferSelect;
-export type NewFcmToken = typeof fcmTokens.$inferInsert;
-
-export type NotificationPreference = typeof notificationPreferences.$inferSelect;
-export type NewNotificationPreference = typeof notificationPreferences.$inferInsert;

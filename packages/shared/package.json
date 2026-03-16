@@ -42,7 +42,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@radix-ui/react-switch": "^1.2.6",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
     "feedsmith": "^2.9.0",

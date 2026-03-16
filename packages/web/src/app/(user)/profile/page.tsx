@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowUpRight,
-  Bell,
   Calendar,
   CheckCircle,
   ExternalLink,
@@ -418,27 +417,6 @@ export default function ProfilePage() {
                 </div>
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   전체보기
-                  <ArrowUpRight className="h-3 w-3" />
-                </span>
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* Notification Settings Link */}
-          <Card className="border-border/60 shadow-none">
-            <CardContent className="p-0">
-              <Link
-                href="/profile/notifications"
-                className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors rounded-xl"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500">
-                    <Bell className="h-4 w-4" />
-                  </div>
-                  <p className="text-sm font-semibold">알림 설정</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  푸시 알림 관리
                   <ArrowUpRight className="h-3 w-3" />
                 </span>
               </Link>
