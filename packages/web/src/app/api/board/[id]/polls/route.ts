@@ -30,7 +30,8 @@ export async function GET(
         question: boardPolls.question,
         pollType: boardPolls.pollType,
         expiresAt: boardPolls.expiresAt,
-        allowAddOption: boardPolls.allowAddOption,
+        allowMultiple: boardPolls.allowMultiple,
+        isAnonymous: boardPolls.isAnonymous,
         options: {
           id: boardPollOptions.id,
           optionText: boardPollOptions.optionText,
@@ -57,6 +58,8 @@ export async function GET(
       options: Array<PollRow['options']>;
     };
 
+    console.log('Raw polls data:', JSON.stringify(polls, null, 2));
+
     const groupedPolls: Record<string, GroupedPoll> = {};
 
     for (const row of polls) {
@@ -73,6 +76,14 @@ export async function GET(
     // For each poll, fetch vote counts and user votes
     const pollData = await Promise.all(
       Object.values(groupedPolls).map(async (poll) => {
+        // Safety check
+        if (!poll || typeof poll !== 'object') {
+          console.error('Invalid poll object:', poll);
+          return null;
+        }
+
+        // Debug log
+        console.log('Poll object:', JSON.stringify(poll, null, 2));
         // Get all votes for this poll with voter info (unless anonymous)
         const votes = await database
           .select({
@@ -105,9 +116,7 @@ export async function GET(
         }
 
         // Check if current user has voted
-        const userVotes = poll.pollType !== 'anonymous'
-          ? votes.filter((v) => v.memberId === auth.memberId)
-          : [];
+        const userVotes = votes.filter((v) => v.memberId === auth.memberId);
 
         const hasVoted = userVotes.length > 0;
         const userVotedOptionIds = userVotes.map((v) => v.optionId);
@@ -126,16 +135,16 @@ export async function GET(
             percentage: Math.round(percentage * 10) / 10,
             voted,
             voters:
-              poll.pollType !== 'anonymous'
-                ? optionVotes.map((v) => ({
+              (poll.isAnonymous ?? false)
+                ? []
+                : optionVotes.map((v) => ({
                     memberId: v.memberId!,
                     name: v.memberName || '익명',
                     nickname: v.memberNickname || v.memberName || '익명',
                     profileImage: v.memberProfileImage,
                     discordId: v.memberDiscordId || '',
                     votedAt: v.votedAt,
-                  }))
-                : [],
+                  })),
           };
         });
 
@@ -147,7 +156,8 @@ export async function GET(
           question: poll.question,
           pollType: poll.pollType,
           expiresAt: poll.expiresAt,
-          allowAddOption: poll.allowAddOption,
+          allowMultiple: poll.allowMultiple || false,
+          isAnonymous: poll.isAnonymous || false,
           isExpired,
           hasVoted,
           totalVotes,
@@ -156,10 +166,18 @@ export async function GET(
       })
     );
 
-    const response = successResponse({ polls: pollData });
-    // 5초 캐시로 투표 후 빠른 반영 + 성능 확보
-    return withCache(response, 5, 'private');
+    // Filter out null polls
+    const validPolls = pollData.filter((p): p is NonNullable<typeof p> => p !== null);
+
+    const response = successResponse({ polls: validPolls });
+    // 일단 캐시 없이 테스트
+    return response;
   } catch (error) {
+    console.error('Error in polls route:', error);
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+      console.error('Error message:', error.message);
+    }
     return errorResponse(error);
   }
 }

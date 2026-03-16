@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         if (!poll.question?.trim()) {
           return Errors.badRequest('투표 질문을 입력해주세요.').toResponse();
         }
-        if (!poll.pollType || !['single', 'multiple', 'date', 'anonymous'].includes(poll.pollType)) {
+        if (!poll.pollType || !['text', 'date'].includes(poll.pollType)) {
           return Errors.badRequest('유효하지 않은 투표 유형입니다.').toResponse();
         }
         if (!poll.options || !Array.isArray(poll.options) || poll.options.length < 2) {
@@ -222,7 +222,8 @@ export async function POST(request: NextRequest) {
               question: poll.question.trim(),
               pollType: poll.pollType,
               expiresAt: new Date(poll.expiresAt),
-              allowAddOption: true,
+              allowMultiple: poll.allowMultiple || false,
+              isAnonymous: poll.isAnonymous || false,
             })
             .returning();
 

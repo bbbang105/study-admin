@@ -31,8 +31,8 @@ export function PollVoteModal({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Date polls and multiple polls allow multiple selections
-  const isMultiple = poll.pollType === 'multiple' || poll.pollType === 'date';
+  // Multiple selections allowed if poll allows it
+  const isMultiple = poll.allowMultiple;
 
   // Format date option to include day of week
   const formatOptionText = (text: string, pollType: string) => {

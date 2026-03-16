@@ -2,17 +2,11 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, BarChart3, Calendar, Clock, Edit2 } from 'lucide-react';
+import { Plus, Trash2, BarChart3, Calendar, Clock, Edit2, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Popover,
@@ -26,12 +20,14 @@ import { ko } from 'date-fns/locale';
 // Types
 // ─────────────────────────────────────────────
 
-export type PollType = 'single' | 'multiple' | 'date' | 'anonymous';
+export type PollType = 'text' | 'date';
 
 export interface Poll {
   question: string;
   pollType: PollType;
   expiresAt: string; // ISO 8601
+  allowMultiple: boolean;
+  isAnonymous: boolean;
   options: string[];
 }
 
@@ -45,10 +41,8 @@ interface PollEditorProps {
 // ─────────────────────────────────────────────
 
 const POLL_TYPE_OPTIONS = [
-  { value: 'single' as const, label: '단일 선택' },
-  { value: 'multiple' as const, label: '복수 선택' },
+  { value: 'text' as const, label: '텍스트 투표' },
   { value: 'date' as const, label: '날짜 투표' },
-  { value: 'anonymous' as const, label: '익명 투표' },
 ];
 
 // ─────────────────────────────────────────────
@@ -57,7 +51,9 @@ const POLL_TYPE_OPTIONS = [
 
 export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
   const [newPoll, setNewPoll] = useState<Partial<Poll>>(() => ({
-    pollType: 'single',
+    pollType: 'text',
+    allowMultiple: false,
+    isAnonymous: false,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   }));
   const [options, setOptions] = useState<string[]>(['', '']);
@@ -113,6 +109,8 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
     const poll: Poll = {
       question: newPoll.question.trim(),
       pollType: newPoll.pollType,
+      allowMultiple: newPoll.allowMultiple || false,
+      isAnonymous: newPoll.isAnonymous || false,
       expiresAt: newPoll.expiresAt,
       options: finalOptions,
     };
@@ -121,7 +119,9 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
 
     // Reset form
     setNewPoll({
-      pollType: 'single',
+      pollType: 'text',
+      allowMultiple: false,
+      isAnonymous: false,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
     setOptions(['', '']);
@@ -196,6 +196,8 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
     updatedPolls[editingIndex] = {
       question: newPoll.question.trim(),
       pollType: newPoll.pollType,
+      allowMultiple: newPoll.allowMultiple || false,
+      isAnonymous: newPoll.isAnonymous || false,
       expiresAt: newPoll.expiresAt,
       options: finalOptions,
     };
@@ -203,7 +205,9 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
 
     // Reset form
     setNewPoll({
-      pollType: 'single',
+      pollType: 'text',
+      allowMultiple: false,
+      isAnonymous: false,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
     setOptions(['', '']);
@@ -213,7 +217,9 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
 
   const handleCancelEdit = () => {
     setNewPoll({
-      pollType: 'single',
+      pollType: 'text',
+      allowMultiple: false,
+      isAnonymous: false,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
     setOptions(['', '']);
@@ -309,42 +315,73 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
           {/* Poll type */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">투표 유형</Label>
-            <Select
-              value={newPoll.pollType}
-              onValueChange={(value: PollType) => setNewPoll({ ...newPoll, pollType: value })}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="투표 유형 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {POLL_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={newPoll.pollType === 'text' ? 'default' : 'outline'}
+                onClick={() => setNewPoll({ ...newPoll, pollType: 'text' })}
+                className="flex-1"
+              >
+                텍스트 투표
+              </Button>
+              <Button
+                type="button"
+                variant={newPoll.pollType === 'date' ? 'default' : 'outline'}
+                onClick={() => setNewPoll({ ...newPoll, pollType: 'date' })}
+                className="flex-1"
+              >
+                날짜 투표
+              </Button>
+            </div>
+          </div>
+
+          {/* Poll options */}
+          <div className="space-y-3">
+            <Label className="text-xs font-medium">투표 옵션</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={newPoll.allowMultiple ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setNewPoll({ ...newPoll, allowMultiple: !newPoll.allowMultiple })}
+                className="h-8 px-3 text-xs"
+              >
+                <Check className="mr-1.5 h-3.5 w-3.5" />
+                복수 선택
+              </Button>
+              <Button
+                type="button"
+                variant={newPoll.isAnonymous ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setNewPoll({ ...newPoll, isAnonymous: !newPoll.isAnonymous })}
+                className="h-8 px-3 text-xs"
+              >
+                <Lock className="mr-1.5 h-3.5 w-3.5" />
+                익명
+              </Button>
+            </div>
           </div>
 
           {/* Expiry */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">마감시간</Label>
-            <div className="space-y-2">
-              {/* Date picker */}
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {newPoll.expiresAt
-                      ? format(new Date(newPoll.expiresAt), 'yyyy년 MM월 dd일', { locale: ko })
-                      : '날짜 선택'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-3">
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {newPoll.expiresAt
+                    ? format(new Date(newPoll.expiresAt), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })
+                    : '마감 시간 설정'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4" align="start">
+                <div className="space-y-4">
+                  {/* Date picker */}
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2">날짜</Label>
                     <CalendarComponent
                       mode="single"
                       selected={newPoll.expiresAt ? new Date(newPoll.expiresAt) : undefined}
@@ -360,7 +397,6 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
                             expiresAt: date.toISOString(),
                           });
                         }
-                        setCalendarOpen(false);
                       }}
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
@@ -390,34 +426,37 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
                       }}
                     />
                   </div>
-                </PopoverContent>
-              </Popover>
 
-              {/* Time picker */}
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="time"
-                  value={
-                    newPoll.expiresAt
-                      ? format(new Date(newPoll.expiresAt), 'HH:mm')
-                      : ''
-                  }
-                  onChange={(e) => {
-                    const [hours, minutes] = e.target.value.split(':').map(Number);
-                    if (newPoll.expiresAt) {
-                      const date = new Date(newPoll.expiresAt);
-                      date.setHours(hours || 0, minutes || 0);
-                      setNewPoll({
-                        ...newPoll,
-                        expiresAt: date.toISOString(),
-                      });
-                    }
-                  }}
-                  className="flex-1"
-                />
-              </div>
-            </div>
+                  {/* Time picker */}
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2">시간</Label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="time"
+                        value={
+                          newPoll.expiresAt
+                            ? format(new Date(newPoll.expiresAt), 'HH:mm')
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const [hours, minutes] = e.target.value.split(':').map(Number);
+                          if (newPoll.expiresAt) {
+                            const date = new Date(newPoll.expiresAt);
+                            date.setHours(hours || 0, minutes || 0);
+                            setNewPoll({
+                              ...newPoll,
+                              expiresAt: date.toISOString(),
+                            });
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Options or Date Picker */}

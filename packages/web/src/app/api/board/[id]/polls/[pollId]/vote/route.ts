@@ -32,6 +32,8 @@ export async function POST(
       .select({
         id: boardPolls.id,
         pollType: boardPolls.pollType,
+        allowMultiple: boardPolls.allowMultiple,
+        isAnonymous: boardPolls.isAnonymous,
         expiresAt: boardPolls.expiresAt,
       })
       .from(boardPolls)
@@ -65,44 +67,32 @@ export async function POST(
     }
 
     // Validate poll type constraints
-    if (poll.pollType === 'single' && optionIds.length > 1) {
+    if (!poll.allowMultiple && optionIds.length > 1) {
       return Errors.badRequest('단일 선택 투표는 1개만 선택할 수 있습니다.').toResponse();
     }
 
-    // For single/multiple/date votes, delete existing votes first (allow changing)
+    // Delete existing votes first (allow changing)
     // Use transaction to prevent race conditions
-    if (poll.pollType === 'single' || poll.pollType === 'multiple' || poll.pollType === 'date') {
-      await database.transaction(async (tx) => {
-        await tx
-          .delete(boardPollVotes)
-          .where(
-            and(
-              eq(boardPollVotes.pollId, pollId),
-              eq(boardPollVotes.memberId, auth.memberId)
-            )
-          );
+    await database.transaction(async (tx) => {
+      await tx
+        .delete(boardPollVotes)
+        .where(
+          and(
+            eq(boardPollVotes.pollId, pollId),
+            eq(boardPollVotes.memberId, auth.memberId)
+          )
+        );
 
-        // Insert new votes
-        const votesToInsert = optionIds.map((optionId: string) => ({
-          pollId,
-          optionId,
-          memberId: poll.pollType === 'anonymous' ? null : auth.memberId,
-          anonymousId: poll.pollType === 'anonymous' ? crypto.randomUUID() : null,
-        }));
-
-        await tx.insert(boardPollVotes).values(votesToInsert);
-      });
-    } else {
-      // 익명 투표는 기존 투표 유지 (중복 투표 허용)
+      // Insert new votes
       const votesToInsert = optionIds.map((optionId: string) => ({
         pollId,
         optionId,
-        memberId: null,
-        anonymousId: crypto.randomUUID(),
+        memberId: auth.memberId,
+        anonymousId: null,
       }));
 
-      await database.insert(boardPollVotes).values(votesToInsert);
-    }
+      await tx.insert(boardPollVotes).values(votesToInsert);
+    });
 
     // Revalidate cache to reflect changes immediately
     const { id: postId } = await params;
@@ -110,6 +100,53 @@ export async function POST(
     revalidatePath(`/api/board/${postId}/polls`);
 
     return successResponse({ success: true }, '투표가 완료되었습니다.');
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; pollId: string }> }
+) {
+  try {
+    const auth = await getBoardAuth();
+    if (!auth) return Errors.unauthorized().toResponse();
+
+    const { pollId } = await params;
+    const database = getDb();
+
+    // Fetch poll
+    const polls = await database
+      .select({
+        id: boardPolls.id,
+      })
+      .from(boardPolls)
+      .where(eq(boardPolls.id, pollId))
+      .limit(1);
+
+    const poll = polls[0];
+
+    if (!poll) {
+      return Errors.notFound('투표를 찾을 수 없습니다.').toResponse();
+    }
+
+    // Delete user's votes
+    await database
+      .delete(boardPollVotes)
+      .where(
+        and(
+          eq(boardPollVotes.pollId, pollId),
+          eq(boardPollVotes.memberId, auth.memberId)
+        )
+      );
+
+    // Revalidate cache
+    const { id: postId } = await params;
+    revalidatePath(`/board/${postId}`);
+    revalidatePath(`/api/board/${postId}/polls`);
+
+    return successResponse({ success: true }, '투표가 취소되었습니다.');
   } catch (error) {
     return errorResponse(error);
   }

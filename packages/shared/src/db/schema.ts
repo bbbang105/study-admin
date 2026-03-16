@@ -430,10 +430,8 @@ export const PollType = {
 export type PollTypeType = (typeof PollType)[keyof typeof PollType];
 
 export const pollTypeEnum = pgEnum('poll_type', [
-  'single',
-  'multiple',
+  'text',
   'date',
-  'anonymous',
 ]);
 
 export const boardPolls = pgTable(
@@ -446,7 +444,8 @@ export const boardPolls = pgTable(
     question: text('question').notNull(),
     pollType: pollTypeEnum('poll_type').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    allowAddOption: boolean('allow_add_option').default(false),
+    allowMultiple: boolean('allow_multiple').default(false),
+    isAnonymous: boolean('is_anonymous').default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

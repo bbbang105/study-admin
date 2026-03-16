@@ -37,9 +37,10 @@ export interface PollOption {
 export interface Poll {
   id: string;
   question: string;
-  pollType: 'single' | 'multiple' | 'date' | 'anonymous';
+  pollType: 'text' | 'date';
   expiresAt: string;
-  allowAddOption: boolean;
+  allowMultiple: boolean;
+  isAnonymous: boolean;
   isExpired: boolean;
   hasVoted: boolean;
   totalVotes: number;
@@ -87,14 +88,19 @@ function formatExpiresAt(dateStr: string): string {
   });
 }
 
-function getPollTypeLabel(pollType: string): string {
+function getPollTypeLabel(poll: Poll): string {
   const labels = {
-    single: '단일 선택',
-    multiple: '복수 선택',
-    date: '날짜 투표',
-    anonymous: '익명 투표',
+    text: '텍스트',
+    date: '날짜',
   };
-  return labels[pollType as keyof typeof labels] || pollType;
+  const typeLabel = labels[poll.pollType] || poll.pollType;
+
+  const options = [];
+  if (poll.allowMultiple) options.push('복수');
+  if (poll.isAnonymous) options.push('익명');
+
+  const optionText = options.length > 0 ? ` · ${options.join(', ')}` : '';
+  return typeLabel + optionText;
 }
 
 // ─────────────────────────────────────────────
@@ -148,6 +154,42 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     }
   };
 
+  const handleCancelVote = async () => {
+    if (voting) return;
+
+    if (!window.confirm('투표를 취소하시겠습니까?')) {
+      return;
+    }
+
+    setVoting(true);
+    onRefresh();
+
+    try {
+      const res = await fetch(
+        `/api/board/${postId}/polls/${poll.id}/vote`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.message || result.error?.message || '투표 취소에 실패했습니다.');
+        onRefresh();
+        return;
+      }
+
+      toast.success(result.message || '투표가 취소되었습니다.');
+      onRefresh();
+    } catch {
+      toast.error('서버 오류가 발생했습니다.');
+      onRefresh();
+    } finally {
+      setVoting(false);
+    }
+  };
+
   const canVote = !poll.isExpired;
 
   const handleShowVoters = (option: PollOption) => {
@@ -173,7 +215,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                   <Users className="h-3 w-3" />
                   {poll.totalVotes}명 참여
                 </span>
-                {poll.pollType === 'anonymous' && (
+                {poll.isAnonymous && (
                   <span className="inline-flex items-center gap-1">
                     <Lock className="h-3 w-3" />
                     익명
@@ -184,7 +226,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
           </div>
           <div className="shrink-0">
             <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
-              {getPollTypeLabel(poll.pollType)}
+              {getPollTypeLabel(poll)}
             </span>
           </div>
         </div>
@@ -274,13 +316,25 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
 
         {/* Action button */}
         {canVote && (
-          <Button
-            onClick={() => setVoteModalOpen(true)}
-            disabled={voting}
-            className="w-full bg-sky-500 text-white hover:bg-sky-600"
-          >
-            {voting ? '투표 중...' : poll.hasVoted ? '투표 변경' : '투표하기'}
-          </Button>
+          <div className="flex gap-2">
+            {poll.hasVoted && (
+              <Button
+                variant="outline"
+                onClick={handleCancelVote}
+                disabled={voting}
+                className="flex-1"
+              >
+                {voting ? '취소 중...' : '투표 취소'}
+              </Button>
+            )}
+            <Button
+              onClick={() => setVoteModalOpen(true)}
+              disabled={voting}
+              className={poll.hasVoted ? 'flex-1' : 'w-full bg-sky-500 text-white hover:bg-sky-600'}
+            >
+              {voting ? '투표 중...' : poll.hasVoted ? '투표 변경' : '투표하기'}
+            </Button>
+          </div>
         )}
 
         {poll.isExpired && !poll.hasVoted && (
@@ -318,13 +372,16 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
                 onClick={() => setVotersModalOpen(false)}
               >
-                <MemberAvatar
-                  memberId={voter.memberId}
-                  name={voter.name}
-                  seed={voter.discordId || voter.name}
-                  imageUrl={voter.profileImage}
-                  size="md"
-                />
+                <div className="shrink-0">
+                  <MemberAvatar
+                    memberId={voter.memberId}
+                    name={voter.name}
+                    seed={voter.discordId || voter.name}
+                    imageUrl={voter.profileImage}
+                    size="md"
+                    noLink
+                  />
+                </div>
                 <div className="flex-1">
                   <div className="font-medium text-sm">{voter.name}</div>
                   {voter.nickname && voter.nickname !== voter.name && (
