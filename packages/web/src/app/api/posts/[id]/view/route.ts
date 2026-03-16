@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
-import { SCORE_CONFIG, getTodayDateString } from '@/lib/score';
+import { getTodayDateString, SCORE_CONFIG } from '@/lib/score';
 
 const { posts, members, activityScores, ActivityScoreType } = sharedDb;
 
@@ -14,22 +14,20 @@ const { posts, members, activityScores, ActivityScoreType } = sharedDb;
  * - 같은 글 중복 조회 불가 (post_views UNIQUE)
  * - 단일 CTE로 post_views insert + 점수 부여를 원자적으로 처리
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: postId } = await params;
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ scored: false }, { status: 401 });
     }
 
-    const discordIdentity = user.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id;
     if (!discordId) {
       return NextResponse.json({ scored: false }, { status: 400 });
@@ -65,7 +63,7 @@ export async function POST(
 
     const config = SCORE_CONFIG[ActivityScoreType.POST_VIEW];
     const safeTitle = post.title.replace(/[<>"'&]/g, '').slice(0, 200);
-    const desc = `포스트 조회: ${safeTitle}`;
+    const desc = safeTitle;
     const today = getTodayDateString();
 
     // 단일 CTE: post_views insert + 일일 상한 체크 + 점수 부여 (원자적)

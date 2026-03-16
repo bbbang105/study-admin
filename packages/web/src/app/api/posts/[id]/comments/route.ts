@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const database = getDb();
 
     const [post] = await database
-      .select({ id: posts.id })
+      .select({ id: posts.id, memberId: posts.memberId })
       .from(posts)
       .where(eq(posts.id, postId))
       .limit(1);
@@ -112,7 +112,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const [parent] = await database
         .select({ id: postComments.id })
         .from(postComments)
-        .where(and(eq(postComments.id, parentId), eq(postComments.postId, postId), isNull(postComments.deletedAt)))
+        .where(
+          and(
+            eq(postComments.id, parentId),
+            eq(postComments.postId, postId),
+            isNull(postComments.deletedAt)
+          )
+        )
         .limit(1);
       if (!parent) return Errors.badRequest('상위 댓글을 찾을 수 없습니다.').toResponse();
     }
@@ -132,12 +138,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .set({ commentCount: sql`${posts.commentCount} + 1` })
       .where(eq(posts.id, postId));
 
-    // 블로그 글 댓글 활동 점수 (+5, 일일 상한 20)
-    grantWebScore(
-      auth.memberId,
-      ActivityScoreType.POST_COMMENT,
-      sanitizeDescription(`포스트 댓글: ${content.trim().slice(0, 50)}`),
-    ).catch((err) => console.error('[score] grantWebScore failed:', err));
+    // 포스트 댓글 활동 점수 (+5, 일일 상한 20)
+    // — 본인 글 제외, 같은 포스트에 이미 댓글 달았으면 제외 (포스트당 1회)
+    if (post.memberId !== auth.memberId) {
+      const priorComments = await database
+        .select({ id: postComments.id })
+        .from(postComments)
+        .where(
+          and(
+            eq(postComments.postId, postId),
+            eq(postComments.memberId, auth.memberId),
+            isNull(postComments.deletedAt)
+          )
+        )
+        .limit(2);
+
+      // 방금 작성한 댓글 포함해서 1개뿐이면 = 첫 댓글 → 점수 부여
+      if (priorComments.length <= 1) {
+        grantWebScore(
+          auth.memberId,
+          ActivityScoreType.POST_COMMENT,
+          sanitizeDescription(content.trim().slice(0, 50))
+        ).catch((err) => console.error('[score] grantWebScore failed:', err));
+      }
+    }
 
     return successResponse(newComment, '댓글이 작성되었습니다.', 201);
   } catch (error) {
