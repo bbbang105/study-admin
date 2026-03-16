@@ -5,6 +5,7 @@ import { BarChart3, Clock, Users, Lock, Check } from 'lucide-react';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
 import { PollVoteModal } from './poll-vote-modal';
+import { CancelVoteDialog } from './cancel-vote-dialog';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
+import { formatPollDate, formatExpiresAt } from '@/lib/date-utils';
 
 // ─────────────────────────────────────────────
 // Types
@@ -57,37 +59,6 @@ interface PollDisplayProps {
 // Helpers
 // ─────────────────────────────────────────────
 
-function formatDateString(dateStr: string): string {
-  // Check if it's a date string (YYYY-MM-DD format)
-  const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateMatch) {
-    const date = new Date(dateStr);
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayOfWeek = days[date.getDay()];
-    return `${dateMatch[2]}/${dateMatch[3]} (${dayOfWeek})`;
-  }
-  return dateStr;
-}
-
-function formatExpiresAt(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMs < 0) return '마감됨';
-  if (diffHours < 1) return '1시간 이내 마감';
-  if (diffHours < 24) return `${diffHours}시간 후 마감`;
-  if (diffDays < 7) return `${diffDays}일 후 마감`;
-  return date.toLocaleDateString('ko-KR', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function getPollTypeLabel(poll: Poll): string {
   const labels = {
     text: '텍스트',
@@ -112,6 +83,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
   const [voting, setVoting] = useState(false);
   const [votersModalOpen, setVotersModalOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<PollOption | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const handleVote = async (optionIds: string[]) => {
     if (voting) return; // Prevent double submission
@@ -154,12 +126,8 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     }
   };
 
-  const handleCancelVote = async () => {
+  const handleConfirmCancel = async () => {
     if (voting) return;
-
-    if (!window.confirm('투표를 취소하시겠습니까?')) {
-      return;
-    }
 
     setVoting(true);
     onRefresh();
@@ -177,14 +145,14 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
       if (!res.ok) {
         toast.error(result.message || result.error?.message || '투표 취소에 실패했습니다.');
         onRefresh();
-        return;
+        throw new Error('Cancel vote failed');
       }
 
       toast.success(result.message || '투표가 취소되었습니다.');
       onRefresh();
     } catch {
-      toast.error('서버 오류가 발생했습니다.');
-      onRefresh();
+      // Error is handled in the dialog
+      throw new Error('Cancel vote failed');
     } finally {
       setVoting(false);
     }
@@ -258,7 +226,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                       <Check className="h-4 w-4 text-primary shrink-0" />
                     )}
                     <span className="font-medium text-sm">
-                      {poll.pollType === 'date' ? formatDateString(option.optionText) : option.optionText}
+                      {poll.pollType === 'date' ? formatPollDate(option.optionText) : option.optionText}
                     </span>
                   </div>
                   <span className="text-sm font-semibold tabular-nums">
@@ -320,7 +288,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
             {poll.hasVoted && (
               <Button
                 variant="outline"
-                onClick={handleCancelVote}
+                onClick={() => setCancelDialogOpen(true)}
                 disabled={voting}
                 className="flex-1"
               >
@@ -411,6 +379,13 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel vote dialog */}
+      <CancelVoteDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onConfirm={handleConfirmCancel}
+      />
     </>
   );
 }

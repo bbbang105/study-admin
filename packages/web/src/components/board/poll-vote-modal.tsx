@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Circle } from 'lucide-react';
 import type { Poll } from './poll-display';
+import { formatPollDate } from '@/lib/date-utils';
 
 interface PollVoteModalProps {
   open: boolean;
@@ -33,18 +32,6 @@ export function PollVoteModal({
 
   // Multiple selections allowed if poll allows it
   const isMultiple = poll.allowMultiple;
-
-  // Format date option to include day of week
-  const formatOptionText = (text: string, pollType: string) => {
-    if (pollType === 'date') {
-      const dateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (dateMatch) {
-        const date = new Date(text);
-        return format(date, 'MM월 dd일 (E)', { locale: ko });
-      }
-    }
-    return text;
-  };
 
   const handleOptionClick = (optionId: string) => {
     if (isMultiple) {
@@ -123,7 +110,9 @@ export function PollVoteModal({
                     )}
                   </div>
                 )}
-                <span className="flex-1 font-normal">{formatOptionText(option.optionText, poll.pollType)}</span>
+                <span className="flex-1 font-normal">
+                  {poll.pollType === 'date' ? formatPollDate(option.optionText) : option.optionText}
+                </span>
               </button>
             );
           })}

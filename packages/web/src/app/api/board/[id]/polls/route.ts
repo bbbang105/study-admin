@@ -7,6 +7,7 @@ import {
   errorResponse,
   Errors,
   successResponse,
+  withCache,
 } from '@/lib/api-error';
 
 const { boardPolls, boardPollOptions, boardPollVotes, members } = sharedDb;
@@ -169,8 +170,8 @@ export async function GET(
     const validPolls = pollData.filter((p): p is NonNullable<typeof p> => p !== null);
 
     const response = successResponse({ polls: validPolls });
-    // 일단 캐시 없이 테스트
-    return response;
+    // 5초 캐시로 투표 후 빠른 반영 + 성능 확보
+    return withCache(response, 5, 'private');
   } catch (error) {
     console.error('Error in polls route:', error);
     if (error instanceof Error) {
