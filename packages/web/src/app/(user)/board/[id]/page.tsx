@@ -11,6 +11,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { TiptapRenderer } from '@/components/board/tiptap-renderer';
+import { PollDisplay, type Poll } from '@/components/board/poll-display';
 import { CommentTree, type Comment } from '@/components/board/comment-tree';
 import { CommentForm } from '@/components/board/comment-form';
 import { DeletePostDialog } from '@/components/board/delete-post-dialog';
@@ -92,6 +93,7 @@ export default function BoardDetailPage() {
 
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [polls, setPolls] = useState<Poll[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser>({
     memberId: null,
     isAdmin: false,
@@ -129,22 +131,32 @@ export default function BoardDetailPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/board/${postId}`);
-      const result = await res.json();
+      const [postRes, pollsRes] = await Promise.all([
+        fetch(`/api/board/${postId}`),
+        fetch(`/api/board/${postId}/polls`),
+      ]);
 
-      if (!res.ok) {
-        if (res.status === 403) {
+      const postResult = await postRes.json();
+
+      if (!postRes.ok) {
+        if (postRes.status === 403) {
           setError('비밀글은 작성자와 관리자만 볼 수 있습니다.');
-        } else if (res.status === 404) {
+        } else if (postRes.status === 404) {
           setError('게시글을 찾을 수 없습니다.');
         } else {
-          setError(result.message || '게시글을 불러오는데 실패했습니다.');
+          setError(postResult.message || '게시글을 불러오는데 실패했습니다.');
         }
         return;
       }
 
-      setPost(result.data.post);
-      setComments(result.data.comments);
+      setPost(postResult.data.post);
+      setComments(postResult.data.comments);
+
+      // Fetch polls (non-critical)
+      if (pollsRes.ok) {
+        const pollsResult = await pollsRes.json();
+        setPolls(pollsResult.data.polls || []);
+      }
     } catch {
       setError('서버 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
@@ -168,6 +180,19 @@ export default function BoardDetailPage() {
       );
     } catch {
       // Fail silently — user can manually refresh
+    }
+  }, [postId]);
+
+  // Refresh polls after voting
+  const refreshPolls = useCallback(async () => {
+    try {
+      // Add cache busting timestamp to bypass browser cache
+      const res = await fetch(`/api/board/${postId}/polls?t=${Date.now()}`);
+      if (!res.ok) return;
+      const result = await res.json();
+      setPolls(result.data.polls || []);
+    } catch {
+      // Fail silently
     }
   }, [postId]);
 
@@ -306,6 +331,20 @@ export default function BoardDetailPage() {
           <TiptapRenderer content={post.content} />
         </div>
       </div>
+
+      {/* ── Polls section ── */}
+      {polls.length > 0 && (
+        <div className="space-y-4">
+          {polls.map((poll) => (
+            <PollDisplay
+              key={poll.id}
+              postId={postId}
+              poll={poll}
+              onRefresh={refreshPolls}
+            />
+          ))}
+        </div>
+      )}
 
       {/* ── Comments section ── */}
       <div className="rounded-xl border border-border/60 bg-card shadow-none overflow-hidden">

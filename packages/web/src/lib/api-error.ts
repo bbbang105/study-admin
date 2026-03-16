@@ -136,8 +136,13 @@ export function errorResponse(error: unknown): NextResponse<ApiErrorResponse> {
     return error.toResponse();
   }
 
-  // Log unexpected errors
+  // Log unexpected errors with full stack trace
   console.error('Unexpected error:', error);
+  if (error instanceof Error) {
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
+    console.error('Error name:', error.name);
+  }
 
   // Return generic error for unknown errors
   return Errors.internalError().toResponse();

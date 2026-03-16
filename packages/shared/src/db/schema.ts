@@ -4,6 +4,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   real,
   serial,
@@ -417,6 +418,88 @@ export const boardComments = pgTable(
   })
 );
 
+// ── Board Polls ─────────────────────────────────────────────────────────
+
+export const PollType = {
+  SINGLE: 'single',
+  MULTIPLE: 'multiple',
+  DATE: 'date',
+  ANONYMOUS: 'anonymous',
+} as const;
+
+export type PollTypeType = (typeof PollType)[keyof typeof PollType];
+
+export const pollTypeEnum = pgEnum('poll_type', [
+  'text',
+  'date',
+]);
+
+export const boardPolls = pgTable(
+  'board_polls',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => boardPosts.id, { onDelete: 'cascade' }),
+    question: text('question').notNull(),
+    pollType: pollTypeEnum('poll_type').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    allowMultiple: boolean('allow_multiple').default(false),
+    isAnonymous: boolean('is_anonymous').default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    postIdIdx: index('idx_board_polls_post_id').on(table.postId),
+  })
+);
+
+// Add unique constraint via raw SQL (need to push manually)
+// CREATE UNIQUE INDEX IF NOT EXISTS unique_active_poll_per_post
+// ON board_polls(post_id)
+// WHERE deleted_at IS NULL;
+
+export const boardPollOptions = pgTable(
+  'board_poll_options',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => boardPolls.id, { onDelete: 'cascade' }),
+    optionText: text('option_text').notNull(),
+    optionOrder: integer('option_order').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    pollIdIdx: index('idx_board_poll_options_poll_id').on(table.pollId),
+  })
+);
+
+export const boardPollVotes = pgTable(
+  'board_poll_votes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => boardPolls.id, { onDelete: 'cascade' }),
+    optionId: uuid('option_id')
+      .notNull()
+      .references(() => boardPollOptions.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id').references(() => members.id, {
+      onDelete: 'cascade',
+    }),
+    anonymousId: text('anonymous_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    pollIdIdx: index('idx_board_poll_votes_poll_id').on(table.pollId),
+    optionIdIdx: index('idx_board_poll_votes_option_id').on(table.optionId),
+    memberIdIdx: index('idx_board_poll_votes_member_id').on(table.memberId),
+  })
+);
+
 // ============================================
 // Relations
 // ============================================
@@ -519,6 +602,7 @@ export const boardPostsRelations = relations(boardPosts, ({ one, many }) => ({
     references: [members.id],
   }),
   comments: many(boardComments),
+  polls: many(boardPolls),
 }));
 
 export const boardCommentsRelations = relations(boardComments, ({ one, many }) => ({
@@ -536,6 +620,41 @@ export const boardCommentsRelations = relations(boardComments, ({ one, many }) =
     relationName: 'parentChild',
   }),
   children: many(boardComments, { relationName: 'parentChild' }),
+}));
+
+export const boardPollsRelations = relations(boardPolls, ({ one, many }) => ({
+  post: one(boardPosts, {
+    fields: [boardPolls.postId],
+    references: [boardPosts.id],
+  }),
+  options: many(boardPollOptions),
+  votes: many(boardPollVotes),
+}));
+
+export const boardPollOptionsRelations = relations(boardPollOptions, ({
+  one,
+  many,
+}) => ({
+  poll: one(boardPolls, {
+    fields: [boardPollOptions.pollId],
+    references: [boardPolls.id],
+  }),
+  votes: many(boardPollVotes),
+}));
+
+export const boardPollVotesRelations = relations(boardPollVotes, ({ one }) => ({
+  poll: one(boardPolls, {
+    fields: [boardPollVotes.pollId],
+    references: [boardPolls.id],
+  }),
+  option: one(boardPollOptions, {
+    fields: [boardPollVotes.optionId],
+    references: [boardPollOptions.id],
+  }),
+  member: one(members, {
+    fields: [boardPollVotes.memberId],
+    references: [members.id],
+  }),
 }));
 
 // ============================================
@@ -583,3 +702,12 @@ export type NewBoardPost = typeof boardPosts.$inferInsert;
 
 export type BoardComment = typeof boardComments.$inferSelect;
 export type NewBoardComment = typeof boardComments.$inferInsert;
+
+export type BoardPoll = typeof boardPolls.$inferSelect;
+export type NewBoardPoll = typeof boardPolls.$inferInsert;
+
+export type BoardPollOption = typeof boardPollOptions.$inferSelect;
+export type NewBoardPollOption = typeof boardPollOptions.$inferInsert;
+
+export type BoardPollVote = typeof boardPollVotes.$inferSelect;
+export type NewBoardPollVote = typeof boardPollVotes.$inferInsert;
