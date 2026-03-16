@@ -27,6 +27,7 @@ export interface PollOption {
   voters: Array<{
     memberId: string;
     name: string;
+    nickname: string;
     profileImage: string | null;
     discordId: string;
     votedAt: string;
@@ -231,7 +232,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                         <div
                           key={voter.memberId}
                           className="flex items-center gap-1.5 rounded-full bg-muted/50 pl-0.5 pr-2 py-0.5"
-                          title={voter.name}
+                          title={`${voter.name} (${voter.nickname || '닉네임 없음'})`}
                         >
                           <MemberAvatar
                             memberId={voter.memberId}
@@ -316,6 +317,9 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                 />
                 <div className="flex-1">
                   <div className="font-medium text-sm">{voter.name}</div>
+                  {voter.nickname && voter.nickname !== voter.name && (
+                    <div className="text-xs text-muted-foreground">@{voter.nickname}</div>
+                  )}
                   <div className="text-xs text-muted-foreground">
                     {new Date(voter.votedAt).toLocaleString('ko-KR', {
                       month: '2-digit',

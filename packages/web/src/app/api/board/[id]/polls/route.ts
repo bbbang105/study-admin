@@ -79,6 +79,7 @@ export async function GET(
             optionId: boardPollVotes.optionId,
             memberId: boardPollVotes.memberId,
             memberName: members.name,
+            memberNickname: members.nickname,
             memberProfileImage: members.profileImageUrl,
             memberDiscordId: members.discordId,
             votedAt: boardPollVotes.createdAt,
@@ -129,6 +130,7 @@ export async function GET(
                 ? optionVotes.map((v) => ({
                     memberId: v.memberId!,
                     name: v.memberName || '익명',
+                    nickname: v.memberNickname || v.memberName || '익명',
                     profileImage: v.memberProfileImage,
                     discordId: v.memberDiscordId || '',
                     votedAt: v.votedAt,
