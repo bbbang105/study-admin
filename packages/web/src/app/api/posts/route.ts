@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import {
@@ -36,15 +36,54 @@ export async function GET(request: NextRequest) {
 
     const database = db();
 
+    // 검색어 (LIKE 메타문자 이스케이프)
+    const rawSearch = searchParams.get('search')?.trim() || null;
+    const search = rawSearch ? rawSearch.replace(/[%_\\]/g, '\\$&') : null;
+    // 파트 필터 (쉼표 구분, 복수 선택, allowlist 검증)
+    const VALID_PARTS = [
+      'frontend',
+      'backend',
+      'fullstack',
+      'designer',
+      'planner',
+      'devops',
+      'llmops',
+      'other',
+    ];
+    const partsParam = searchParams.get('parts')?.trim() || null;
+    const partsFilter = partsParam
+      ? partsParam.split(',').filter((p) => VALID_PARTS.includes(p))
+      : null;
+
     // 회차별 필터 조건
     const roundIdNum = roundId ? parseInt(roundId, 10) : null;
     if (roundIdNum !== null && isNaN(roundIdNum)) {
       return Errors.badRequest('유효하지 않은 회차 ID입니다.').toResponse();
     }
-    const whereCondition = roundIdNum ? eq(posts.roundId, roundIdNum) : undefined;
 
-    // Get total count
-    const totalCountQuery = database.select({ count: count() }).from(posts);
+    // WHERE 조건 조합
+    const conditions = [];
+    if (roundIdNum) conditions.push(eq(posts.roundId, roundIdNum));
+    if (search) {
+      conditions.push(
+        or(
+          ilike(posts.title, `%${search}%`),
+          ilike(members.name, `%${search}%`),
+          ilike(members.nickname, `%${search}%`),
+          ilike(members.discordUsername, `%${search}%`)
+        )
+      );
+    }
+    if (partsFilter && partsFilter.length > 0) {
+      conditions.push(inArray(members.part, partsFilter));
+    }
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count (join members for search/parts filter)
+    const totalCountQuery = database
+      .select({ count: count() })
+      .from(posts)
+      .leftJoin(members, eq(posts.memberId, members.id));
     if (whereCondition) totalCountQuery.where(whereCondition);
     const totalCountResult = await totalCountQuery;
     const totalCount = totalCountResult[0]?.count ?? 0;
@@ -73,9 +112,11 @@ export async function GET(request: NextRequest) {
       .from(posts)
       .leftJoin(members, eq(posts.memberId, members.id))
       .leftJoin(rounds, eq(posts.roundId, rounds.id))
-      .orderBy(...(sort === 'popular'
-        ? [desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt)]
-        : [desc(posts.publishedAt)]))
+      .orderBy(
+        ...(sort === 'popular'
+          ? [desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt)]
+          : [desc(posts.publishedAt)])
+      )
       .limit(pageSize)
       .offset(offset);
 

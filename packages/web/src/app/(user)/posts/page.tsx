@@ -18,8 +18,9 @@ import {
   Pencil,
   Plus,
   Reply,
-  TrendingUp,
+  Search,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,6 +52,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { cn, getDefaultAvatar } from '@/lib/utils';
+import { getPartStyle, PART_OPTIONS } from '@/lib/part-config';
 
 // ─────────────────────────────────────────────
 // Types
@@ -336,7 +338,10 @@ function PostCommentItem({
                 showReply={depth < 5}
                 onEditContentChange={setEditContent}
                 onSaveEdit={handleSaveEdit}
-                onCancelEdit={() => { setEditing(false); setEditContent(node.content); }}
+                onCancelEdit={() => {
+                  setEditing(false);
+                  setEditContent(node.content);
+                }}
                 onStartEdit={() => setEditing(true)}
                 onDelete={() => setDeleteConfirmOpen(true)}
                 onReply={() => setReplyOpen((v) => !v)}
@@ -357,7 +362,10 @@ function PostCommentItem({
             showReply={true}
             onEditContentChange={setEditContent}
             onSaveEdit={handleSaveEdit}
-            onCancelEdit={() => { setEditing(false); setEditContent(node.content); }}
+            onCancelEdit={() => {
+              setEditing(false);
+              setEditContent(node.content);
+            }}
             onStartEdit={() => setEditing(true)}
             onDelete={() => setDeleteConfirmOpen(true)}
             onReply={() => setReplyOpen((v) => !v)}
@@ -367,10 +375,7 @@ function PostCommentItem({
         {/* Reply form */}
         {replyOpen && !editing && (
           <div
-            className={cn(
-              'mt-2 mb-3 rounded-lg border border-border/50 bg-muted/20 p-3',
-              'ml-9'
-            )}
+            className={cn('mt-2 mb-3 rounded-lg border border-border/50 bg-muted/20 p-3', 'ml-9')}
           >
             <p className="text-xs font-medium text-muted-foreground mb-2">
               @{displayName}에게 답글
@@ -381,7 +386,10 @@ function PostCommentItem({
                 onChange={(e) => setReplyContent(e.target.value)}
                 onKeyDown={(e) => {
                   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleReplySubmit();
-                  if (e.key === 'Escape') { setReplyOpen(false); setReplyContent(''); }
+                  if (e.key === 'Escape') {
+                    setReplyOpen(false);
+                    setReplyContent('');
+                  }
                 }}
                 placeholder={`@${displayName}에게 답글 달기...`}
                 rows={2}
@@ -393,7 +401,10 @@ function PostCommentItem({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setReplyOpen(false); setReplyContent(''); }}
+                  onClick={() => {
+                    setReplyOpen(false);
+                    setReplyContent('');
+                  }}
                   disabled={replySubmitting}
                   className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
@@ -407,8 +418,13 @@ function PostCommentItem({
                   className="h-7 gap-1 text-xs bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
                 >
                   {replySubmitting ? (
-                    <><Loader2 className="h-3 w-3 animate-spin" />등록 중...</>
-                  ) : '답글 등록'}
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      등록 중...
+                    </>
+                  ) : (
+                    '답글 등록'
+                  )}
                 </Button>
               </div>
             </div>
@@ -442,7 +458,9 @@ function PostCommentItem({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting} className="h-9 text-sm">취소</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting} className="h-9 text-sm">
+              취소
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
@@ -450,9 +468,12 @@ function PostCommentItem({
             >
               {deleting ? (
                 <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />삭제 중...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  삭제 중...
                 </span>
-              ) : '삭제하기'}
+              ) : (
+                '삭제하기'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -502,7 +523,7 @@ function CommentBody({
       <MemberAvatar
         memberId={node.memberId}
         name={displayName}
-        seed={node.isDeleted ? 'deleted' : (node.member.discordId || displayName)}
+        seed={node.isDeleted ? 'deleted' : node.member.discordId || displayName}
         imageUrl={node.isDeleted ? null : node.member.profileImageUrl}
         size="md"
         noLink={node.isDeleted}
@@ -541,10 +562,12 @@ function CommentBody({
 
         {/* Content */}
         {!editing && (
-          <p className={cn(
-            'text-sm leading-relaxed break-words whitespace-pre-wrap',
-            node.isDeleted && 'italic text-muted-foreground text-xs'
-          )}>
+          <p
+            className={cn(
+              'text-sm leading-relaxed break-words whitespace-pre-wrap',
+              node.isDeleted && 'italic text-muted-foreground text-xs'
+            )}
+          >
             {node.content}
           </p>
         )}
@@ -582,9 +605,15 @@ function CommentBody({
                 className="h-7 gap-1 text-xs bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
               >
                 {saving ? (
-                  <><Loader2 className="h-3 w-3 animate-spin" />저장 중...</>
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    저장 중...
+                  </>
                 ) : (
-                  <><Check className="h-3 w-3" />저장</>
+                  <>
+                    <Check className="h-3 w-3" />
+                    저장
+                  </>
                 )}
               </Button>
             </div>
@@ -644,7 +673,15 @@ function CommentBody({
 // ─────────────────────────────────────────────
 
 /** 썸네일 컴포넌트 (이미지 or 그라디언트 폴백) */
-function PostThumbnail({ url, thumbnailUrl, className }: { url: string; thumbnailUrl: string | null; className?: string }) {
+function PostThumbnail({
+  url,
+  thumbnailUrl,
+  className,
+}: {
+  url: string;
+  thumbnailUrl: string | null;
+  className?: string;
+}) {
   const [imgError, setImgError] = useState(false);
 
   if (thumbnailUrl && !imgError) {
@@ -665,12 +702,17 @@ function PostThumbnail({ url, thumbnailUrl, className }: { url: string; thumbnai
 
   return (
     <div
-      className={cn('relative overflow-hidden rounded-md flex items-center justify-center', className)}
+      className={cn(
+        'relative overflow-hidden rounded-md flex items-center justify-center',
+        className
+      )}
       style={{ background: getDomainGradient(url) }}
     >
       <div className="flex flex-col items-center gap-1 text-white/80">
         <Globe className="h-5 w-5" />
-        <span className="text-[10px] font-medium uppercase tracking-wider">{getDomainLabel(url)}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider">
+          {getDomainLabel(url)}
+        </span>
       </div>
     </div>
   );
@@ -742,17 +784,21 @@ function PostCard({
   const commentTree = buildCommentTree(comments);
 
   return (
-    <Card className={cn(
-      'border-border shadow-sm hover:border-border/80 transition-all duration-200 overflow-hidden',
-      rank && rank <= 3 && MEDAL_STYLES[rank - 1]
-    )}>
+    <Card
+      className={cn(
+        'border-border shadow-sm hover:border-border/80 transition-all duration-200 overflow-hidden',
+        rank && rank <= 3 && MEDAL_STYLES[rank - 1]
+      )}
+    >
       <CardContent className="p-0 relative">
         {/* 메달 뱃지 */}
         {rank && rank <= 3 && (
-          <div className={cn(
-            'absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold shadow-md',
-            MEDAL_BADGE_STYLES[rank - 1]
-          )}>
+          <div
+            className={cn(
+              'absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold shadow-md',
+              MEDAL_BADGE_STYLES[rank - 1]
+            )}
+          >
             <Medal className="h-3 w-3" />
             {rank}위
           </div>
@@ -809,14 +855,15 @@ function PostCard({
         </a>
 
         {/* 모바일: 설명 + 상호작용 영역 */}
-        {post.description && (() => {
-          const plain = stripHtml(post.description);
-          return (
-            <p className="text-xs text-muted-foreground leading-relaxed px-4 pb-2 sm:hidden">
-              {plain.length > 100 ? plain.slice(0, 100) + '\u2026' : plain}
-            </p>
-          );
-        })()}
+        {post.description &&
+          (() => {
+            const plain = stripHtml(post.description);
+            return (
+              <p className="text-xs text-muted-foreground leading-relaxed px-4 pb-2 sm:hidden">
+                {plain.length > 100 ? plain.slice(0, 100) + '\u2026' : plain}
+              </p>
+            );
+          })()}
 
         {/* Footer: viewers + comments toggle */}
         <div className="flex items-center gap-3 px-4 pb-3 pt-1">
@@ -835,7 +882,9 @@ function PostCard({
                 })}
                 {extraViewers > 0 && (
                   <div className="h-5 w-5 rounded-full bg-muted ring-2 ring-background flex items-center justify-center">
-                    <span className="text-[8px] font-medium text-muted-foreground">+{extraViewers}</span>
+                    <span className="text-[8px] font-medium text-muted-foreground">
+                      +{extraViewers}
+                    </span>
                   </div>
                 )}
               </div>
@@ -849,7 +898,9 @@ function PostCard({
             onClick={() => setShowComments(!showComments)}
             aria-label={`댓글 ${post.commentCount}개 ${showComments ? '닫기' : '보기'}`}
             className={`flex items-center gap-1 text-xs transition-colors ${
-              showComments ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+              showComments
+                ? 'text-primary font-medium'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <MessageCircle className="h-3.5 w-3.5" />
@@ -918,8 +969,13 @@ function PostCard({
                   className="h-7 gap-1 text-xs bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
                 >
                   {submitting ? (
-                    <><Loader2 className="h-3 w-3 animate-spin" />등록 중...</>
-                  ) : '댓글 등록'}
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      등록 중...
+                    </>
+                  ) : (
+                    '댓글 등록'
+                  )}
                 </Button>
               </div>
             </div>
@@ -947,6 +1003,11 @@ function PostsContent() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [selectedParts, setSelectedParts] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
 
   // Refs for IntersectionObserver (avoid stale closures)
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -967,36 +1028,46 @@ function PostsContent() {
 
   const PAGE_SIZE = 12;
 
-  const fetchPosts = useCallback(async (pageNum: number, append: boolean) => {
-    if (append) setLoadingMore(true); else setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(pageNum),
-        pageSize: String(PAGE_SIZE),
-      });
-      if (tab === 'popular') params.set('sort', 'popular');
+  const fetchPosts = useCallback(
+    async (pageNum: number, append: boolean) => {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(pageNum),
+          pageSize: String(PAGE_SIZE),
+        });
+        if (tab === 'popular') params.set('sort', 'popular');
+        if (searchQuery) params.set('search', searchQuery);
+        if (selectedParts.length > 0) params.set('parts', selectedParts.join(','));
 
-      const response = await fetch(`/api/posts?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch posts');
-      const result = await response.json();
-      const data = result.data as PostsData;
+        const response = await fetch(`/api/posts?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch posts');
+        const result = await response.json();
+        const data = result.data as PostsData;
 
-      if (append) {
-        setPosts((prev) => [...prev, ...data.posts]);
-      } else {
-        setPosts(data.posts);
+        if (append) {
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newPosts = data.posts.filter((p: { id: string }) => !existingIds.has(p.id));
+            return [...prev, ...newPosts];
+          });
+        } else {
+          setPosts(data.posts);
+        }
+        setTotalCount(data.pagination.totalCount);
+        setHasMore(pageNum < data.pagination.totalPages);
+        setPage(pageNum);
+      } catch (err) {
+        setError('포스트 목록을 불러오는데 실패했습니다.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
       }
-      setTotalCount(data.pagination.totalCount);
-      setHasMore(pageNum < data.pagination.totalPages);
-      setPage(pageNum);
-    } catch (err) {
-      setError('포스트 목록을 불러오는데 실패했습니다.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [tab]);
+    },
+    [tab, searchQuery, selectedParts]
+  );
 
   // Initial load + tab change
   useEffect(() => {
@@ -1014,7 +1085,12 @@ function PostsContent() {
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMoreRef.current && !loadingMoreRef.current && pageRef.current >= 1) {
+        if (
+          entries[0]?.isIntersecting &&
+          hasMoreRef.current &&
+          !loadingMoreRef.current &&
+          pageRef.current >= 1
+        ) {
           fetchPosts(pageRef.current + 1, true);
         }
       },
@@ -1193,9 +1269,129 @@ function PostsContent() {
           </div>
         </div>
 
+        {/* 검색 + 파트 필터 */}
+        <div className="space-y-2">
+          {/* 검색바 */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="제목, 작성자 검색... (Enter)"
+              className="pl-8 h-8 text-xs"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setSearchQuery(searchInput);
+                }
+              }}
+            />
+            {searchInput && (
+              <button
+                onClick={() => {
+                  setSearchInput('');
+                  setSearchQuery('');
+                }}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* 파트 필터 드롭다운 */}
+          <div className="relative" ref={filterRef}>
+            <button
+              onClick={() => setFilterOpen((prev) => !prev)}
+              className={cn(
+                'inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors',
+                selectedParts.length > 0
+                  ? 'border-foreground/30 text-foreground font-medium'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              )}
+            >
+              분야 필터
+              {selectedParts.length > 0 && (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-white text-[10px] font-bold">
+                  {selectedParts.length}
+                </span>
+              )}
+            </button>
+
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
+                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover shadow-lg py-1">
+                  <div className="px-3 py-2 border-b border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">분야</span>
+                      {selectedParts.length > 0 && (
+                        <button
+                          onClick={() => setSelectedParts([])}
+                          className="text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {PART_OPTIONS.map((part) => {
+                    const isSelected = selectedParts.includes(part.value);
+                    const style = getPartStyle(part.value);
+                    return (
+                      <button
+                        key={part.value}
+                        onClick={() => {
+                          setSelectedParts((prev) =>
+                            prev.includes(part.value)
+                              ? prev.filter((p) => p !== part.value)
+                              : [...prev, part.value]
+                          );
+                        }}
+                        className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent transition-colors"
+                      >
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full px-1.5 py-px text-[11px] font-medium',
+                            style.bg,
+                            style.text
+                          )}
+                        >
+                          {part.label}
+                        </span>
+                        <div
+                          className={cn(
+                            'flex h-4 w-4 items-center justify-center rounded border transition-colors',
+                            isSelected ? 'bg-sky-500 border-sky-500' : 'border-border'
+                          )}
+                        >
+                          {isSelected && <Check className="h-3 w-3 text-background" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* 서브 정보 */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>총 {totalCount}개</span>
+          {searchQuery && (
+            <span className="flex items-center gap-1">
+              &ldquo;{searchQuery}&rdquo; 검색 결과
+              <button
+                onClick={() => {
+                  setSearchInput('');
+                  setSearchQuery('');
+                }}
+                className="text-foreground hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
           {tab === 'popular' && (
             <span className="flex items-center gap-1 text-amber-500">
               <Flame className="h-3 w-3" />

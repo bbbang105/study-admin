@@ -34,7 +34,7 @@ export async function addPendingConfirmation(_discordId: string, fineId: string)
       .set({ pendingConfirmation: true })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    logger.error({ fineId, error: serializeError(error) }, 'Failed to add pending confirmation');
+    logger.error({ fineId, error: serializeError(error) }, '💬 [DM] 납부 확인 대기 등록 실패');
   }
 }
 
@@ -50,7 +50,7 @@ export async function removePendingConfirmation(_discordId: string, fineId: stri
       .set({ pendingConfirmation: false })
       .where(eq(fines.id, fineId));
   } catch (error) {
-    logger.error({ fineId, error: serializeError(error) }, 'Failed to remove pending confirmation');
+    logger.error({ fineId, error: serializeError(error) }, '💬 [DM] 납부 확인 대기 해제 실패');
   }
 }
 
@@ -94,7 +94,27 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
   const fineId = customId.replace('confirm_payment_', '');
   const discordId = interaction.user.id;
 
-  // Verify this fine is pending for this user (DB 조회)
+  // 벌금 소유자 검증 + pending 체크
+  const db = getDb();
+  const [fineOwner] = await db
+    .select({ memberId: fines.memberId, discordId: members.discordId })
+    .from(fines)
+    .innerJoin(members, eq(fines.memberId, members.id))
+    .where(eq(fines.id, fineId))
+    .limit(1);
+
+  if (!fineOwner || fineOwner.discordId !== discordId) {
+    try {
+      await interaction.reply({
+        content: '❌ 이 벌금에 대한 권한이 없습니다.',
+        ephemeral: true,
+      });
+    } catch (error) {
+      logger.error({ error: serializeError(error) }, '💬 [DM] 권한 오류 응답 실패');
+    }
+    return;
+  }
+
   const isPending = await isPendingConfirmation(fineId);
   if (!isPending) {
     try {
@@ -103,7 +123,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: true,
       });
     } catch (error) {
-      logger.error({ error: serializeError(error) }, 'Failed to send error reply');
+      logger.error({ error: serializeError(error) }, '💬 [DM] 에러 응답 발송 실패');
     }
     return;
   }
@@ -111,10 +131,10 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
   const fineService = getFineService();
 
   try {
-    await fineService.markPaid(fineId);
+    const paidFine = await fineService.markPaid(fineId);
     await removePendingConfirmation(discordId, fineId);
 
-    logger.info({ fineId, discordId }, 'Fine marked as paid');
+    logger.info({ fineId, discordId }, '💬 [DM] 벌금 납부 확인 완료');
 
     try {
       await interaction.reply({
@@ -122,37 +142,27 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
         ephemeral: false,
       });
     } catch (error) {
-      logger.error({ error: serializeError(error) }, 'Failed to send confirmation reply');
+      logger.error({ error: serializeError(error) }, '💬 [DM] 확인 응답 발송 실패');
     }
 
-    // 관리자 채널에 납부 알림 발송
+    // 관리자 채널에 납부 알림 발송 (markPaid 반환값 활용 — 재조회 불필요)
     try {
       const db = getDb();
-      const [fineRecord] = await db
-        .select({
-          amount: fines.amount,
-          type: fines.type,
-          roundId: fines.roundId,
-        })
-        .from(fines)
-        .where(eq(fines.id, fineId))
-        .limit(1);
-
       const [member] = await db
         .select({ name: members.name, nickname: members.nickname })
         .from(members)
         .where(eq(members.discordId, discordId))
         .limit(1);
 
-      if (fineRecord && member) {
+      if (paidFine && member) {
         const [round] = await db
           .select({ roundNumber: rounds.roundNumber })
           .from(rounds)
-          .where(eq(rounds.id, fineRecord.roundId))
+          .where(eq(rounds.id, paidFine.roundId))
           .limit(1);
 
         const displayName = member.nickname || member.name;
-        const reason = formatFineReason(fineRecord.type as 'late' | 'absent');
+        const reason = formatFineReason(paidFine.type as 'late' | 'absent');
         const roundText = round ? `${round.roundNumber}회차` : '';
 
         const logChannelId = await getConfigValue(ConfigKeys.BOT_LOG_CHANNEL_ID);
@@ -160,23 +170,23 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
           const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
           if (channel && channel.isTextBased() && !channel.isDMBased()) {
             await (channel as TextChannel).send(
-              `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${fineRecord.amount.toLocaleString()}원 납부를 완료했습니다. 확인해주세요.`
+              `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${paidFine.amount.toLocaleString()}원 납부를 완료했습니다. 확인해주세요.`
             );
           }
         }
       }
     } catch (notifyError) {
-      logger.error({ error: serializeError(notifyError) }, 'Failed to send admin payment notification');
+      logger.error({ error: serializeError(notifyError) }, '💬 [DM] 관리자 납부 알림 발송 실패');
     }
   } catch (error) {
-    logger.error({ fineId, error: serializeError(error) }, 'Failed to mark fine as paid');
+    logger.error({ fineId, error: serializeError(error) }, '💬 [DM] 벌금 납부 처리 실패');
     try {
       await interaction.reply({
         content: '❌ 납부 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.',
         ephemeral: true,
       });
     } catch (replyError) {
-      logger.error({ error: serializeError(replyError) }, 'Failed to send error reply');
+      logger.error({ error: serializeError(replyError) }, '💬 [DM] 에러 응답 발송 실패');
     }
   }
 }
@@ -197,7 +207,7 @@ export async function sendFineNotification(
   try {
     const user = await client.users.fetch(discordId);
     if (!user) {
-      logger.error({ discordId }, 'User not found');
+      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
       return false;
     }
 
@@ -230,10 +240,10 @@ export async function sendFineNotification(
     // Track pending confirmation in DB
     await addPendingConfirmation(discordId, fineId);
 
-    logger.info({ discordId, fineId }, 'Fine notification sent');
+    logger.info({ discordId, fineId }, '💬 [DM] 벌금 알림 발송 완료');
     return true;
   } catch (error) {
-    logger.error({ discordId, error: serializeError(error) }, 'Failed to send fine notification');
+    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 알림 발송 실패');
     return false;
   }
 }
@@ -255,7 +265,7 @@ export async function sendFineReminder(
   try {
     const user = await client.users.fetch(discordId);
     if (!user) {
-      logger.error({ discordId }, 'User not found');
+      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
       return false;
     }
 
@@ -288,10 +298,10 @@ export async function sendFineReminder(
     // Ensure pending confirmation is tracked in DB
     await addPendingConfirmation(discordId, fineId);
 
-    logger.info({ discordId, fineId }, 'Fine reminder sent');
+    logger.info({ discordId, fineId }, '💬 [DM] 벌금 리마인더 발송 완료');
     return true;
   } catch (error) {
-    logger.error({ discordId, error: serializeError(error) }, 'Failed to send fine reminder');
+    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 리마인더 발송 실패');
     return false;
   }
 }
@@ -307,9 +317,9 @@ export function setupDMHandler(client: Client): void {
     try {
       await handleButtonInteraction(interaction);
     } catch (error) {
-      logger.error({ error: serializeError(error) }, 'Error handling button interaction');
+      logger.error({ error: serializeError(error) }, '💬 [DM] 버튼 인터랙션 처리 에러');
     }
   });
 
-  logger.info('DM handler setup complete (button-based, DB-persistent)');
+  logger.info('💬 [DM] 핸들러 등록 완료 (버튼 기반, DB 영속화)');
 }

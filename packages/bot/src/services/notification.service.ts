@@ -78,12 +78,20 @@ export function buildPostNotificationEmbed(input: PostNotificationInput): EmbedB
     });
   }
 
-  // Add description if available (truncate if too long)
+  // Add description if available (strip HTML tags, truncate)
   if (post.description) {
-    const truncatedDesc = post.description.length > 200
-      ? post.description.substring(0, 197) + '...'
-      : post.description;
-    embed.setDescription(truncatedDesc);
+    const plainText = post.description.replace(/<[^>]*>/g, '').trim();
+    if (plainText) {
+      const truncatedDesc = plainText.length > 200
+        ? plainText.substring(0, 197) + '...'
+        : plainText;
+      embed.setDescription(truncatedDesc);
+    }
+  }
+
+  // Add thumbnail (OG image) if available
+  if (post.thumbnailUrl) {
+    embed.setImage(post.thumbnailUrl);
   }
 
   embed.setFooter({
@@ -124,7 +132,6 @@ export function buildPostNotificationMessage(input: PostNotificationInput): Mess
   return {
     content: `<@${member.discordId}>님이 새 글을 발행했습니다! 🎉`,
     embeds: [buildPostNotificationEmbed(input)],
-    components: [buildPostNotificationButtons()],
   };
 }
 
@@ -150,7 +157,7 @@ export interface RoundReportData {
   submitted: AttendanceSummary[];
   late: AttendanceSummary[];
   absent: AttendanceSummary[];
-  mvp: AttendanceSummary | null;
+  mvps: AttendanceSummary[];
   totalMembers: number;
   submissionRate: number;
   lateRate: number;
@@ -163,7 +170,7 @@ export interface RoundReportData {
  * Requirements: 10.3 - Highlight MVP
  */
 export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
-  const { round, submitted, late, absent, mvp, submissionRate, lateRate, absentRate } = data;
+  const { round, submitted, late, absent, mvps, submissionRate, lateRate, absentRate } = data;
   
   const embed = new EmbedBuilder()
     .setColor(0x57F287) // Green
@@ -182,11 +189,12 @@ export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
     inline: false,
   });
 
-  // MVP
-  if (mvp) {
+  // MVP (동점 시 복수)
+  if (mvps.length > 0) {
+    const mvpText = mvps.map((m) => `<@${m.discordId}> (${m.postCount}개 작성)`).join('\n');
     embed.addFields({
-      name: '🏆 MVP',
-      value: `<@${mvp.discordId}> (${mvp.postCount}개 작성)`,
+      name: `🏆 MVP${mvps.length > 1 ? ` (${mvps.length}명)` : ''}`,
+      value: mvpText,
       inline: false,
     });
   }
@@ -284,7 +292,7 @@ export function buildRoundStartMessage(round: Round, activeMembers: { discordId:
   const mentions = activeMembers.map((m) => `<@${m.discordId}>`).join(' ');
 
   return {
-    content: `📢 **${round.roundNumber}회차가 시작되었습니다!**\n\n${mentions}\n\n이번 회차도 함께 달려봐요! 💪`,
+    content: `📢 **${round.roundNumber}회차가 시작되었습니다!**\n\n🏃🏻 **함께 달릴 스터디원**\n${mentions}`,
     embeds: [buildRoundStartEmbed(round, activeMembers.length)],
   };
 }
@@ -311,20 +319,20 @@ export function calculateRoundReportData(
   const lateRate = totalMembers > 0 ? late.length / totalMembers : 0;
   const absentRate = totalMembers > 0 ? absent.length / totalMembers : 0;
 
-  // Find MVP (member with most posts in this round)
+  // Find MVPs (동점 시 복수)
   const allWithPosts = [...submitted, ...late].filter((a) => a.postCount > 0);
-  const mvp = allWithPosts.length > 0
-    ? allWithPosts.reduce((max, curr) => 
-        curr.postCount > max.postCount ? curr : max
-      )
-    : null;
+  let mvps: AttendanceSummary[] = [];
+  if (allWithPosts.length > 0) {
+    const maxPosts = Math.max(...allWithPosts.map((a) => a.postCount));
+    mvps = allWithPosts.filter((a) => a.postCount === maxPosts);
+  }
 
   return {
     round,
     submitted,
     late,
     absent,
-    mvp,
+    mvps,
     totalMembers,
     submissionRate,
     lateRate,
@@ -365,7 +373,7 @@ export class NotificationService {
     const channelId = await getConfigValue(configKey);
 
     if (!channelId) {
-      logger.warn({ channelType: label }, '[NotificationService] Channel not configured');
+      logger.warn({ channelType: label }, '📢 [알림] 채널 미설정');
       return null;
     }
 
@@ -374,10 +382,10 @@ export class NotificationService {
       if (channel instanceof TextChannel) {
         return channel;
       }
-      logger.warn({ channelType: label }, '[NotificationService] Channel is not a text channel');
+      logger.warn({ channelType: label }, '📢 [알림] 채널이 텍스트 채널이 아님');
       return null;
     } catch (error) {
-      logger.error({ channelType: label, error }, '[NotificationService] Failed to fetch channel');
+      logger.error({ channelType: label, error }, '📢 [알림] 채널 조회 실패');
       return null;
     }
   }
@@ -391,17 +399,17 @@ export class NotificationService {
     const channel = await this.getAnnouncementChannel();
     
     if (!channel) {
-      logger.error('[NotificationService] Cannot send post notification: channel not configured');
+      logger.error('📢 [알림] 포스트 알림 발송 불가: 채널 미설정');
       return false;
     }
 
     try {
       const message = buildPostNotificationMessage(input);
       await channel.send(message);
-      logger.info({ postTitle: input.post.title }, '[NotificationService] Sent post notification');
+      logger.info({ postTitle: input.post.title }, '📢 [알림] 포스트 알림 발송 완료');
       return true;
     } catch (error) {
-      logger.error({ error }, '[NotificationService] Failed to send post notification');
+      logger.error({ error }, '📢 [알림] 포스트 알림 발송 실패');
       return false;
     }
   }
@@ -414,17 +422,17 @@ export class NotificationService {
     const channel = await this.getNoticeChannel();
     
     if (!channel) {
-      logger.error('[NotificationService] Cannot send round report: channel not configured');
+      logger.error('📢 [알림] 회차 리포트 발송 불가: 채널 미설정');
       return false;
     }
 
     try {
       const message = buildRoundReportMessage(data);
       await channel.send(message);
-      logger.info({ roundNumber: data.round.roundNumber }, '[NotificationService] Sent round report');
+      logger.info({ roundNumber: data.round.roundNumber }, '📢 [알림] 회차 리포트 발송 완료');
       return true;
     } catch (error) {
-      logger.error({ error }, '[NotificationService] Failed to send round report');
+      logger.error({ error }, '📢 [알림] 회차 리포트 발송 실패');
       return false;
     }
   }
@@ -437,7 +445,7 @@ export class NotificationService {
     const channel = await this.getNoticeChannel();
 
     if (!channel) {
-      logger.error('[NotificationService] Cannot send round start: channel not configured');
+      logger.error('📢 [알림] 회차 시작 공지 발송 불가: 채널 미설정');
       return false;
     }
 
@@ -454,10 +462,10 @@ export class NotificationService {
       logger.info({
         roundNumber: round.roundNumber,
         activeMemberCount: activeMembers.length
-      }, '[NotificationService] Sent round start announcement');
+      }, '📢 [알림] 회차 시작 공지 발송 완료');
       return true;
     } catch (error) {
-      logger.error({ error }, '[NotificationService] Failed to send round start announcement');
+      logger.error({ error }, '📢 [알림] 회차 시작 공지 발송 실패');
       return false;
     }
   }

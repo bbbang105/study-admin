@@ -47,7 +47,7 @@ export function BotOperationCard({
   isLoading = false,
 }: BotOperationCardProps) {
   const handleTrigger = async () => {
-    if (isLoading || operation.running) return;
+    if (isLoading || operation.running || operation.disabled) return;
 
     try {
       await onTrigger(operation.id);
@@ -71,7 +71,7 @@ export function BotOperationCard({
 
   return (
     <Card
-      className={`group transition-shadow ${operation.disabled ? 'opacity-50' : 'hover:shadow-md'}`}
+      className={`group transition-shadow ${operation.disabled ? 'border-dashed border-border/50' : 'hover:shadow-md'}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">

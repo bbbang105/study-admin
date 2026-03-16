@@ -1,30 +1,17 @@
 /**
  * Round Reporter Scheduler
  * 회차 종료 시 리포트 자동 발송 및 새 회차 시작 알림
- * Requirements: 10.1, 10.2, 10.3, 10.4
  */
 
 import { Client } from 'discord.js';
-import { eq, count } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import logger from '../lib/logger';
+import { attendance, getDb, members, posts, type Round, rounds, } from '@blog-study/shared/db';
+import { getCurrentRound, getRoundByNumber, isGracePeriodEnded, setCurrentRound, } from '../services/round.service';
 import {
-  getDb,
-  attendance,
-  members,
-  posts,
-  rounds,
-  type Round,
-} from '@blog-study/shared/db';
-import {
-  getCurrentRound,
-  getRoundByNumber,
-  setCurrentRound,
-  isGracePeriodEnded,
-} from '../services/round.service';
-import {
-  getNotificationService,
-  calculateRoundReportData,
   type AttendanceSummary,
+  calculateRoundReportData,
+  getNotificationService,
   type RoundReportData,
 } from '../services/notification.service';
 import { formatKSTDate } from '@blog-study/shared/utils';
@@ -43,109 +30,78 @@ export interface RoundReportResult {
 
 /**
  * Get attendance summaries for a round with member info and post counts
- * Requirements: 10.2 - Include submission list, late list, absent list
- * Requirements: 10.3 - Include MVP (member with most posts)
  */
 export async function getAttendanceSummariesForRound(
   roundId: number
 ): Promise<AttendanceSummary[]> {
   const db = getDb();
 
-  // Get all attendance records for the round with member info
-  const attendanceRecords = await db
+  const results = await db
     .select({
       memberId: attendance.memberId,
       status: attendance.status,
       discordId: members.discordId,
       discordUsername: members.discordUsername,
       name: members.name,
+      postCount: count(posts.id),
     })
     .from(attendance)
     .innerJoin(members, eq(attendance.memberId, members.id))
-    .where(eq(attendance.roundId, roundId));
+    .leftJoin(posts, and(eq(posts.memberId, attendance.memberId), eq(posts.roundId, roundId)))
+    .where(eq(attendance.roundId, roundId))
+    .groupBy(attendance.memberId, attendance.status, members.discordId, members.discordUsername, members.name);
 
-  // Get post counts for each member in this round
-  const postCounts = await db
-    .select({
-      memberId: posts.memberId,
-      count: count(),
-    })
-    .from(posts)
-    .where(eq(posts.roundId, roundId))
-    .groupBy(posts.memberId);
-
-  // Create a map of member ID to post count
-  const postCountMap = new Map<string, number>();
-  for (const pc of postCounts) {
-    postCountMap.set(pc.memberId, Number(pc.count));
-  }
-
-  // Build attendance summaries
-  return attendanceRecords.map((record) => ({
-    memberId: record.memberId,
-    discordId: record.discordId,
-    discordUsername: record.discordUsername,
-    name: record.name,
-    status: record.status as AttendanceSummary['status'],
-    postCount: postCountMap.get(record.memberId) || 0,
+  return results.map((row) => ({
+    memberId: row.memberId,
+    discordId: row.discordId,
+    discordUsername: row.discordUsername,
+    name: row.name,
+    status: row.status as AttendanceSummary['status'],
+    postCount: Number(row.postCount),
   }));
 }
 
 /**
- * Build round report data from a round
- * Requirements: 10.2 - Generate round report content
+ * Build report data from a round
  */
-export async function buildRoundReportDataForRound(
-  round: Round
-): Promise<RoundReportData> {
+async function buildRoundReportDataForRound(round: Round): Promise<RoundReportData> {
   const summaries = await getAttendanceSummariesForRound(round.id);
   return calculateRoundReportData(round, summaries);
 }
 
 /**
- * Round Reporter class for scheduling round reports and announcements
+ * Round Reporter class
  */
 export class RoundReporter {
   private isRunning = false;
   private client: Client | null = null;
 
-  /**
-   * Set the Discord client for sending notifications
-   */
   setClient(client: Client): void {
     this.client = client;
   }
 
-  /**
-   * Get the Discord client
-   */
   getClient(): Client | null {
     return this.client;
   }
 
-  /**
-   * Check if the reporter is currently running
-   */
-  isReporting(): boolean {
+  isSending(): boolean {
     return this.isRunning;
   }
 
   /**
-   * Send round report for the completed round
-   * Requirements: 10.1 - Automatically generate and send round report
-   * Requirements: 10.2 - Include round number, submission list, late list, absent list
-   * Requirements: 10.3 - Highlight MVP
+   * 회차 리포트 발송
+   * @param force - true면 grace period 체크 건너뜀 (수동 트리거용)
    */
-  async sendRoundReport(): Promise<RoundReportResult> {
+  async sendRoundReport(force = false): Promise<RoundReportResult> {
     if (this.isRunning) {
-      logger.info('[RoundReporter] Report already in progress, skipping');
+      logger.info('📊 [회차 리포트] 이미 실행 중, 건너뜀');
       return {
         timestamp: new Date(),
         roundNumber: 0,
         reportSent: false,
         newRoundStarted: false,
         newRoundNumber: null,
-        errors: ['Report already in progress'],
+        errors: ['이미 실행 중'],
       };
     }
 
@@ -154,51 +110,45 @@ export class RoundReporter {
     const errors: string[] = [];
 
     try {
-      // Get the current round (which just ended)
       const currentRound = await getCurrentRound();
 
-      // Check if grace period has ended
-      if (!isGracePeriodEnded(currentRound)) {
-        logger.info('[RoundReporter] Grace period not yet ended, skipping report');
+      // grace period 체크 (수동 트리거 시 건너뜀)
+      if (!force && !isGracePeriodEnded(currentRound)) {
+        logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 지각 기간 미종료, 건너뜀`);
         return {
           timestamp: startTime,
           roundNumber: currentRound.roundNumber,
           reportSent: false,
           newRoundStarted: false,
           newRoundNumber: null,
-          errors: ['Grace period not yet ended'],
+          errors: ['지각 기간 미종료'],
         };
       }
 
-      logger.info(`[RoundReporter] Generating report for round ${currentRound.roundNumber}`);
+      logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 리포트 생성 중...`);
 
-      // Build report data
       const reportData = await buildRoundReportDataForRound(currentRound);
-
-      // Send the report
       const notificationService = getNotificationService();
       const sent = await notificationService.sendRoundReport(reportData);
 
       if (!sent) {
-        errors.push('Failed to send round report');
+        errors.push('리포트 발송 실패');
       }
 
-      logger.info(`[RoundReporter] Round ${currentRound.roundNumber} report ${sent ? 'sent' : 'failed'}`);
+      logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 리포트 ${sent ? '발송 완료 ✅' : '발송 실패 ❌'}`);
 
-      // P0 #7: 회차 종료 후 isCurrent 플래그 업데이트
-      // 다음 회차가 있으면 해당 회차를 current로 설정
+      // 다음 회차로 전환
       const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
       if (nextRound) {
         await setCurrentRound(nextRound.roundNumber);
-        logger.info(`[RoundReporter] Updated current round to ${nextRound.roundNumber}`);
+        logger.info(`📊 [회차 리포트] 현재 회차 → ${nextRound.roundNumber}회차로 전환`);
       } else {
-        // 다음 회차가 없으면 현재 회차의 isCurrent를 false로 변경
         const db = getDb();
         await db
           .update(rounds)
           .set({ isCurrent: false })
           .where(eq(rounds.id, currentRound.id));
-        logger.info(`[RoundReporter] No next round, unset isCurrent for round ${currentRound.roundNumber}`);
+        logger.info(`📊 [회차 리포트] 다음 회차 없음, ${currentRound.roundNumber}회차 종료`);
       }
 
       return {
@@ -211,7 +161,7 @@ export class RoundReporter {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[RoundReporter] Error: ${errorMsg}`);
+      logger.error(`📊 [회차 리포트] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -228,20 +178,19 @@ export class RoundReporter {
   }
 
   /**
-   * Send round start announcement for a new round
-   * Requirements: 10.4 - Send round start announcement with deadline info
-   * P0 #6: KST 타임존 기준으로 날짜 비교
+   * 회차 시작 알림 발송
+   * @param force - true면 날짜 체크 건너뜀 (수동 트리거용)
    */
-  async sendRoundStartAnnouncement(): Promise<RoundReportResult> {
+  async sendRoundStartAnnouncement(force = false): Promise<RoundReportResult> {
     if (this.isRunning) {
-      logger.info('[RoundReporter] Already in progress, skipping announcement');
+      logger.info('🚀 [회차 시작] 이미 실행 중, 건너뜀');
       return {
         timestamp: new Date(),
         roundNumber: 0,
         reportSent: false,
         newRoundStarted: false,
         newRoundNumber: null,
-        errors: ['Already in progress'],
+        errors: ['이미 실행 중'],
       };
     }
 
@@ -250,25 +199,21 @@ export class RoundReporter {
     const errors: string[] = [];
 
     try {
-      // Get the current round
       const currentRound = await getCurrentRound();
-
-      // P0 #6: KST 기준으로 오늘 날짜 구하기
       const todayStr = formatKSTDate(new Date());
-
-      // 회차 시작일과 비교 (KST 기준)
       const isTodayRoundStart = todayStr === currentRound.startDate;
 
-      if (isTodayRoundStart) {
-        // 오늘이 현재 회차 시작일 - 알림 발송
-        logger.info(`[RoundReporter] Sending start announcement for round ${currentRound.roundNumber}`);
+      if (force || isTodayRoundStart) {
+        logger.info(`🚀 [회차 시작] ${currentRound.roundNumber}회차 시작 알림 발송 중...`);
 
         const notificationService = getNotificationService();
         const sent = await notificationService.sendRoundStartAnnouncement(currentRound);
 
         if (!sent) {
-          errors.push('Failed to send round start announcement');
+          errors.push('회차 시작 알림 발송 실패');
         }
+
+        logger.info(`🚀 [회차 시작] ${currentRound.roundNumber}회차 ${sent ? '발송 완료 ✅' : '발송 실패 ❌'}`);
 
         return {
           timestamp: startTime,
@@ -280,25 +225,23 @@ export class RoundReporter {
         };
       }
 
-      // 오늘이 현재 회차 시작일이 아니면, 다음 회차 시작일인지 확인
+      // 다음 회차 시작일인지 확인
       const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
 
-      if (nextRound && todayStr === nextRound.startDate) {
-        // 오늘이 다음 회차 시작일 - 회차 전환 + 알림 발송
+      if (nextRound && (force || todayStr === nextRound.startDate)) {
         await setCurrentRound(nextRound.roundNumber);
-
-        logger.info(`[RoundReporter] Starting round ${nextRound.roundNumber}`);
+        logger.info(`🚀 [회차 시작] ${nextRound.roundNumber}회차 시작, 회차 전환 완료`);
 
         const notificationService = getNotificationService();
         const sent = await notificationService.sendRoundStartAnnouncement(nextRound);
 
         if (!sent) {
-          errors.push('Failed to send round start announcement');
+          errors.push('회차 시작 알림 발송 실패');
         }
 
         return {
           timestamp: startTime,
-          roundNumber: currentRound.roundNumber,
+          roundNumber: nextRound.roundNumber,
           reportSent: false,
           newRoundStarted: sent,
           newRoundNumber: nextRound.roundNumber,
@@ -306,19 +249,19 @@ export class RoundReporter {
         };
       }
 
-      // 회차 시작일이 아님
-      logger.info('[RoundReporter] Not a round start day, skipping announcement');
+      logger.info(`🚀 [회차 시작] 오늘(${todayStr})은 회차 시작일이 아님, 건너뜀`);
+
       return {
         timestamp: startTime,
         roundNumber: currentRound.roundNumber,
         reportSent: false,
         newRoundStarted: false,
         newRoundNumber: null,
-        errors: ['Not a round start day'],
+        errors: ['오늘은 회차 시작일이 아님'],
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[RoundReporter] Error: ${errorMsg}`);
+      logger.error(`🚀 [회차 시작] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -333,73 +276,11 @@ export class RoundReporter {
       this.isRunning = false;
     }
   }
-
-  /**
-   * Manually trigger round report for a specific round
-   * Useful for admin operations or testing
-   */
-  async sendReportForRound(roundNumber: number): Promise<RoundReportResult> {
-    const startTime = new Date();
-    const errors: string[] = [];
-
-    try {
-      const round = await getRoundByNumber(roundNumber);
-      
-      if (!round) {
-        return {
-          timestamp: startTime,
-          roundNumber,
-          reportSent: false,
-          newRoundStarted: false,
-          newRoundNumber: null,
-          errors: [`Round ${roundNumber} not found`],
-        };
-      }
-
-      logger.info(`[RoundReporter] Manually generating report for round ${roundNumber}`);
-
-      // Build report data
-      const reportData = await buildRoundReportDataForRound(round);
-
-      // Send the report
-      const notificationService = getNotificationService();
-      const sent = await notificationService.sendRoundReport(reportData);
-
-      if (!sent) {
-        errors.push('Failed to send round report');
-      }
-
-      return {
-        timestamp: startTime,
-        roundNumber,
-        reportSent: sent,
-        newRoundStarted: false,
-        newRoundNumber: null,
-        errors,
-      };
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[RoundReporter] Manual report error: ${errorMsg}`);
-      errors.push(errorMsg);
-
-      return {
-        timestamp: startTime,
-        roundNumber,
-        reportSent: false,
-        newRoundStarted: false,
-        newRoundNumber: null,
-        errors,
-      };
-    }
-  }
 }
 
 // Singleton instance
 let roundReporterInstance: RoundReporter | null = null;
 
-/**
- * Get the RoundReporter singleton instance
- */
 export function getRoundReporter(): RoundReporter {
   if (!roundReporterInstance) {
     roundReporterInstance = new RoundReporter();
@@ -407,9 +288,6 @@ export function getRoundReporter(): RoundReporter {
   return roundReporterInstance;
 }
 
-/**
- * Reset the singleton (useful for testing)
- */
 export function resetRoundReporter(): void {
   roundReporterInstance = null;
 }

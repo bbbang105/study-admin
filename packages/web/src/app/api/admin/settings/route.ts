@@ -111,12 +111,32 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       studyRoleId: 'study_role_id',
     };
 
+    // Discord snowflake 형식 검증 (채널/역할 ID)
+    const SNOWFLAKE_RE = /^\d{17,20}$/;
+    const snowflakeKeys = new Set([
+      'announcement_channel_id',
+      'notice_channel_id',
+      'ranking_channel_id',
+      'bot_log_channel_id',
+      'study_role_id',
+    ]);
+
     // Update each setting
     for (const [frontendKey, value] of Object.entries(body)) {
       const dbKey = keyMap[frontendKey];
       if (!dbKey || value === undefined) continue;
 
       const stringValue = String(value);
+
+      // snowflake 형식 검증 (빈 값은 허용)
+      if (
+        snowflakeKeys.has(dbKey) &&
+        stringValue &&
+        stringValue !== 'null' &&
+        !SNOWFLAKE_RE.test(stringValue)
+      ) {
+        continue; // 유효하지 않은 snowflake는 무시
+      }
 
       // Check if key exists
       const [existing] = await database.select().from(config).where(eq(config.key, dbKey)).limit(1);
@@ -137,30 +157,42 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       }
     }
 
-    // Generate rounds if studyStartDate and totalRounds are provided
+    // Generate rounds only if studyStartDate or totalRounds actually changed
     let roundsCreated = 0;
     if (body.studyStartDate && body.totalRounds) {
-      const totalRounds = Math.max(1, Math.min(52, Number(body.totalRounds)));
-      let startDate = new Date(body.studyStartDate);
-
-      // Adjust to previous Monday if not already Monday
-      if (!isMonday(startDate)) {
-        startDate = getPreviousMonday(startDate);
+      // 기존 설정과 비교하여 변경됐을 때만 회차 재생성
+      const configRows = await database.select().from(config);
+      const currentSettings: Record<string, string> = {};
+      for (const row of configRows) {
+        currentSettings[row.key] = row.value;
       }
 
-      const roundDatesList = generateAllRoundDates(startDate, totalRounds);
-      const roundRecords = roundDatesList.map((rd, index) => ({
-        roundNumber: rd.roundNumber,
-        startDate: formatDateToString(rd.startDate),
-        endDate: formatDateToString(rd.endDate),
-        graceEndDate: formatDateToString(rd.graceEndDate),
-        isCurrent: index === 0,
-      }));
+      const prevStartDate = currentSettings['study_start_date'] || '';
+      const prevTotalRounds = currentSettings['total_rounds'] || '';
 
-      // Delete existing rounds and recreate
-      await database.delete(rounds);
-      await database.insert(rounds).values(roundRecords);
-      roundsCreated = roundRecords.length;
+      if (body.studyStartDate !== prevStartDate || String(body.totalRounds) !== prevTotalRounds) {
+        const totalRounds = Math.max(1, Math.min(52, Number(body.totalRounds)));
+        let startDate = new Date(body.studyStartDate);
+
+        // Adjust to previous Monday if not already Monday
+        if (!isMonday(startDate)) {
+          startDate = getPreviousMonday(startDate);
+        }
+
+        const roundDatesList = generateAllRoundDates(startDate, totalRounds);
+        const roundRecords = roundDatesList.map((rd, index) => ({
+          roundNumber: rd.roundNumber,
+          startDate: formatDateToString(rd.startDate),
+          endDate: formatDateToString(rd.endDate),
+          graceEndDate: formatDateToString(rd.graceEndDate),
+          isCurrent: index === 0,
+        }));
+
+        // Delete existing rounds and recreate
+        await database.delete(rounds);
+        await database.insert(rounds).values(roundRecords);
+        roundsCreated = roundRecords.length;
+      }
     }
 
     return NextResponse.json({ success: true, roundsCreated });

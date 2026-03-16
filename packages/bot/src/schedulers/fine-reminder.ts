@@ -55,12 +55,12 @@ export class FineReminder {
       const currentRound = await getCurrentRound().catch(() => null);
       if (!currentRound) return;
 
-      // 지각 기간인지 확인: 마감일(endDate) < 현재 < 지각 마감일(graceEndDate)
+      // 지각 기간: 정상 마감(graceEndDate 00:00) 이후 ~ 지각 마감(graceEndDate 23:59) 사이
       const now = new Date();
-      const endDate = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
-      const graceEndDate = new Date(`${currentRound.graceEndDate}T23:59:59.999+09:00`);
+      const submissionDeadline = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
+      const graceEnd = new Date(`${currentRound.graceEndDate}T23:59:59.999+09:00`);
 
-      if (now <= endDate || now > graceEndDate) return;
+      if (now <= submissionDeadline || now > graceEnd) return;
 
       // PENDING 상태인 active 멤버 조회
       const db = getDb();
@@ -81,7 +81,7 @@ export class FineReminder {
 
       if (pendingMembers.length === 0) return;
 
-      logger.info(`[FineReminder] Sending grace period nudge to ${pendingMembers.length} members`);
+      logger.info(`✍️ [지각 독촉] 미제출 멤버 ${pendingMembers.length}명에게 DM 발송`);
 
       for (const member of pendingMembers) {
         try {
@@ -93,11 +93,11 @@ export class FineReminder {
             `짧은 글이라도 괜찮아요. 지금 시작해보는 건 어때요?`,
           ].join('\n'));
         } catch (err) {
-          logger.error({ discordId: member.discordId, err }, '[FineReminder] Failed to send nudge DM');
+          logger.error({ discordId: member.discordId, err }, '✍️ [지각 독촉] DM 발송 실패');
         }
       }
     } catch (error) {
-      logger.error({ error }, '[FineReminder] Grace period nudge error');
+      logger.error({ error }, '✍️ [지각 독촉] 에러');
     }
   }
 
@@ -107,24 +107,24 @@ export class FineReminder {
    */
   async sendReminders(): Promise<FineReminderResult> {
     if (this.isRunning) {
-      logger.info('[FineReminder] Reminder already in progress, skipping');
+      logger.info('⏰ [벌금 리마인더] 이미 실행 중, 건너뜀');
       return {
         timestamp: new Date(),
         processedCount: 0,
         sentCount: 0,
         failedCount: 0,
-        errors: ['Reminder already in progress'],
+        errors: ['이미 실행 중'],
       };
     }
 
     if (!this.client) {
-      logger.error('[FineReminder] Discord client not set');
+      logger.error('⏰ [벌금 리마인더] Discord 클라이언트 미설정');
       return {
         timestamp: new Date(),
         processedCount: 0,
         sentCount: 0,
         failedCount: 0,
-        errors: ['Discord client not set'],
+        errors: ['Discord 클라이언트 미설정'],
       };
     }
 
@@ -163,7 +163,7 @@ export class FineReminder {
       });
 
       logger.info(
-        `[FineReminder] Found ${finesNeedingReminder.length} fines needing reminders`
+        `⏰ [벌금 리마인더] 발송 대상 ${finesNeedingReminder.length}건`
       );
 
       // Send reminders
@@ -193,14 +193,14 @@ export class FineReminder {
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          logger.error(`[FineReminder] Error sending reminder: ${errorMsg}`);
-          errors.push(`Failed to send reminder for fine ${fine.id}: ${errorMsg}`);
+          logger.error(`⏰ [벌금 리마인더] 발송 실패: ${errorMsg}`);
+          errors.push(`벌금 ${fine.id} 리마인더 발송 실패: ${errorMsg}`);
           failedCount++;
         }
       }
 
       logger.info(
-        `[FineReminder] Completed - sent ${sentCount}, failed ${failedCount}`
+        `⏰ [벌금 리마인더] 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건`
       );
 
       return {
@@ -212,7 +212,7 @@ export class FineReminder {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[FineReminder] Error: ${errorMsg}`);
+      logger.error(`⏰ [벌금 리마인더] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 
       return {
@@ -228,12 +228,13 @@ export class FineReminder {
   }
 
   /**
-   * Manually trigger reminders for all unpaid fines
-   * Useful for admin operations or testing
+   * 수동 실행: 모든 미납 벌금에 대해 리마인더 발송
+   * - 24시간 간격 체크 없음
+   * - lastReminderAt 업데이트 안 함 (다음날 자동 발송에 영향 없음)
    */
   async sendAllReminders(): Promise<FineReminderResult> {
     if (this.isRunning) {
-      logger.info('[FineReminder] Reminder already in progress, skipping manual run');
+      logger.info('⏰ [벌금 리마인더] 이미 실행 중, 수동 실행 건너뜀');
       return {
         timestamp: new Date(),
         processedCount: 0,
@@ -289,19 +290,19 @@ export class FineReminder {
 
           if (success) {
             sentCount++;
-            await fineService.updateLastReminderAt(fine.id);
+            // 수동 실행이므로 lastReminderAt 업데이트 안 함
           } else {
             failedCount++;
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          errors.push(`Failed to send reminder for fine ${fine.id}: ${errorMsg}`);
+          errors.push(`벌금 ${fine.id} 리마인더 발송 실패: ${errorMsg}`);
           failedCount++;
         }
       }
 
       logger.info(
-        `[FineReminder] Manual reminders completed - sent ${sentCount}, failed ${failedCount}`
+        `⏰ [벌금 리마인더] 수동 실행 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건`
       );
 
       return {

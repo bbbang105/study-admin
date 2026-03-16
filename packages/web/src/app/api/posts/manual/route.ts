@@ -32,14 +32,20 @@ function getTodayDateString(): string {
  */
 async function fetchOgData(
   url: string
-): Promise<{ title: string | null; publishedAt: string | null; thumbnailUrl: string | null; description: string | null }> {
+): Promise<{
+  title: string | null;
+  publishedAt: string | null;
+  thumbnailUrl: string | null;
+  description: string | null;
+}> {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BlogStudyBot/1.0' },
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!response.ok) return { title: null, publishedAt: null, thumbnailUrl: null, description: null };
+    if (!response.ok)
+      return { title: null, publishedAt: null, thumbnailUrl: null, description: null };
 
     const html = await response.text();
 
@@ -196,10 +202,10 @@ export async function POST(request: NextRequest) {
     // 출석 상태 업데이트 (현재 회차가 있을 때만)
     if (currentRound) {
       const now = new Date();
-      // 마감: graceEndDate(월요일) 00:00 KST까지 정상 출석, 이후 지각
-      const endOfDeadline = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
+      // 정상 마감: graceEndDate(월요일) 00:00 KST, 이후 지각
+      const submissionDeadline = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
 
-      const isLate = now > endOfDeadline;
+      const isLate = now > submissionDeadline;
 
       // 기존 출석 레코드 확인
       const [existingAtt] = await database

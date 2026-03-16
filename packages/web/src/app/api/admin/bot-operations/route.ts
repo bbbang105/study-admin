@@ -28,7 +28,7 @@ export const GET = withAdminAuth(async () => {
       name: '벌금 알림',
       description: '미납 벌금이 있는 멤버에게 매일 리마인드 DM을 발송합니다',
       category: 'fine',
-      schedule: '매일 10:00',
+      schedule: '매일 09:00',
       running: false,
     },
     {
@@ -36,7 +36,7 @@ export const GET = withAdminAuth(async () => {
       name: '회차 리포트',
       description: '회차 종료 시 전체 멤버의 출석 현황과 MVP를 포함한 리포트를 발송합니다',
       category: 'round',
-      schedule: '화요일 00:05',
+      schedule: '화요일 08:00',
       running: false,
     },
     {
@@ -44,7 +44,15 @@ export const GET = withAdminAuth(async () => {
       name: '회차 시작 알림',
       description: '새로운 회차가 시작될 때 알림을 발송하고 회차를 전환합니다',
       category: 'round',
-      schedule: '월요일 00:00',
+      schedule: '월요일 08:00',
+      running: false,
+    },
+    {
+      id: 'weekly-ranking',
+      name: '주간 랭킹',
+      description: '매주 일요일 10:00에 전체 멤버의 활동 점수 랭킹을 발송합니다',
+      category: 'ranking',
+      schedule: '일요일 10:00',
       running: false,
     },
     {
@@ -66,14 +74,6 @@ export const GET = withAdminAuth(async () => {
       running: false,
       disabled: true,
       disabledReason: '4기 미사용',
-    },
-    {
-      id: 'weekly-ranking',
-      name: '주간 랭킹',
-      description: '매주 일요일 22:00에 전체 멤버의 활동 점수 랭킹을 발송합니다',
-      category: 'ranking',
-      schedule: '일요일 22:00',
-      running: false,
     },
   ];
 

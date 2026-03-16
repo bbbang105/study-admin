@@ -5,8 +5,8 @@
  */
 
 import { getMemberService } from '../services/member.service';
-import { getRssService, type RssFeedItem, type PollResult } from '../services/rss.service';
-import { MemberStatus, type Member } from '@blog-study/shared/db';
+import { getRssService, type PollResult, type RssFeedItem } from '../services/rss.service';
+import { type Member, MemberStatus } from '@blog-study/shared/db';
 import logger from '../lib/logger';
 
 /**
@@ -89,7 +89,7 @@ export class RssPoller {
       logger.error({
         member: member.discordUsername,
         error: errorMessage,
-      }, 'Error polling member RSS feed');
+      }, '📡 [RSS] 멤버 피드 폴링 에러');
       
       return {
         memberId: member.id,
@@ -106,7 +106,7 @@ export class RssPoller {
    */
   async poll(): Promise<PollingCycleResult> {
     if (this.isRunning) {
-      logger.warn('[RssPoller] Polling already in progress, skipping');
+      logger.warn('📡 [RSS] 폴링이 이미 진행 중, 스킵');
       return {
         timestamp: new Date(),
         membersPolled: 0,
@@ -123,7 +123,7 @@ export class RssPoller {
 
     try {
       const members = await this.getMembersToPoll();
-      logger.info({ memberCount: members.length }, '[RssPoller] Polling active members');
+      logger.info({ memberCount: members.length }, '📡 [RSS] 활성 멤버 폴링 시작');
 
       for (const member of members) {
         const result = await this.pollMember(member);
@@ -144,14 +144,14 @@ export class RssPoller {
             logger.error({
               member: member.discordUsername,
               error: errorMsg,
-            }, '[RssPoller] Callback error');
+            }, '📡 [RSS] 콜백 에러');
             errors.push(`Callback error for ${member.discordUsername}: ${errorMsg}`);
           }
         }
       }
 
       const totalNewItems = results.reduce((sum, r) => sum + r.newItems.length, 0);
-      logger.info({ totalNewItems }, '[RssPoller] Polling completed');
+      logger.info({ totalNewItems }, '📡 [RSS] 폴링 완료');
 
       return {
         timestamp: startTime,

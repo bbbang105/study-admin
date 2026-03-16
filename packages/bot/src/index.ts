@@ -16,24 +16,24 @@ import logger, { serializeError } from './lib/logger';
 import { Sentry } from './lib/sentry';
 
 async function main(): Promise<void> {
-  logger.info('Blog Study Discord Bot starting...');
+  logger.info('🤖 [Bot] Blog Study Discord Bot 시작 중...');
 
   // Load environment variables
   const env = loadBotEnv();
-  logger.info('Environment variables loaded');
+  logger.info('🤖 [Bot] 환경 변수 로드 완료');
 
   // Create bot client
   const client = createBotClient();
-  logger.debug('Bot client created');
+  logger.debug('🤖 [Bot] 클라이언트 생성 완료');
 
   // Setup event handlers
   setupEventHandlers(client);
   setupDMHandler(client);
-  logger.debug('Event handlers configured');
+  logger.debug('🤖 [Bot] 이벤트 핸들러 등록 완료');
 
   // Initialize notification service
   initNotificationService(client);
-  logger.debug('Notification service initialized');
+  logger.debug('📢 [알림] 알림 서비스 초기화 완료');
 
   // Start pg-boss job queue and register all scheduled jobs
   const boss = await startJobQueue(env.DATABASE_URL_DIRECT);
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   // Start HTTP API server for manual triggers
   const apiPort = parseInt(process.env.BOT_API_PORT || '3001', 10);
   startBotApiServer(apiPort);
-  logger.info(`Bot API server started on port ${apiPort}`);
+  logger.info(`🌐 [API] Bot API 서버 시작 (포트: ${apiPort})`);
 
   // Start the bot
   await startBot(client, env.DISCORD_TOKEN);
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
 main().catch(async (error) => {
   const errorObj = error instanceof Error ? error : new Error(String(error));
 
-  logger.error({ error: serializeError(errorObj) }, 'Failed to start bot');
+  logger.error({ error: serializeError(errorObj) }, '🤖 [Bot] 시작 실패');
   Sentry.captureException(errorObj);
 
   await Sentry.flush(2000);

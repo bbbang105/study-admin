@@ -64,9 +64,7 @@ export default function BotOperationsPage() {
       );
 
       // Refresh after a delay to get updated status
-      setTimeout(() => {
-        fetchOperations();
-      }, 2000);
+      setTimeout(() => fetchOperations(), 2000);
     } catch (error) {
       console.error('Failed to trigger operation:', error);
       throw error;

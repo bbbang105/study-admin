@@ -29,15 +29,16 @@ import { Sentry } from './lib/sentry';
 /**
  * Job definitions with cron schedules
  */
+// pg-boss cron은 UTC 기준. KST = UTC+9
 const JOB_DEFINITIONS = [
-  { name: 'rss-poll', cron: '*/5 * * * *' },
-  { name: 'attendance-check', cron: '0 0 * * 2' },
-  { name: 'fine-reminder', cron: '0 10 * * *' },
-  { name: 'round-report', cron: '5 0 * * 2' },
-  { name: 'round-start', cron: '0 0 * * 1' },
-  { name: 'curation-crawl', cron: '0 23 * * *' },
-  { name: 'curation-share', cron: '5 10 * * *' },
-  { name: 'weekly-ranking', cron: '0 13 * * 0' },  // 매주 일요일 22:00 KST
+  { name: 'rss-poll', cron: '*/5 * * * *' },           // 5분마다
+  { name: 'attendance-check', cron: '0 0 * * 2' },     // KST 화 09:00 (UTC 화 00:00)
+  { name: 'fine-reminder', cron: '0 0 * * *' },        // KST 매일 09:00 (UTC 00:00)
+  { name: 'round-report', cron: '0 23 * * 1' },        // KST 화 08:00 (UTC 월 23:00)
+  { name: 'round-start', cron: '0 23 * * 0' },         // KST 월 08:00 (UTC 일 23:00)
+  { name: 'curation-crawl', cron: '0 23 * * *' },      // 4기 미사용
+  { name: 'curation-share', cron: '5 10 * * *' },      // 4기 미사용
+  { name: 'weekly-ranking', cron: '0 1 * * 0' },       // KST 일 10:00 (UTC 일 01:00)
 ] as const;
 
 /**
@@ -106,7 +107,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             logger.info({
               member: member.name,
               round: currentRound.roundNumber,
-            }, 'Late submission marked');
+            }, '📡 [RSS] 지각 제출 처리 완료');
 
             // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
             // DM 알림은 보내지 않음 — fine-reminder에서 화요일부터 리마인더로 발송
@@ -118,7 +119,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             logger.info({
               member: member.name,
               round: currentRound.roundNumber,
-            }, 'Submission completed');
+            }, '📡 [RSS] 정상 제출 처리 완료');
           }
         }
 
@@ -151,7 +152,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         .limit(1);
 
       if (!member) {
-        logger.error({ memberId: attendance.memberId }, 'Member not found');
+        logger.error({ memberId: attendance.memberId }, '✅ [출석] 멤버를 찾을 수 없음');
         return;
       }
 
@@ -163,13 +164,13 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         member: member.name,
         round: round.roundNumber,
         amount: fine.amount,
-      }, 'Absent fine imposed');
+      }, '✅ [출석] 결석 벌금 부과 완료');
     } catch (error) {
       Sentry.captureException(error);
       logger.error({
         memberId: attendance.memberId,
         error
-      }, 'Failed to process absent callback');
+      }, '✅ [출석] 결석 콜백 처리 실패');
     }
   });
 
@@ -270,8 +271,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   // THEN schedule all cron jobs (after queues are created)
   for (const job of JOB_DEFINITIONS) {
     await boss.schedule(job.name, job.cron);
-    logger.debug({ job: job.name, cron: job.cron }, 'Scheduled job');
+    logger.debug({ job: job.name, cron: job.cron }, '📋 [스케줄러] 잡 등록');
   }
 
-  logger.info({ jobCount: JOB_DEFINITIONS.length }, 'All scheduled jobs registered');
+  logger.info({ jobCount: JOB_DEFINITIONS.length }, '📋 [스케줄러] 전체 잡 등록 완료');
 }

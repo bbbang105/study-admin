@@ -26,18 +26,18 @@ export function setupEventHandlers(client: Client): void {
     logger.info({
       botTag: readyClient.user.tag,
       guilds: readyClient.guilds.cache.size,
-    }, 'Bot logged in');
+    }, '🤖 [Bot] 로그인 완료');
   });
 
   // Error handling
   client.on(Events.Error, (error) => {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logger.error({ error: serializeError(errorObj) }, 'Discord client error');
+    logger.error({ error: serializeError(errorObj) }, '🤖 [Bot] Discord 클라이언트 에러');
     Sentry.captureException(errorObj);
   });
 
   client.on(Events.Warn, (warning) => {
-    logger.warn({ warning }, 'Discord client warning');
+    logger.warn({ warning }, '🤖 [Bot] Discord 클라이언트 경고');
   });
 }
 
@@ -58,7 +58,7 @@ export async function startBot(
  */
 export function setupGracefulShutdown(client: Client, onShutdown?: () => Promise<void>): void {
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, 'Received shutdown signal, shutting down gracefully...');
+    logger.info({ signal }, '🤖 [Bot] 종료 시그널 수신, 안전하게 종료 중...');
     if (onShutdown) {
       await onShutdown();
     }
