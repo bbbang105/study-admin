@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PushNotificationSettings } from '@/components/settings/push-notification-settings';
 
 export default function ProfileNotificationsPage() {
@@ -8,9 +8,7 @@ export default function ProfileNotificationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle asChild>
-            <h2>푸시 알림</h2>
-          </CardTitle>
+          <h2 className="text-2xl font-semibold leading-none tracking-tight">푸시 알림</h2>
         </CardHeader>
         <CardContent>
           <PushNotificationSettings />
