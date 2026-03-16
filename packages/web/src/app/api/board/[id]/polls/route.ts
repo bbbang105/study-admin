@@ -100,8 +100,9 @@ export async function GET(
           .leftJoin(members, eq(boardPollVotes.memberId, members.id))
           .where(eq(boardPollVotes.pollId, poll.id));
 
-        // Count total votes
-        const totalVotes = votes.length;
+        // Count total votes (unique members)
+        const uniqueVoters = new Set(votes.map(v => v.memberId));
+        const totalVotes = uniqueVoters.size;
 
         // Group votes by option
         const votesByOption: Record<string, typeof votes> = {};
