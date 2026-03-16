@@ -67,7 +67,7 @@ export async function PATCH(
 
     const { id: postId, pollId } = await params;
     const body = await request.json();
-    const { question, pollType, expiresAt, options } = body;
+    const { question, pollType, allowMultiple, isAnonymous, expiresAt, options } = body;
 
     const database = getDb();
 
@@ -104,6 +104,8 @@ export async function PATCH(
         .set({
           ...(question && { question }),
           ...(pollType && { pollType }),
+          ...(allowMultiple !== undefined && { allowMultiple }),
+          ...(isAnonymous !== undefined && { isAnonymous }),
           ...(expiresAt && { expiresAt: new Date(expiresAt) }),
           updatedAt: new Date(),
         })

@@ -7,7 +7,6 @@ import {
   errorResponse,
   Errors,
   successResponse,
-  withCache,
 } from '@/lib/api-error';
 
 const { boardPolls, boardPollOptions, boardPollVotes, members } = sharedDb;

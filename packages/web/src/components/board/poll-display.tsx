@@ -277,7 +277,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                 )}
 
                 {/* Voters (non-anonymous only) */}
-                {poll.pollType !== 'anonymous' && option.voters.length > 0 && (
+                {!poll.isAnonymous && option.voters.length > 0 && (
                   <div className="flex items-center justify-between gap-2 mt-2.5">
                     <div className="flex flex-wrap gap-2">
                       {option.voters.slice(0, 5).map((voter) => (

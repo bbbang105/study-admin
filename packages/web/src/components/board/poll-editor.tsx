@@ -6,7 +6,6 @@ import { Plus, Trash2, BarChart3, Calendar, Clock, Edit2, Check, Lock } from 'lu
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Popover,
@@ -134,16 +133,22 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
 
   const handleEditPoll = (index: number) => {
     const poll = polls[index];
+    if (!poll) return;
+
     setNewPoll({
       question: poll.question,
       pollType: poll.pollType,
+      allowMultiple: poll.allowMultiple,
+      isAnonymous: poll.isAnonymous,
       expiresAt: poll.expiresAt,
     });
 
     // Set options based on poll type
     if (poll.pollType === 'date') {
       setDateOptions(poll.options.map(dateStr => {
-        const [year, month, day] = dateStr.split('-').map(Number);
+        const parts = dateStr.split('-').map(Number);
+        const [year, month, day] = parts;
+        if (!year || !month || !day) return new Date();
         return new Date(year, month - 1, day);
       }));
     } else {

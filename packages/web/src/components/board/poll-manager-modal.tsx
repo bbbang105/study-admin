@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2, Edit2, Users, Lock, Calendar, Clock } from 'lucide-react';
+import { Trash2, Edit2, Users, Lock, Calendar, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,13 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Popover,
@@ -33,12 +26,14 @@ import { toast } from 'sonner';
 // Types
 // ─────────────────────────────────────────────
 
-export type PollType = 'single' | 'multiple' | 'date' | 'anonymous';
+export type PollType = 'text' | 'date';
 
 export interface Poll {
   id: string;
   question: string;
   pollType: PollType;
+  allowMultiple: boolean;
+  isAnonymous: boolean;
   expiresAt: string;
   totalVotes: number;
   options: Array<{
@@ -55,17 +50,6 @@ interface PollManagerModalProps {
   initialPolls: Poll[];
   onPollsUpdate: (polls: Poll[]) => void;
 }
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-
-const POLL_TYPE_OPTIONS = [
-  { value: 'single' as const, label: '단일 선택' },
-  { value: 'multiple' as const, label: '복수 선택' },
-  { value: 'date' as const, label: '날짜 투표' },
-  { value: 'anonymous' as const, label: '익명 투표' },
-];
 
 // ─────────────────────────────────────────────
 // Component
@@ -159,6 +143,8 @@ export function PollManagerModal({
         body: JSON.stringify({
           question: editingPoll.question.trim(),
           pollType: editingPoll.pollType,
+          allowMultiple: editingPoll.allowMultiple,
+          isAnonymous: editingPoll.isAnonymous,
           expiresAt: editingPoll.expiresAt,
           options: validOptions.map((opt, idx) => ({
             id: opt.id,
@@ -218,7 +204,9 @@ export function PollManagerModal({
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-sm">{poll.question}</h4>
                       <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
-                        {POLL_TYPE_OPTIONS.find((t) => t.value === poll.pollType)?.label}
+                        {poll.pollType === 'text' ? '텍스트' : '날짜'}
+                        {poll.allowMultiple && ' · 복수'}
+                        {poll.isAnonymous && ' · 익명'}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -275,24 +263,52 @@ export function PollManagerModal({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">투표 유형</Label>
-                      <Select
-                        value={editingPoll.pollType}
-                        onValueChange={(value: PollType) =>
-                          setEditingPoll({ ...editingPoll, pollType: value })
-                        }
-                      >
-                        <SelectTrigger className="w-full sm:w-48">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {POLL_TYPE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-sm font-medium">투표 유형 (변경 불가)</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={editingPoll.pollType === 'text' ? 'default' : 'outline'}
+                          disabled
+                          className="flex-1"
+                        >
+                          텍스트 투표
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={editingPoll.pollType === 'date' ? 'default' : 'outline'}
+                          disabled
+                          className="flex-1"
+                        >
+                          날짜 투표
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">투표 유형은 생성 후 변경할 수 없습니다.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">투표 옵션</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant={editingPoll.allowMultiple ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setEditingPoll({ ...editingPoll, allowMultiple: !editingPoll.allowMultiple })}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <Check className="mr-1.5 h-3.5 w-3.5" />
+                          복수 선택
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={editingPoll.isAnonymous ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setEditingPoll({ ...editingPoll, isAnonymous: !editingPoll.isAnonymous })}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <Lock className="mr-1.5 h-3.5 w-3.5" />
+                          익명
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
