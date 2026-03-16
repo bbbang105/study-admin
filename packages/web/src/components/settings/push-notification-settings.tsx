@@ -12,7 +12,9 @@ interface NotificationPreference {
   enabled: boolean;
 }
 
-const NOTIFICATION_LABELS: Record<string, { label: string; icon: any; description: string }> = {
+type IconComponent = React.ComponentType<{ className?: string }>;
+
+const NOTIFICATION_LABELS: Record<string, { label: string; icon: IconComponent; description: string }> = {
   board_comment: { label: '게시판 댓글', icon: MessageSquare, description: '내 게시글에 댓글이 달릴 때' },
   board_reply: { label: '게시판 답글', icon: MessageCircle, description: '내 댓글에 답글이 달릴 때' },
   post_comment: { label: '포스트 댓글', icon: MessageSquare, description: '내 포스트에 댓글이 달릴 때' },
