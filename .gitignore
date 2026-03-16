@@ -34,6 +34,9 @@ coverage
 *.tsbuildinfo
 *.pem
 
+# Firebase Service Account (보안 민감 정보)
+firebase-service-account.json
+
 ### CLAUDE ###
 #/docs
 

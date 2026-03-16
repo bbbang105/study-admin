@@ -6,6 +6,7 @@ import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { grantWebScore } from '@/lib/score';
 import { sanitizeDescription } from '@/lib/sanitize';
+import { sendPushToMember } from '@/lib/push';
 
 const { boardPosts, boardComments, ActivityScoreType } = sharedDb;
 
@@ -35,8 +36,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Validate parentId + secret comment reply restrictions
+    let parent: { id: string; memberId: string; isSecret: boolean } | null = null;
     if (parentId) {
-      const [parent] = await database
+      const [parentData] = await database
         .select({
           id: boardComments.id,
           memberId: boardComments.memberId,
@@ -46,10 +48,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .where(and(eq(boardComments.id, parentId), eq(boardComments.postId, postId)))
         .limit(1);
 
-      if (!parent) return Errors.badRequest('상위 댓글을 찾을 수 없습니다.').toResponse();
+      if (!parentData) return Errors.badRequest('상위 댓글을 찾을 수 없습니다.').toResponse();
+      parent = parentData as { id: string; memberId: string; isSecret: boolean };
 
       // 비밀댓글 답글: 댓글 작성자/글 작성자/관리자만 가능
-      if (parent.isSecret) {
+      if (parent && parent.isSecret) {
         const isCommentOwner = parent.memberId === auth.memberId;
         const isPostAuthor = post.memberId === auth.memberId;
         if (!isCommentOwner && !isPostAuthor && !auth.isAdmin) {
@@ -73,6 +76,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       .returning();
 
+    if (!newComment) {
+      return Errors.externalServiceError('댓글 생성에 실패했습니다.').toResponse();
+    }
+
     // Increment comment_count
     await database
       .update(boardPosts)
@@ -86,6 +93,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ActivityScoreType.BOARD_COMMENT,
         sanitizeDescription(content.trim().slice(0, 50))
       ).catch((err) => console.error('[score] grantWebScore failed:', err));
+    }
+
+    // 1. 내가 쓴 글에 댓글이 달리면 무조건 알림 (본인 제외)
+    if (post.memberId !== auth.memberId) {
+      const postIdentifier = postId;
+      sendPushToMember(post.memberId, {
+        title: '새 댓글이 달렸습니다',
+        body: `${content.trim().slice(0, 50)}${content.length > 50 ? '...' : ''}`,
+        clickUrl: `/board/${postIdentifier}`,
+        data: { type: 'board_comment', postId: postIdentifier, commentId: newComment.id },
+      }).catch((err) => console.error('[push] Comment notification failed:', err));
+    }
+
+    // 2. 대댓글의 경우 원댓글 작성자에게도 알림
+    if (parentId && parent) {
+      const pmid = parent.memberId;
+      const amid = auth.memberId;
+
+      // 내 댓글에 답글이 달리면 알림 (작성자 본인 제외)
+      if (pmid !== amid) {
+        const postIdentifier = postId;
+        sendPushToMember(pmid, {
+          title: '💬 답글이 달렸습니다',
+          body: `${content.trim().slice(0, 50)}${content.length > 50 ? '...' : ''}`,
+          clickUrl: `/board/${postIdentifier}`,
+          data: { type: 'board_reply', postId: postIdentifier, commentId: newComment.id },
+        }).catch((err) => console.error('[push] Reply notification failed:', err));
+      }
     }
 
     return successResponse(newComment, '댓글이 작성되었습니다.', 201);
