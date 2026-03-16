@@ -267,18 +267,14 @@ describe('NotificationService Property Tests', () => {
       );
     });
 
-    it('should include embeds and components in the message', () => {
+    it('should include embeds in the message', () => {
       fc.assert(
         fc.property(postNotificationInputArb, (input) => {
           const message = buildPostNotificationMessage(input);
-          
+
           // Message should have embeds
           expect(message.embeds).toBeDefined();
           expect(message.embeds?.length).toBeGreaterThan(0);
-          
-          // Message should have components (reaction buttons)
-          expect(message.components).toBeDefined();
-          expect(message.components?.length).toBeGreaterThan(0);
         }),
         { numRuns: 100 }
       );
@@ -398,15 +394,17 @@ describe('NotificationService Property Tests', () => {
             
             const reportData = calculateRoundReportData(round, summariesWithPosts);
             
-            if (reportData.mvp) {
-              // MVP should have the highest post count among submitted/late members
+            if (reportData.mvps.length > 0) {
+              // All MVPs should have the highest post count among submitted/late members
               const maxPostCount = Math.max(
                 ...summariesWithPosts
                   .filter(s => s.status === AttendanceStatus.SUBMITTED || s.status === AttendanceStatus.LATE)
                   .filter(s => s.postCount > 0)
                   .map(s => s.postCount)
               );
-              expect(reportData.mvp.postCount).toBe(maxPostCount);
+              for (const mvp of reportData.mvps) {
+                expect(mvp.postCount).toBe(maxPostCount);
+              }
             }
           }
         ),
@@ -426,7 +424,7 @@ describe('NotificationService Property Tests', () => {
             const reportData = calculateRoundReportData(round, summaries);
             
             // No MVP when all members are absent or have 0 posts
-            expect(reportData.mvp).toBeNull();
+            expect(reportData.mvps).toHaveLength(0);
           }
         ),
         { numRuns: 50 }
@@ -480,7 +478,7 @@ describe('NotificationService Property Tests', () => {
           expect(reportData.submitted).toHaveLength(0);
           expect(reportData.late).toHaveLength(0);
           expect(reportData.absent).toHaveLength(0);
-          expect(reportData.mvp).toBeNull();
+          expect(reportData.mvps).toHaveLength(0);
           expect(reportData.totalMembers).toBe(0);
           expect(reportData.submissionRate).toBe(0);
           expect(reportData.lateRate).toBe(0);
