@@ -3,18 +3,11 @@
  * 매주 일요일 22:00에 전체 멤버 랭킹 발송
  */
 
-import { Client, EmbedBuilder, bold } from 'discord.js';
+import { bold, Client, EmbedBuilder } from 'discord.js';
 import { count, eq, sql } from 'drizzle-orm';
 import logger from '../lib/logger';
-import {
-  getDb,
-  members,
-  posts,
-  activityScores,
-  MemberStatus,
-  ActivityScoreType,
-} from '@blog-study/shared/db';
-import { getConfigValue, ConfigKeys } from '../services/round.service';
+import { activityScores, ActivityScoreType, getDb, members, MemberStatus, posts, } from '@blog-study/shared/db';
+import { ConfigKeys, getConfigValue } from '../services/round.service';
 import { formatKSTDate } from '@blog-study/shared/utils';
 
 /**
@@ -281,10 +274,10 @@ export class WeeklyRanking {
       logger.info(`[WeeklyRanking] Found ${rankings.length} active members`);
 
       // Get ranking channel ID
-      const channelId = await getConfigValue(ConfigKeys.RANKING_CHANNEL);
+      const channelId = await getConfigValue(ConfigKeys.RANKING_CHANNEL_ID);
 
       if (!channelId) {
-        throw new Error('Ranking channel not configured. Please set RANKING_CHANNEL in config.');
+        throw new Error('Ranking channel not configured. Please set RANKING_CHANNEL_ID in config.');
       }
 
       // Create embed

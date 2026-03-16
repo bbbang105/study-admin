@@ -13,7 +13,7 @@ Discord 봇에서 매주 일요일 22:00 KST에 전체 멤버 랭킹을 자동�
 
 ### 스케줄링
 - **실행 주기**: 매주 일요일 22:00 KST (UTC 13:00)
-- **발송 채널**: `#주간-랭킹` (ConfigKeys.RANKING_CHANNEL)
+- **발송 채널**: `#주간-랭킹` (ConfigKeys.RANKING_CHANNEL_ID)
 - **발송 대상**: 전체 활성 멤버
 
 ### 랭킹 데이터
@@ -97,7 +97,7 @@ interface RankingData {
 ```typescript
 export const ConfigKeys = {
   // ... 기존 키
-  RANKING_CHANNEL: 'ranking_channel',
+  RANKING_CHANNEL_ID: 'ranking_channel_id',
 } as const;
 ```
 
@@ -165,7 +165,7 @@ error: Queue weekly-ranking not found
 ### 1. DB에 채널 ID 등록
 ```sql
 INSERT INTO config (key, value)
-VALUES ('ranking_channel', 'CHANNEL_ID_HERE');
+VALUES ('ranking_channel_id', 'CHANNEL_ID_HERE');
 ```
 
 ### 2. 봇 재시작

@@ -4,14 +4,9 @@
  * Requirements: 13.2, 13.6
  */
 
-import {
-  Client,
-  EmbedBuilder,
-  TextChannel,
-  type MessageCreateOptions,
-} from 'discord.js';
-import { getCurationService, type CrawlResult, type CrawledContent } from '../services/curation.service';
-import { getConfigValue, ConfigKeys } from '../services/round.service';
+import { Client, EmbedBuilder, type MessageCreateOptions, TextChannel, } from 'discord.js';
+import { type CrawledContent, type CrawlResult, getCurationService } from '../services/curation.service';
+import { ConfigKeys, getConfigValue } from '../services/round.service';
 import { getKeywordService, type KeywordStat } from '../services/keyword.service';
 import type { CurationItem, CurationSource } from '@blog-study/shared/db';
 
@@ -172,7 +167,7 @@ export class CurationCrawler {
       return null;
     }
 
-    const channelId = await getConfigValue(ConfigKeys.CURATION_CHANNEL);
+    const channelId = await getConfigValue(ConfigKeys.CURATION_CHANNEL_ID);
     
     if (!channelId) {
       console.warn('[CurationCrawler] Curation channel not configured');

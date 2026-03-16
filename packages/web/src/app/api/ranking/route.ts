@@ -142,6 +142,7 @@ export async function GET(request: NextRequest) {
         nickname: members.nickname,
         discordUsername: members.discordUsername,
         profileImageUrl: members.profileImageUrl,
+        resolution: members.resolution,
         postCount: count(posts.id),
       })
       .from(members)
@@ -231,10 +232,10 @@ export async function GET(request: NextRequest) {
 
     // Get activity scores per member: total + web activity breakdown (graceful if table doesn't exist yet)
     let scoreMap = new Map<string, number>();
-    // Keys: total=웹활동합계, message=게시판글, thread=포스트댓글, reaction=게시판댓글 (레거시 키명, 클라이언트 호환)
+    // Keys: total=웹활동합계, message=게시판글, thread=포스트댓글, reaction=게시판댓글, view=포스트조회
     let discordScoreMap = new Map<
       string,
-      { total: number; message: number; thread: number; reaction: number }
+      { total: number; message: number; thread: number; reaction: number; view: number }
     >();
     // Current round scores for rank delta calculation
     let currentRoundScoreMap = new Map<string, number>();
@@ -262,6 +263,7 @@ export async function GET(request: NextRequest) {
             message: Number(s.boardPostScore),
             thread: Number(s.postCommentScore),
             reaction: Number(s.boardCommentScore),
+            view: Number(s.postViewScore),
           },
         ])
       );
@@ -304,6 +306,7 @@ export async function GET(request: NextRequest) {
         nickname: member.nickname,
         discordUsername: member.discordUsername,
         profileImageUrl: member.profileImageUrl,
+        resolution: member.resolution,
         postCount: member.postCount,
         attendanceRate,
         submittedRounds: stats.submittedRounds,
@@ -317,6 +320,7 @@ export async function GET(request: NextRequest) {
           message: 0,
           thread: 0,
           reaction: 0,
+          view: 0,
         },
       };
     });

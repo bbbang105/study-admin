@@ -196,7 +196,8 @@ export async function POST(request: NextRequest) {
     // 출석 상태 업데이트 (현재 회차가 있을 때만)
     if (currentRound) {
       const now = new Date();
-      const endOfDeadline = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
+      // 마감: graceEndDate(월요일) 00:00 KST까지 정상 출석, 이후 지각
+      const endOfDeadline = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
 
       const isLate = now > endOfDeadline;
 

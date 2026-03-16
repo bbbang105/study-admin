@@ -5,8 +5,11 @@
  */
 
 import { Client } from 'discord.js';
+import { and, eq } from 'drizzle-orm';
+import { attendance, AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { getFineService } from '../services/fine.service';
 import { sendFineReminder } from '../handlers/dm-handler';
+import { getCurrentRound } from '../services/round.service';
 import logger from '../lib/logger';
 
 /**
@@ -39,6 +42,63 @@ export class FineReminder {
    */
   isReminding(): boolean {
     return this.isRunning;
+  }
+
+  /**
+   * 지각 기간(월요일)에 아직 PENDING인 멤버에게 독촉 DM 발송
+   * "오늘 안에 제출하면 결석은 피할 수 있어요!"
+   */
+  private async sendGracePeriodNudge(): Promise<void> {
+    if (!this.client) return;
+
+    try {
+      const currentRound = await getCurrentRound().catch(() => null);
+      if (!currentRound) return;
+
+      // 지각 기간인지 확인: 마감일(endDate) < 현재 < 지각 마감일(graceEndDate)
+      const now = new Date();
+      const endDate = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
+      const graceEndDate = new Date(`${currentRound.graceEndDate}T23:59:59.999+09:00`);
+
+      if (now <= endDate || now > graceEndDate) return;
+
+      // PENDING 상태인 active 멤버 조회
+      const db = getDb();
+      const pendingMembers = await db
+        .select({
+          discordId: members.discordId,
+          nickname: members.nickname,
+        })
+        .from(attendance)
+        .innerJoin(members, eq(attendance.memberId, members.id))
+        .where(
+          and(
+            eq(attendance.roundId, currentRound.id),
+            eq(attendance.status, AttendanceStatus.PENDING),
+            eq(members.status, MemberStatus.ACTIVE),
+          )
+        );
+
+      if (pendingMembers.length === 0) return;
+
+      logger.info(`[FineReminder] Sending grace period nudge to ${pendingMembers.length} members`);
+
+      for (const member of pendingMembers) {
+        try {
+          const user = await this.client.users.fetch(member.discordId);
+          await user.send([
+            `✍️ **${member.nickname}님, 아직 시간이 있어요!**`,
+            ``,
+            `${currentRound.roundNumber}회차 마감은 지났지만, 오늘 안에 제출하면 결석은 피할 수 있어요.`,
+            `짧은 글이라도 괜찮아요. 지금 시작해보는 건 어때요?`,
+          ].join('\n'));
+        } catch (err) {
+          logger.error({ discordId: member.discordId, err }, '[FineReminder] Failed to send nudge DM');
+        }
+      }
+    } catch (error) {
+      logger.error({ error }, '[FineReminder] Grace period nudge error');
+    }
   }
 
   /**
@@ -75,6 +135,9 @@ export class FineReminder {
     let failedCount = 0;
 
     try {
+      // 지각 기간이면 PENDING 멤버에게 독촉 DM 발송
+      await this.sendGracePeriodNudge();
+
       const fineService = getFineService();
 
       // Get all unpaid fines with member info

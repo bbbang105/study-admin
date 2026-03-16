@@ -266,7 +266,7 @@ export function buildRoundStartEmbed(round: Round, activeCount: number): EmbedBu
       },
       {
         name: '🕐 지각 마감',
-        value: `${round.graceEndDate} (벌금 3,000원)`,
+        value: `${round.graceEndDate} (벌금 5,000원)`,
         inline: true,
       }
     )
@@ -347,7 +347,7 @@ export class NotificationService {
    * Requirements: 7.3 - Check if announcement channel is configured
    */
   async getAnnouncementChannel(): Promise<TextChannel | null> {
-    return this.fetchTextChannel(ConfigKeys.ANNOUNCEMENT_CHANNEL, 'Announcement');
+    return this.fetchTextChannel(ConfigKeys.ANNOUNCEMENT_CHANNEL_ID, 'Announcement');
   }
 
   /**
@@ -355,8 +355,8 @@ export class NotificationService {
    * 회차 시작/종료 등 공지성 메시지 전용
    */
   async getNoticeChannel(): Promise<TextChannel | null> {
-    // notice_channel 미설정 시 announcement_channel로 폴백
-    const channel = await this.fetchTextChannel(ConfigKeys.NOTICE_CHANNEL, 'Notice');
+    // notice_channel_id 미설정 시 announcement_channel_id로 폴백
+    const channel = await this.fetchTextChannel(ConfigKeys.NOTICE_CHANNEL_ID, 'Notice');
     if (channel) return channel;
     return this.getAnnouncementChannel();
   }

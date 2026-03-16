@@ -13,6 +13,8 @@ interface BotOperation {
   category: string;
   schedule: string;
   running: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export default function BotOperationsPage() {
@@ -58,9 +60,7 @@ export default function BotOperationsPage() {
 
       // Update the operation status to running
       setOperations((prev) =>
-        prev.map((op) =>
-          op.id === operationId ? { ...op, running: true } : op
-        )
+        prev.map((op) => (op.id === operationId ? { ...op, running: true } : op))
       );
 
       // Refresh after a delay to get updated status

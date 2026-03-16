@@ -6,13 +6,20 @@
  * P0 #9 해결: 인메모리 Map → DB 영속화로 변경
  */
 
-import { Client, Events, ButtonBuilder, ButtonStyle, ActionRowBuilder, Interaction, ChannelType } from 'discord.js';
-import { getDb, fines } from '@blog-study/shared/db';
-import { eq } from 'drizzle-orm';
 import {
-  getFineService,
-  formatFineReason,
-} from '../services';
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  Client,
+  Events,
+  Interaction,
+  TextChannel
+} from 'discord.js';
+import { fines, getDb, members, rounds } from '@blog-study/shared/db';
+import { eq } from 'drizzle-orm';
+import { formatFineReason, getFineService, } from '../services';
+import { ConfigKeys, getConfigValue } from '../services/round.service';
 import logger, { serializeError } from '../lib/logger';
 
 /**
@@ -116,6 +123,50 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
       });
     } catch (error) {
       logger.error({ error: serializeError(error) }, 'Failed to send confirmation reply');
+    }
+
+    // 관리자 채널에 납부 알림 발송
+    try {
+      const db = getDb();
+      const [fineRecord] = await db
+        .select({
+          amount: fines.amount,
+          type: fines.type,
+          roundId: fines.roundId,
+        })
+        .from(fines)
+        .where(eq(fines.id, fineId))
+        .limit(1);
+
+      const [member] = await db
+        .select({ name: members.name, nickname: members.nickname })
+        .from(members)
+        .where(eq(members.discordId, discordId))
+        .limit(1);
+
+      if (fineRecord && member) {
+        const [round] = await db
+          .select({ roundNumber: rounds.roundNumber })
+          .from(rounds)
+          .where(eq(rounds.id, fineRecord.roundId))
+          .limit(1);
+
+        const displayName = member.nickname || member.name;
+        const reason = formatFineReason(fineRecord.type as 'late' | 'absent');
+        const roundText = round ? `${round.roundNumber}회차` : '';
+
+        const logChannelId = await getConfigValue(ConfigKeys.BOT_LOG_CHANNEL_ID);
+        if (logChannelId && interaction.client) {
+          const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
+          if (channel && channel.isTextBased() && !channel.isDMBased()) {
+            await (channel as TextChannel).send(
+              `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${fineRecord.amount.toLocaleString()}원 납부를 완료했습니다. 확인해주세요.`
+            );
+          }
+        }
+      }
+    } catch (notifyError) {
+      logger.error({ error: serializeError(notifyError) }, 'Failed to send admin payment notification');
     }
   } catch (error) {
     logger.error({ fineId, error: serializeError(error) }, 'Failed to mark fine as paid');

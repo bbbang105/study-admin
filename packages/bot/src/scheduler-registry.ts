@@ -18,8 +18,8 @@ import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
 import { getScoreService } from './services/score.service';
 import { getAttendanceService, getFineService } from './services';
-import { sendFineNotification } from './handlers/dm-handler';
-import { getDb, members, ActivityScoreType, curationSources } from '@blog-study/shared/db';
+
+import { ActivityScoreType, curationSources, getDb, members } from '@blog-study/shared/db';
 import { extractOgImage } from '@blog-study/shared/utils';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
@@ -67,7 +67,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   const fineService = getFineService();
 
   // 2025-07-01 이후 발행된 글만 수집
-  const POST_CUTOFF_DATE = new Date('2025-07-01T00:00:00Z');
+  const POST_CUTOFF_DATE = new Date('2026-03-15T00:00:00+09:00');
 
   rssPoller.setOnNewPostCallback(async (member, items) => {
     const currentRound = await getCurrentRound().catch(() => null);
@@ -92,8 +92,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         // P0 #3: 출석 상태 업데이트 (제출 또는 지각)
         if (currentRound) {
           // 회차 기간 내 제출 여부 판단
-          // endDate는 YYYY-MM-DD 포맷이며, KST (Asia/Seoul) 기준 23:59:59.999까지를 마감으로 처리
-          const roundEndDate = new Date(`${currentRound.endDate}T23:59:59.999+09:00`);
+          // 마감: graceEndDate(월요일) 00:00 KST까지 정상 출석, 이후 지각
+          const roundEndDate = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
 
           const isLate = item.pubDate > roundEndDate;
 
@@ -109,15 +109,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             }, 'Late submission marked');
 
             // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
-            const fine = await fineService.create(member.id, currentRound.id, 'late');
-            await sendFineNotification(
-              client,
-              member.discordId,
-              fine.id,
-              fine.amount,
-              'late',
-              currentRound.roundNumber
-            );
+            // DM 알림은 보내지 않음 — fine-reminder에서 화요일부터 리마인더로 발송
+            await fineService.create(member.id, currentRound.id, 'late');
           } else {
             // 정상 제출
             // markSubmitted()는 내부에서 PENDING 상태일 때만 SUBMITTED로 변경 (기존 LATE/ABSENT 유지)
@@ -163,17 +156,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       }
 
       // 결석 벌금 생성
+      // DM 알림은 보내지 않음 — fine-reminder에서 화요일부터 리마인더로 발송
       const fine = await fineService.create(attendance.memberId, round.id, 'absent');
-
-      // DM으로 벌금 알림 발송
-      await sendFineNotification(
-        client,
-        member.discordId,
-        fine.id,
-        fine.amount,
-        'absent',
-        round.roundNumber
-      );
 
       logger.info({
         member: member.name,

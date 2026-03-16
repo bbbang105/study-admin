@@ -1,7 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Settings, Calendar, Hash, Users, Save, RefreshCw, Shield, ShieldOff, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Calendar,
+  ChevronDown,
+  Hash,
+  RefreshCw,
+  Save,
+  Settings,
+  Shield,
+  ShieldOff,
+  Users,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +23,9 @@ interface StudySettings {
   studyStartDate: string | null;
   totalRounds: string;
   announcementChannelId: string | null;
-  curationChannelId: string | null;
+  noticeChannelId: string | null;
+  rankingChannelId: string | null;
+  botLogChannelId: string | null;
   adminDiscordIds: string;
   studyRoleId: string | null;
 }
@@ -57,7 +69,9 @@ export default function AdminSettingsPage() {
     studyStartDate: null,
     totalRounds: '10',
     announcementChannelId: null,
-    curationChannelId: null,
+    noticeChannelId: null,
+    rankingChannelId: null,
+    botLogChannelId: null,
     adminDiscordIds: '',
     studyRoleId: null,
   });
@@ -163,9 +177,7 @@ export default function AdminSettingsPage() {
       if (!response.ok) throw new Error('Failed to toggle admin');
 
       setSuccessMessage(
-        isCurrentUserInConfig
-          ? '관리자에서 제거되었습니다.'
-          : '관리자로 추가되었습니다.'
+        isCurrentUserInConfig ? '관리자에서 제거되었습니다.' : '관리자로 추가되었습니다.'
       );
       await fetchSettings();
     } catch (err) {
@@ -183,9 +195,7 @@ export default function AdminSettingsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">스터디 설정</h1>
-          <p className="text-muted-foreground">
-            스터디 운영에 필요한 설정을 관리하세요.
-          </p>
+          <p className="text-muted-foreground">스터디 운영에 필요한 설정을 관리하세요.</p>
         </div>
         <Button onClick={handleSave} disabled={saving} className="self-start sm:self-auto">
           {saving ? (
@@ -199,14 +209,10 @@ export default function AdminSettingsPage() {
 
       {/* Status Messages */}
       {error && (
-        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg">{error}</div>
       )}
       {successMessage && (
-        <div className="bg-success/10 text-success px-4 py-3 rounded-lg">
-          {successMessage}
-        </div>
+        <div className="bg-success/10 text-success px-4 py-3 rounded-lg">{successMessage}</div>
       )}
 
       {/* Current Round Info */}
@@ -249,9 +255,7 @@ export default function AdminSettingsPage() {
               <Calendar className="h-5 w-5" />
               스터디 일정
             </CardTitle>
-            <CardDescription>
-              스터디 시작일과 총 회차를 설정합니다.
-            </CardDescription>
+            <CardDescription>스터디 시작일과 총 회차를 설정합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -263,9 +267,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) => handleInputChange('studyStartDate', e.target.value)}
                 placeholder="YYYY-MM-DD"
               />
-              <p className="text-xs text-muted-foreground">
-                스터디 1회차가 시작되는 월요일 날짜
-              </p>
+              <p className="text-xs text-muted-foreground">스터디 1회차가 시작되는 월요일 날짜</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="totalRounds">총 회차</Label>
@@ -291,13 +293,11 @@ export default function AdminSettingsPage() {
               <Hash className="h-5 w-5" />
               Discord 채널
             </CardTitle>
-            <CardDescription>
-              알림을 보낼 Discord 채널 ID를 설정합니다.
-            </CardDescription>
+            <CardDescription>알림을 보낼 Discord 채널 ID를 설정합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="announcementChannelId">알림 채널 ID</Label>
+              <Label htmlFor="announcementChannelId">새 글 알림 채널 ID</Label>
               <Input
                 id="announcementChannelId"
                 value={formData.announcementChannelId || ''}
@@ -305,19 +305,43 @@ export default function AdminSettingsPage() {
                 placeholder="예: 1234567890123456789"
               />
               <p className="text-xs text-muted-foreground">
-                새 글 알림, 회차 리포트가 발송되는 채널
+                블로그 새 글 알림이 발송되는 채널 (#새-글-알림)
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="curationChannelId">큐레이션 채널 ID</Label>
+              <Label htmlFor="noticeChannelId">공지사항 채널 ID</Label>
               <Input
-                id="curationChannelId"
-                value={formData.curationChannelId || ''}
-                onChange={(e) => handleInputChange('curationChannelId', e.target.value)}
+                id="noticeChannelId"
+                value={formData.noticeChannelId || ''}
+                onChange={(e) => handleInputChange('noticeChannelId', e.target.value)}
                 placeholder="예: 1234567890123456789"
               />
               <p className="text-xs text-muted-foreground">
-                큐레이션 컨텐츠가 공유되는 채널
+                회차 시작/리포트가 발송되는 채널 (#공지사항)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rankingChannelId">주간 랭킹 채널 ID</Label>
+              <Input
+                id="rankingChannelId"
+                value={formData.rankingChannelId || ''}
+                onChange={(e) => handleInputChange('rankingChannelId', e.target.value)}
+                placeholder="예: 1234567890123456789"
+              />
+              <p className="text-xs text-muted-foreground">
+                주간 랭킹이 발송되는 채널 (#주간-랭킹)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="botLogChannelId">봇 로그 채널 ID</Label>
+              <Input
+                id="botLogChannelId"
+                value={formData.botLogChannelId || ''}
+                onChange={(e) => handleInputChange('botLogChannelId', e.target.value)}
+                placeholder="예: 1234567890123456789"
+              />
+              <p className="text-xs text-muted-foreground">
+                벌금 납부 알림 등 봇 운영 로그가 발송되는 채널 (#봇-로그)
               </p>
             </div>
           </CardContent>
@@ -330,9 +354,7 @@ export default function AdminSettingsPage() {
               <Users className="h-5 w-5" />
               관리자 설정
             </CardTitle>
-            <CardDescription>
-              관리자 권한을 가진 Discord 사용자를 설정합니다.
-            </CardDescription>
+            <CardDescription>관리자 권한을 가진 Discord 사용자를 설정합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Admin Members List */}
@@ -349,12 +371,8 @@ export default function AdminSettingsPage() {
                     className="gap-1 py-1 px-2.5"
                   >
                     <span>{member.name}</span>
-                    {member.nickname && (
-                      <span className="opacity-60">({member.nickname})</span>
-                    )}
-                    {member.isEnv && (
-                      <span className="ml-1 text-[10px] opacity-70">환경변수</span>
-                    )}
+                    {member.nickname && <span className="opacity-60">({member.nickname})</span>}
+                    {member.isEnv && <span className="ml-1 text-[10px] opacity-70">환경변수</span>}
                     {member.discordId === currentUserDiscordId && (
                       <span className="ml-1 text-[10px] opacity-70">나</span>
                     )}
@@ -425,9 +443,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) => handleInputChange('studyRoleId', e.target.value)}
                 placeholder="예: 1234567890123456789"
               />
-              <p className="text-xs text-muted-foreground">
-                참가자에게 부여되는 Discord 역할
-              </p>
+              <p className="text-xs text-muted-foreground">참가자에게 부여되는 Discord 역할</p>
             </div>
           </CardContent>
         </Card>
@@ -442,12 +458,12 @@ export default function AdminSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              <strong>스터디 시작일</strong>을 변경하면 회차 날짜가 재계산됩니다.
-              기존 출석 기록에 영향을 줄 수 있으니 주의하세요.
+              <strong>스터디 시작일</strong>을 변경하면 회차 날짜가 재계산됩니다. 기존 출석 기록에
+              영향을 줄 수 있으니 주의하세요.
             </p>
             <p>
-              <strong>Discord ID</strong>는 Discord 개발자 모드를 활성화한 후
-              사용자/채널/역할을 우클릭하여 복사할 수 있습니다.
+              <strong>Discord ID</strong>는 Discord 개발자 모드를 활성화한 후 사용자/채널/역할을
+              우클릭하여 복사할 수 있습니다.
             </p>
             <p>
               설정 변경 후 <strong>저장</strong> 버튼을 눌러야 적용됩니다.

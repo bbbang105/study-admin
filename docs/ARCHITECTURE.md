@@ -14,8 +14,8 @@ graph TB
             CH_RULES["#규칙-벌금<br/>(읽기 전용)"]
         end
         subgraph DCH_BOT["🤖 봇-알림"]
-            CH_RSS["#새-글-알림<br/>announcement_channel"]
-            CH_CURA["#큐레이션-브리핑<br/>curation_channel"]
+            CH_RSS["#새-글-알림<br/>announcement_channel_id"]
+            CH_CURA["#큐레이션-브리핑<br/>curation_channel_id"]
             CH_RANK["#주간-랭킹"]
         end
         subgraph DCH_COMM["💬 커뮤니티"]
