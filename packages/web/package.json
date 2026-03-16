@@ -42,6 +42,7 @@
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.33.0",
     "feedsmith": "^2.9.0",
+    "firebase": "^12.10.0",
     "framer-motion": "^12.35.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.575.0",
