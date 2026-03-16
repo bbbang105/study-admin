@@ -82,6 +82,7 @@ export async function GET(
             memberNickname: members.nickname,
             memberProfileImage: members.profileImageUrl,
             memberDiscordId: members.discordId,
+            anonymousId: boardPollVotes.anonymousId,
             votedAt: boardPollVotes.createdAt,
           })
           .from(boardPollVotes)
@@ -98,10 +99,9 @@ export async function GET(
           if (!votesByOption[vote.optionId]) {
             votesByOption[vote.optionId] = [];
           }
+          // Always add vote to count (for voteCount calculation)
           // Only include voter info if not anonymous poll
-          if (poll.pollType !== 'anonymous' && vote.memberId) {
-            votesByOption[vote.optionId]!.push(vote);
-          }
+          votesByOption[vote.optionId]!.push(vote);
         }
 
         // Check if current user has voted
