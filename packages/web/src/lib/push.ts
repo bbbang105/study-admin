@@ -1,7 +1,7 @@
 import { eq, inArray, and } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
-import { adminMessaging } from '@/lib/firebase/admin';
+import { getAdminMessaging } from '@/lib/firebase/admin';
 import type { MulticastMessage } from 'firebase-admin/messaging';
 
 const { fcmTokens, notificationPreferences } = sharedDb;
@@ -83,8 +83,14 @@ export async function sendPushToMember(
     tokens: tokens.map((t) => t.token),
   };
 
+  const messaging = getAdminMessaging();
+  if (!messaging) {
+    console.warn('[push] Firebase Admin not initialized, skipping push');
+    return { success: 0, failed: tokens.length };
+  }
+
   try {
-    const response = await adminMessaging.sendEachForMulticast(message);
+    const response = await messaging.sendEachForMulticast(message);
 
     // 실패한 토큰 삭제
     if (response.failureCount > 0) {
@@ -171,7 +177,13 @@ export async function sendPushToMembers(
     };
 
     try {
-      const response = await adminMessaging.sendEachForMulticast(message);
+      const messaging = getAdminMessaging();
+      if (!messaging) {
+        totalFailed += tokenList.length;
+        continue;
+      }
+
+      const response = await messaging.sendEachForMulticast(message);
       totalSuccess += response.successCount;
       totalFailed += response.failureCount;
 

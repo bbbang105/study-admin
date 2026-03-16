@@ -1,9 +1,15 @@
 import admin from 'firebase-admin';
 import { getApps } from 'firebase-admin/app';
 
-if (!getApps().length) {
+let initialized = false;
+
+function ensureInitialized(): boolean {
+  if (initialized || getApps().length > 0) {
+    initialized = true;
+    return true;
+  }
+
   try {
-    // 환경변수에서 Service Account 키 각 필드 읽기
     const serviceAccount = {
       type: 'service_account',
       project_id: process.env.FIREBASE_PROJECT_ID,
@@ -26,11 +32,17 @@ if (!getApps().length) {
     });
 
     console.log('[Firebase] Admin SDK initialized successfully');
+    initialized = true;
+    return true;
   } catch (error) {
     console.error('[Firebase] Failed to initialize Firebase Admin:', error);
-    // 에러가 있어도 서버는 계속 실행되도록 함
-    // 대신 adminMessaging 사용 시 에러 처리
+    return false;
   }
 }
 
-export const adminMessaging = admin.messaging();
+export function getAdminMessaging() {
+  if (!ensureInitialized()) {
+    return null;
+  }
+  return admin.messaging();
+}
