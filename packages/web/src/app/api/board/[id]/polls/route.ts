@@ -78,7 +78,7 @@ export async function GET(
           .select({
             optionId: boardPollVotes.optionId,
             memberId: boardPollVotes.memberId,
-            memberName: members.nickname,
+            memberName: members.name,
             memberProfileImage: members.profileImageUrl,
             memberDiscordId: members.discordId,
             votedAt: boardPollVotes.createdAt,
