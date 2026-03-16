@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { revalidatePath } from 'next/cache';
 
 const { boardPolls, boardPollVotes, boardPollOptions } = sharedDb;
 
@@ -102,6 +103,11 @@ export async function POST(
 
       await database.insert(boardPollVotes).values(votesToInsert);
     }
+
+    // Revalidate cache to reflect changes immediately
+    const { id: postId } = await params;
+    revalidatePath(`/board/${postId}`);
+    revalidatePath(`/api/board/${postId}/polls`);
 
     return successResponse({ success: true }, '투표가 완료되었습니다.');
   } catch (error) {

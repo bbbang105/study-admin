@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
@@ -40,7 +40,7 @@ export async function DELETE(
       .from(boardPollVotes)
       .where(eq(boardPollVotes.pollId, pollId));
 
-    if (voteCount && (voteCount.count || 0) > 0) {
+    if (voteCount && (Number(voteCount.count) || 0) > 0) {
       return Errors.badRequest('투표 참여자가 있어 삭제할 수 없습니다.').toResponse();
     }
 
@@ -92,7 +92,7 @@ export async function PATCH(
       .from(boardPollVotes)
       .where(eq(boardPollVotes.pollId, pollId));
 
-    if (voteCount && (voteCount.count || 0) > 0) {
+    if (voteCount && (Number(voteCount.count) || 0) > 0) {
       return Errors.badRequest('투표 참여자가 있어 수정할 수 없습니다.').toResponse();
     }
 
@@ -133,7 +133,7 @@ export async function PATCH(
         }
       }
 
-      return poll;
+      return [poll];
     });
 
     return successResponse(updatedPoll, '투표가 수정되었습니다.');

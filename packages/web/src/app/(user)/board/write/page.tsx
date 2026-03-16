@@ -74,6 +74,9 @@ export default function BoardWritePage() {
     setSubmitting(true);
     setError(null);
 
+    // Debug: log polls data
+    console.log('Submitting polls:', polls);
+
     try {
       const res = await fetch('/api/board', {
         method: 'POST',

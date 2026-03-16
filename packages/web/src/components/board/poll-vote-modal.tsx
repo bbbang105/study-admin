@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +31,20 @@ export function PollVoteModal({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const isMultiple = poll.pollType === 'multiple';
+  // Date polls and multiple polls allow multiple selections
+  const isMultiple = poll.pollType === 'multiple' || poll.pollType === 'date';
+
+  // Format date option to include day of week
+  const formatOptionText = (text: string, pollType: string) => {
+    if (pollType === 'date') {
+      const dateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        const date = new Date(text);
+        return format(date, 'MM월 dd일 (E)', { locale: ko });
+      }
+    }
+    return text;
+  };
 
   const handleOptionClick = (optionId: string) => {
     if (isMultiple) {
@@ -45,11 +60,15 @@ export function PollVoteModal({
 
   const handleVote = async () => {
     if (selectedOptions.length === 0) return;
+    if (submitting) return; // Prevent double submission
 
     setSubmitting(true);
-    await onVote(selectedOptions);
-    setSelectedOptions([]);
-    setSubmitting(false);
+    try {
+      await onVote(selectedOptions);
+      setSelectedOptions([]);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -104,7 +123,7 @@ export function PollVoteModal({
                     )}
                   </div>
                 )}
-                <span className="flex-1 font-normal">{option.optionText}</span>
+                <span className="flex-1 font-normal">{formatOptionText(option.optionText, poll.pollType)}</span>
               </button>
             );
           })}

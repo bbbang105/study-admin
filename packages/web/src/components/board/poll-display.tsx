@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart3, Clock, Users, Lock, Check, X } from 'lucide-react';
+import { BarChart3, Clock, Users, Lock, Check } from 'lucide-react';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
 import { PollVoteModal } from './poll-vote-modal';
@@ -55,6 +55,18 @@ interface PollDisplayProps {
 // Helpers
 // ─────────────────────────────────────────────
 
+function formatDateString(dateStr: string): string {
+  // Check if it's a date string (YYYY-MM-DD format)
+  const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateMatch) {
+    const date = new Date(dateStr);
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = days[date.getDay()];
+    return `${dateMatch[2]}/${dateMatch[3]} (${dayOfWeek})`;
+  }
+  return dateStr;
+}
+
 function formatExpiresAt(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -95,6 +107,8 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
   const [selectedOption, setSelectedOption] = useState<PollOption | null>(null);
 
   const handleVote = async (optionIds: string[]) => {
+    if (voting) return; // Prevent double submission
+
     setVoting(true);
     try {
       const res = await fetch(
@@ -123,7 +137,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     }
   };
 
-  const canVote = !poll.isExpired && !poll.hasVoted;
+  const canVote = !poll.isExpired;
 
   const handleShowVoters = (option: PollOption) => {
     setSelectedOption(option);
@@ -190,7 +204,9 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                     {option.voted && (
                       <Check className="h-4 w-4 text-primary shrink-0" />
                     )}
-                    <span className="font-medium text-sm">{option.optionText}</span>
+                    <span className="font-medium text-sm">
+                      {poll.pollType === 'date' ? formatDateString(option.optionText) : option.optionText}
+                    </span>
                   </div>
                   <span className="text-sm font-semibold tabular-nums">
                     {option.voteCount}표 ({option.percentage}%)
@@ -252,7 +268,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
             disabled={voting}
             className="w-full bg-sky-500 text-white hover:bg-sky-600"
           >
-            {voting ? '투표 중...' : '투표하기'}
+            {voting ? '투표 중...' : poll.hasVoted ? '투표 변경' : '투표하기'}
           </Button>
         )}
 

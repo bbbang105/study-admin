@@ -51,23 +51,15 @@ const POLL_TYPE_OPTIONS = [
   { value: 'anonymous' as const, label: '익명 투표' },
 ];
 
-const EXPIRY_OPTIONS = [
-  { label: '1시간', hours: 1 },
-  { label: '6시간', hours: 6 },
-  { label: '1일', hours: 24 },
-  { label: '3일', hours: 72 },
-  { label: '1주', hours: 168 },
-];
-
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 
 export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
-  const [newPoll, setNewPoll] = useState<Partial<Poll>>({
+  const [newPoll, setNewPoll] = useState<Partial<Poll>>(() => ({
     pollType: 'single',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  });
+  }));
   const [options, setOptions] = useState<string[]>(['', '']);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [dateOptions, setDateOptions] = useState<Date[]>([]);
@@ -155,13 +147,6 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
       return;
     }
     setOptions(options.filter((_, i) => i !== index));
-  };
-
-  const setExpiry = (hours: number) => {
-    setNewPoll({
-      ...newPoll,
-      expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
-    });
   };
 
   return (

@@ -456,6 +456,11 @@ export const boardPolls = pgTable(
   })
 );
 
+// Add unique constraint via raw SQL (need to push manually)
+// CREATE UNIQUE INDEX IF NOT EXISTS unique_active_poll_per_post
+// ON board_polls(post_id)
+// WHERE deleted_at IS NULL;
+
 export const boardPollOptions = pgTable(
   'board_poll_options',
   {

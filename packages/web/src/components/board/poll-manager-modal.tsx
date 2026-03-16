@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2, Edit2, Users, Lock, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Trash2, Edit2, Users, Lock, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -67,14 +67,6 @@ const POLL_TYPE_OPTIONS = [
   { value: 'anonymous' as const, label: '익명 투표' },
 ];
 
-const EXPIRY_OPTIONS = [
-  { label: '1시간', hours: 1 },
-  { label: '6시간', hours: 6 },
-  { label: '1일', hours: 24 },
-  { label: '3일', hours: 72 },
-  { label: '1주', hours: 168 },
-];
-
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
@@ -90,7 +82,6 @@ export function PollManagerModal({
   const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // Load polls when modal opens
   useEffect(() => {
@@ -313,8 +304,15 @@ export function PollManagerModal({
                               value={option.optionText}
                               onChange={(e) => {
                                 const newOptions = [...editingPoll.options];
-                                newOptions[idx] = { ...newOptions[idx], optionText: e.target.value };
-                                setEditingPoll({ ...editingPoll, options: newOptions });
+                                if (newOptions[idx]) {
+                                  newOptions[idx] = {
+                                    ...newOptions[idx],
+                                    optionText: e.target.value,
+                                    id: newOptions[idx].id || crypto.randomUUID(),
+                                    voteCount: newOptions[idx].voteCount || 0,
+                                  };
+                                  setEditingPoll({ ...editingPoll, options: newOptions });
+                                }
                               }}
                               placeholder={`선택지 ${idx + 1}`}
                               className="flex-1 text-sm"

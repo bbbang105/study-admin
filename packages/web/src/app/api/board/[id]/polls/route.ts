@@ -52,19 +52,20 @@ export async function GET(
     }
 
     // Group by poll
-    const groupedPolls: Record<
-      string,
-      typeof polls[0] & {
-        options: Array<(typeof polls[0])['options']>;
-      }
-    > = {};
+    type PollRow = typeof polls[0];
+    type GroupedPoll = Omit<PollRow, 'options'> & {
+      options: Array<PollRow['options']>;
+    };
+
+    const groupedPolls: Record<string, GroupedPoll> = {};
 
     for (const row of polls) {
       if (!groupedPolls[row.id]) {
+        const { options, ...pollWithoutOptions } = row;
         groupedPolls[row.id] = {
-          ...row,
+          ...pollWithoutOptions,
           options: [],
-        };
+        } as GroupedPoll;
       }
       groupedPolls[row.id]!.options.push(row.options);
     }
