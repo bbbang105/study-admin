@@ -90,20 +90,18 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     .groupBy(members.id);
 
   // Get activity scores for each member
-  // P0 #5: 이번 주 기간 점수만 필터링
+  // 이번 주 기간 점수만 필터링 (date 컬럼 사용 — KST 날짜 문자열)
   const weekDates = getWeekDates();
-  const weekStartDate = weekDates.startDate + 'T00:00:00.000+09:00';
-  const weekEndDate = weekDates.endDate + 'T23:59:59.999+09:00';
 
   const scoreStats = await db
     .select({
       memberId: activityScores.memberId,
       totalScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-      discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.DISCORD_MESSAGE}, ${ActivityScoreType.DISCORD_THREAD}, ${ActivityScoreType.DISCORD_REACTION}) THEN ${activityScores.points} ELSE 0 END), 0)`,
+      discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.BOARD_POST}, ${ActivityScoreType.POST_COMMENT}, ${ActivityScoreType.BOARD_COMMENT}, ${ActivityScoreType.POST_VIEW}) THEN ${activityScores.points} ELSE 0 END), 0)`,
     })
     .from(activityScores)
     .where(
-      sql`${activityScores.createdAt} >= ${weekStartDate} AND ${activityScores.createdAt} <= ${weekEndDate}`
+      sql`${activityScores.date} >= ${weekDates.startDate} AND ${activityScores.date} <= ${weekDates.endDate}`
     )
     .groupBy(activityScores.memberId);
 
@@ -174,8 +172,8 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
       const r = top3[i]!;
       const medal = medals[i] ?? '🏅';
       const name = r.nickname || r.name;
-      const discordScore = r.discordScore > 0 ? ` | 디스코드 ${r.discordScore}점` : '';
-      podiumText += `${medal} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${discordScore})\n`;
+      const webActivity = r.discordScore > 0 ? ` | 활동 ${r.discordScore}점` : '';
+      podiumText += `${medal} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${webActivity})\n`;
     }
 
     embed.addFields({
@@ -192,8 +190,8 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
   for (const r of displayRankings) {
     const name = r.nickname || r.name;
     const rankDisplay = r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] ?? `${r.rank}위` : `${r.rank}위`;
-    const discordScore = r.discordScore > 0 ? ` | 디스코드 ${r.discordScore}점` : '';
-    rankingText += `${rankDisplay} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${discordScore})\n`;
+    const webActivity = r.discordScore > 0 ? ` | 활동 ${r.discordScore}점` : '';
+    rankingText += `${rankDisplay} ${bold(name)} - 총 ${r.totalScore}점 (포스트 ${r.postCount}개${webActivity})\n`;
   }
 
   if (rankings.length > 15) {

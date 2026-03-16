@@ -225,17 +225,18 @@ pnpm --filter @blog-study/shared build
 
 봇이 Discord 서버에서 실시간으로 감지하는 이벤트들입니다.
 
-**Activity Handler** (`handlers/activity-handler.ts`):
-Discord 활동을 감지해서 자동으로 점수를 부여합니다.
+**웹 활동 점수** (`web/src/lib/score.ts`):
+웹에서 활동 시 자동으로 점수를 부여합니다. (v2: 디스코드 → 웹 활동으로 전환, 2026-03-16)
 
-| 이벤트 | 조건 | 점수 |
-|--------|------|------|
-| `MessageCreate` (채널) | 10자 이상, 봇 아님, 스터디원 | +2 (DISCORD_MESSAGE) |
-| `MessageCreate` (스레드) | 10자 이상, 봇 아님, 스터디원 | +3 (DISCORD_THREAD) |
-| `MessageReactionAdd` | 봇 아님, 자기 글 아님, 스터디원 | +1 (DISCORD_REACTION) |
+| 활동 | 조건 | 점수 | 일일 상한 |
+|------|------|------|----------|
+| 게시판 글 작성 | 인증된 사용자 | +10 (BOARD_POST) | 20 |
+| 블로그 글 댓글 | 인증된 사용자 | +5 (POST_COMMENT) | 20 |
+| 게시판 댓글 | 인증된 사용자 | +2 (BOARD_COMMENT) | 10 |
+| 글 조회 (타인 글) | 중복 불가, 본인 글 제외 | +3 (POST_VIEW) | 15 |
 
-- Discord ID → `members.discord_id` 매칭으로 스터디원 여부 확인
 - 일일 상한 초과 시 점수 미부여 (원자적 CTE 쿼리로 race condition 방지)
+- 점수 부여 실패해도 본 기능(글/댓글 작성)에는 영향 없음 (fire-and-forget)
 
 **DM Handler** (`handlers/dm-handler.ts`):
 벌금 납부 확인을 위한 DM 대화 처리입니다.

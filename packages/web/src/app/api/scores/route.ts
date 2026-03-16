@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { desc, eq, sql } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       // 타인의 점수 → 관리자만 허용
       const isAdmin = discordId ? await isAdminDiscordId(discordId) : false;
       if (!isAdmin) {
-        return NextResponse.json({ message: '자신의 점수만 조회할 수 있습니다.' }, { status: 403 });
+        return Errors.forbidden('자신의 점수만 조회할 수 있습니다.').toResponse();
       }
     }
 
@@ -61,11 +61,19 @@ export async function GET(request: NextRequest) {
       return successResponse({ records: [], total: 0, totalScore: 0 });
     }
 
+    // 타입 필터 (optional, allowlist 검증)
+    const typeFilter = searchParams.get('type');
+    const validTypes = Object.values(sharedDb.ActivityScoreType) as string[];
+    const safeTypeFilter = typeFilter && validTypes.includes(typeFilter) ? typeFilter : null;
+    const baseConditions = safeTypeFilter
+      ? and(eq(activityScores.memberId, memberId), eq(activityScores.type, safeTypeFilter))
+      : eq(activityScores.memberId, memberId);
+
     // 점수 내역
     const records = await database
       .select()
       .from(activityScores)
-      .where(eq(activityScores.memberId, memberId))
+      .where(baseConditions)
       .orderBy(desc(activityScores.createdAt))
       .limit(limit)
       .offset(offset);
@@ -74,9 +82,9 @@ export async function GET(request: NextRequest) {
     const countResult = await database
       .select({ count: sql<number>`COUNT(*)` })
       .from(activityScores)
-      .where(eq(activityScores.memberId, memberId));
+      .where(baseConditions);
 
-    // 총점
+    // 총점 (필터 무관하게 전체 총점)
     const scoreResult = await database
       .select({ total: sql<number>`COALESCE(SUM(${activityScores.points}), 0)` })
       .from(activityScores)

@@ -13,11 +13,11 @@ export const SCORE_CONFIG: Record<
   { points: number; dailyCap: number }
 > = {
   [ActivityScoreType.BLOG_POST]: { points: 30, dailyCap: 60 },
-  [ActivityScoreType.DISCORD_MESSAGE]: { points: 2, dailyCap: 10 },
-  [ActivityScoreType.DISCORD_THREAD]: { points: 3, dailyCap: 9 },
-  [ActivityScoreType.DISCORD_REACTION]: { points: 1, dailyCap: 5 },
-  [ActivityScoreType.ADMIN_MANUAL]: { points: 0, dailyCap: Infinity },
-  [ActivityScoreType.POST_VIEW]: { points: 2, dailyCap: 10 },
+  [ActivityScoreType.BOARD_POST]: { points: 10, dailyCap: 20 },
+  [ActivityScoreType.POST_COMMENT]: { points: 5, dailyCap: 20 },
+  [ActivityScoreType.BOARD_COMMENT]: { points: 2, dailyCap: 10 },
+  [ActivityScoreType.ADMIN_MANUAL]: { points: 0, dailyCap: Infinity }, // points는 무시됨 — 실제 값은 호출자가 지정
+  [ActivityScoreType.POST_VIEW]: { points: 3, dailyCap: 15 },
 };
 
 function getTodayDateString(): string {

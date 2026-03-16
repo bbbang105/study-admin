@@ -4,8 +4,10 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { successResponse, errorResponse, Errors } from '@/lib/api-error';
+import { grantWebScore } from '@/lib/score';
+import { sanitizeDescription } from '@/lib/sanitize';
 
-const { boardPosts, boardComments } = sharedDb;
+const { boardPosts, boardComments, ActivityScoreType } = sharedDb;
 
 export async function POST(
   request: NextRequest,
@@ -80,6 +82,13 @@ export async function POST(
       .update(boardPosts)
       .set({ commentCount: sql`${boardPosts.commentCount} + 1` })
       .where(eq(boardPosts.id, postId));
+
+    // 게시판 댓글 활동 점수 (+2, 일일 상한 10)
+    grantWebScore(
+      auth.memberId,
+      ActivityScoreType.BOARD_COMMENT,
+      sanitizeDescription(`게시판 댓글: ${content.trim().slice(0, 50)}`),
+    ).catch((err) => console.error('[score] grantWebScore failed:', err));
 
     return successResponse(newComment, '댓글이 작성되었습니다.', 201);
   } catch (error) {

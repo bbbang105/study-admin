@@ -11,7 +11,7 @@
 | `FineType` | `late`, `absent` | 벌금 사유 |
 | `FineStatus` | `unpaid`, `paid`, `waived` | 벌금 납부 |
 | `CurationCategory` | `conference`, `article` | 큐레이션 분류 |
-| `ActivityScoreType` | `blog_post`, `discord_message`, `discord_thread`, `discord_reaction`, `admin_manual`, `post_view` | 활동 점수 |
+| `ActivityScoreType` | `blog_post`, `board_post`, `post_comment`, `board_comment`, `admin_manual`, `post_view` | 활동 점수 |
 | `BoardCategory` | `notice`, `suggestion`, `review`, `knowledge`, `daily`, `etc` | 게시판 카테고리 (const object) |
 
 ## 테이블

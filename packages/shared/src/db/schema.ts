@@ -64,9 +64,9 @@ export type CurationCategoryType = (typeof CurationCategory)[keyof typeof Curati
 
 export const ActivityScoreType = {
   BLOG_POST: 'blog_post',
-  DISCORD_MESSAGE: 'discord_message',
-  DISCORD_THREAD: 'discord_thread',
-  DISCORD_REACTION: 'discord_reaction',
+  BOARD_POST: 'board_post',
+  POST_COMMENT: 'post_comment',
+  BOARD_COMMENT: 'board_comment',
   ADMIN_MANUAL: 'admin_manual',
   POST_VIEW: 'post_view',
 } as const;
@@ -296,8 +296,8 @@ export const activityScores = pgTable(
 );
 
 /**
- * 글 조회 기록 (Post Views)
- * 글 조회 점수 중복 방지용
+ * 포스트 조회 기록 (Post Views)
+ * 포스트 조회 점수 중복 방지용
  */
 export const postViews = pgTable(
   'post_views',

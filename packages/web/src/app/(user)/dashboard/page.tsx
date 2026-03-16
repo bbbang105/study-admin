@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Clock, FileText, Inbox, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Check, Clock, FileText, Inbox, TrendingUp, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton, PageError } from '@/components/ui/page-state';
-import { getDefaultAvatar } from '@/lib/utils';
+import { getDefaultAvatar, getTimeAgo } from '@/lib/utils';
+import { SCORE_TYPE_MAP } from '@/lib/score-config';
 
 interface RoundInfo {
   roundNumber: number;
@@ -38,6 +39,30 @@ interface DashboardData {
   recentPosts: Post[];
   totalMembers: number;
   totalPosts: number;
+}
+
+interface ScoreProgress {
+  type: string;
+  label: string;
+  emoji: string;
+  points: number;
+  earned: number;
+  dailyCap: number;
+}
+
+interface RecentScore {
+  id: string;
+  type: string;
+  points: number;
+  description: string | null;
+  createdAt: string;
+}
+
+interface MyScoreData {
+  totalScore: number;
+  todayScore: number;
+  todayProgress: ScoreProgress[];
+  recentActivity: RecentScore[];
 }
 
 function getGreeting(): { emoji: string; text: string } {
@@ -104,18 +129,25 @@ function getDdayLabel(days: number, isGrace: boolean): string {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [scoreData, setScoreData] = useState<MyScoreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await fetch('/api/dashboard');
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
+        const [dashRes, scoreRes] = await Promise.all([
+          fetch('/api/dashboard'),
+          fetch('/api/scores/my'),
+        ]);
+        if (!dashRes.ok) throw new Error('Failed to fetch dashboard data');
+        const dashResult = await dashRes.json();
+        setData(dashResult.data ?? dashResult);
+
+        if (scoreRes.ok) {
+          const scoreResult = await scoreRes.json();
+          if (scoreResult.success) setScoreData(scoreResult.data);
         }
-        const result = await response.json();
-        setData(result.data ?? result);
       } catch (err) {
         setError('대시보드 데이터를 불러오는데 실패했습니다.');
         console.error(err);
@@ -127,9 +159,9 @@ export default function DashboardPage() {
     fetchDashboard();
   }, []);
 
-  const trackPostView = (postId: string) => {
+  const trackPostView = useCallback((postId: string) => {
     fetch(`/api/posts/${postId}/view`, { method: 'POST' }).catch(() => {});
-  };
+  }, []);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -286,6 +318,132 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* My Activity Score */}
+      {scoreData && (
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="px-4 py-3 pb-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">내 활동 점수</p>
+                  <p className="text-xs text-muted-foreground">
+                    오늘 +{scoreData.todayScore}pt 획득
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold tracking-tight tabular-nums">
+                  {scoreData.totalScore.toLocaleString()}
+                  <span className="text-sm font-normal text-muted-foreground ml-0.5">pt</span>
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 py-4 space-y-4">
+            {/* Today Progress */}
+            <div className="grid grid-cols-2 gap-2">
+              {scoreData.todayProgress.map((p) => {
+                const isFull = p.earned >= p.dailyCap;
+                const pct = Math.min((p.earned / p.dailyCap) * 100, 100);
+                return (
+                  <div
+                    key={p.type}
+                    className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2"
+                  >
+                    <span className="text-sm shrink-0">{p.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-medium truncate">{p.label}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          +{p.points}pt
+                        </span>
+                      </div>
+                      <div
+                        className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden"
+                        role="progressbar"
+                        aria-valuenow={p.earned}
+                        aria-valuemin={0}
+                        aria-valuemax={p.dailyCap}
+                        aria-label={`${p.label} ${p.earned}/${p.dailyCap}`}
+                      >
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isFull ? 'bg-emerald-500' : 'bg-primary'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {p.earned}/{p.dailyCap}
+                        </span>
+                        {isFull && <Check className="h-3 w-3 text-emerald-500" />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Recent Activity */}
+            {scoreData.recentActivity.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    최근 활동
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 text-[10px] text-muted-foreground hover:text-foreground px-2"
+                    asChild
+                  >
+                    <Link href="/profile/activity">
+                      전체보기
+                      <ArrowUpRight className="h-2.5 w-2.5" />
+                    </Link>
+                  </Button>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {scoreData.recentActivity.map((activity) => {
+                    const typeInfo = SCORE_TYPE_MAP.get(activity.type) ?? {
+                      label: activity.type,
+                      emoji: '⭐',
+                    };
+                    const timeAgo = getTimeAgo(activity.createdAt);
+                    return (
+                      <div
+                        key={activity.id}
+                        className="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0"
+                      >
+                        <span className="text-sm shrink-0">{typeInfo.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs truncate text-foreground">
+                            {activity.description || typeInfo.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">{timeAgo}</p>
+                        </div>
+                        <span
+                          className={`text-xs font-bold tabular-nums shrink-0 ${
+                            activity.points >= 0 ? 'text-emerald-600' : 'text-rose-500'
+                          }`}
+                        >
+                          {activity.points >= 0 ? '+' : ''}
+                          {activity.points}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Posts */}
       <Card className="border-border/60 shadow-none">

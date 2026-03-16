@@ -8,7 +8,7 @@ import { loadBotEnv } from '@blog-study/shared';
 import { createBotClient, setupEventHandlers, setupGracefulShutdown, startBot } from './bot';
 import { startJobQueue, stopJobQueue } from './job-queue';
 import { registerAllJobs } from './scheduler-registry';
-import { setupActivityHandler } from './handlers/activity-handler';
+
 import { setupDMHandler } from './handlers/dm-handler';
 import { initNotificationService } from './services/notification.service';
 import { startBotApiServer } from './api-server';
@@ -28,7 +28,6 @@ async function main(): Promise<void> {
 
   // Setup event handlers
   setupEventHandlers(client);
-  setupActivityHandler(client);
   setupDMHandler(client);
   logger.debug('Event handlers configured');
 

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
+  ArrowUpRight,
   Calendar,
   CheckCircle,
   ExternalLink,
@@ -15,6 +17,7 @@ import {
   LogOut,
   User,
   Wallet,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -398,6 +401,27 @@ export default function ProfilePage() {
               </Card>
             </div>
           )}
+
+          {/* Activity History Link */}
+          <Card className="border-border/60 shadow-none">
+            <CardContent className="p-0">
+              <Link
+                href="/profile/activity"
+                className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors rounded-xl"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <p className="text-sm font-semibold">활동 내역</p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  전체보기
+                  <ArrowUpRight className="h-3 w-3" />
+                </span>
+              </Link>
+            </CardContent>
+          </Card>
 
           {/* Edit Profile & Withdraw Buttons */}
           {data.member.onboardingCompleted && (

@@ -12,9 +12,10 @@ import {
 } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
-import { sanitizeTiptapContent } from '@/lib/sanitize';
+import { sanitizeDescription, sanitizeTiptapContent } from '@/lib/sanitize';
+import { grantWebScore } from '@/lib/score';
 
-const { boardPosts, members, boardPolls, boardPollOptions } = sharedDb;
+const { boardPosts, members, boardPolls, boardPollOptions, ActivityScoreType } = sharedDb;
 
 export async function GET(request: NextRequest) {
   try {
@@ -248,6 +249,13 @@ export async function POST(request: NextRequest) {
 
       return post;
     });
+
+    // 게시판 글 작성 활동 점수 (+10, 일일 상한 20)
+    grantWebScore(
+      auth.memberId,
+      ActivityScoreType.BOARD_POST,
+      sanitizeDescription(title.trim().slice(0, 50))
+    ).catch((err) => console.error('[score] grantWebScore failed:', err));
 
     return successResponse(result, '게시글이 작성되었습니다.', 201);
   } catch (error) {

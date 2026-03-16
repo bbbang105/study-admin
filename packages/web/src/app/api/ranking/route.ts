@@ -229,8 +229,9 @@ export async function GET(request: NextRequest) {
     // Calculate streaks
     const streakMap = await calculateStreaks(database);
 
-    // Get activity scores per member: total + discord-only (graceful if table doesn't exist yet)
+    // Get activity scores per member: total + web activity breakdown (graceful if table doesn't exist yet)
     let scoreMap = new Map<string, number>();
+    // Keys: total=웹활동합계, message=게시판글, thread=포스트댓글, reaction=게시판댓글 (레거시 키명, 클라이언트 호환)
     let discordScoreMap = new Map<
       string,
       { total: number; message: number; thread: number; reaction: number }
@@ -243,10 +244,11 @@ export async function GET(request: NextRequest) {
         .select({
           memberId: activityScores.memberId,
           totalScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-          discordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN ('discord_message','discord_thread','discord_reaction') THEN ${activityScores.points} ELSE 0 END), 0)`,
-          messageScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'discord_message' THEN ${activityScores.points} ELSE 0 END), 0)`,
-          threadScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'discord_thread' THEN ${activityScores.points} ELSE 0 END), 0)`,
-          reactionScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'discord_reaction' THEN ${activityScores.points} ELSE 0 END), 0)`,
+          webActivityScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN ('board_post','post_comment','board_comment','post_view') THEN ${activityScores.points} ELSE 0 END), 0)`,
+          boardPostScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'board_post' THEN ${activityScores.points} ELSE 0 END), 0)`,
+          postCommentScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'post_comment' THEN ${activityScores.points} ELSE 0 END), 0)`,
+          boardCommentScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'board_comment' THEN ${activityScores.points} ELSE 0 END), 0)`,
+          postViewScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} = 'post_view' THEN ${activityScores.points} ELSE 0 END), 0)`,
         })
         .from(activityScores)
         .groupBy(activityScores.memberId);
@@ -256,10 +258,10 @@ export async function GET(request: NextRequest) {
         scoreStats.map((s) => [
           s.memberId,
           {
-            total: Number(s.discordScore),
-            message: Number(s.messageScore),
-            thread: Number(s.threadScore),
-            reaction: Number(s.reactionScore),
+            total: Number(s.webActivityScore),
+            message: Number(s.boardPostScore),
+            thread: Number(s.postCommentScore),
+            reaction: Number(s.boardCommentScore),
           },
         ])
       );
@@ -270,7 +272,7 @@ export async function GET(request: NextRequest) {
           .select({
             memberId: activityScores.memberId,
             roundScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-            roundDiscordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN ('discord_message','discord_thread','discord_reaction') THEN ${activityScores.points} ELSE 0 END), 0)`,
+            roundDiscordScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN ('board_post','post_comment','board_comment','post_view') THEN ${activityScores.points} ELSE 0 END), 0)`,
           })
           .from(activityScores)
           .where(
