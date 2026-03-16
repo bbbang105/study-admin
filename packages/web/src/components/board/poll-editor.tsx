@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, BarChart3, Calendar, Clock } from 'lucide-react';
+import { Plus, Trash2, BarChart3, Calendar, Clock, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +64,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [dateOptions, setDateOptions] = useState<Date[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const handleAddPoll = () => {
     // Check if poll already exists
@@ -131,6 +132,95 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
     onPollsChange(polls.filter((_, i) => i !== index));
   };
 
+  const handleEditPoll = (index: number) => {
+    const poll = polls[index];
+    setNewPoll({
+      question: poll.question,
+      pollType: poll.pollType,
+      expiresAt: poll.expiresAt,
+    });
+
+    // Set options based on poll type
+    if (poll.pollType === 'date') {
+      setDateOptions(poll.options.map(dateStr => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      }));
+    } else {
+      setOptions(poll.options);
+    }
+
+    setEditingIndex(index);
+  };
+
+  const handleUpdatePoll = () => {
+    if (editingIndex === null) return;
+
+    // Validation
+    if (!newPoll.question?.trim()) {
+      toast.error('질문을 입력해주세요.');
+      return;
+    }
+
+    if (!newPoll.pollType) {
+      toast.error('투표 유형을 선택해주세요.');
+      return;
+    }
+
+    // For date polls, use selected dates as options
+    let finalOptions: string[];
+    if (newPoll.pollType === 'date') {
+      if (dateOptions.length < 2) {
+        toast.error('날짜는 최소 2개 이상 선택해야 합니다.');
+        return;
+      }
+      finalOptions = dateOptions
+        .sort((a, b) => a.getTime() - b.getTime())
+        .map(date => format(date, 'yyyy-MM-dd'));
+    } else {
+      const validOptions = options.filter((opt) => opt.trim());
+      if (validOptions.length < 2) {
+        toast.error('선택지는 최소 2개 이상이어야 합니다.');
+        return;
+      }
+      finalOptions = validOptions;
+    }
+
+    if (!newPoll.expiresAt) {
+      toast.error('마감시간을 설정해주세요.');
+      return;
+    }
+
+    // Update poll
+    const updatedPolls = [...polls];
+    updatedPolls[editingIndex] = {
+      question: newPoll.question.trim(),
+      pollType: newPoll.pollType,
+      expiresAt: newPoll.expiresAt,
+      options: finalOptions,
+    };
+    onPollsChange(updatedPolls);
+
+    // Reset form
+    setNewPoll({
+      pollType: 'single',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+    setOptions(['', '']);
+    setDateOptions([]);
+    setEditingIndex(null);
+  };
+
+  const handleCancelEdit = () => {
+    setNewPoll({
+      pollType: 'single',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+    setOptions(['', '']);
+    setDateOptions([]);
+    setEditingIndex(null);
+  };
+
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...options];
     newOptions[index] = value;
@@ -152,7 +242,7 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
   return (
     <div className="space-y-4">
       {/* Existing polls */}
-      {polls.length > 0 && (
+      {polls.length > 0 && editingIndex === null && (
         <div className="space-y-3">
           <Label className="text-sm font-medium">투표</Label>
           {polls.map((poll, index) => (
@@ -167,24 +257,41 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
                   ({POLL_TYPE_OPTIONS.find((p) => p.value === poll.pollType)?.label})
                 </span>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleRemovePoll(index)}
-                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditPoll(index)}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemovePoll(index)}
+                  className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* New poll form - only show if no poll exists */}
-      {polls.length === 0 && (
+      {/* New poll form - show if no poll exists OR editing */}
+      {(polls.length === 0 || editingIndex !== null) && (
         <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 p-4">
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              {editingIndex !== null ? '투표 수정' : '새 투표 만들기'}
+            </Label>
+          </div>
+
           {/* Question */}
           <div className="space-y-1.5">
             <Label htmlFor="poll-question" className="text-sm font-medium">
@@ -435,15 +542,27 @@ export function PollEditor({ polls, onPollsChange }: PollEditorProps) {
             </div>
           )}
 
-          {/* Add poll button */}
-          <Button
-            type="button"
-            onClick={handleAddPoll}
-            className="w-full bg-sky-500 text-white hover:bg-sky-600"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            투표 추가
-          </Button>
+          {/* Add/Update poll button */}
+          <div className="flex gap-2">
+            {editingIndex !== null && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelEdit}
+                className="flex-1"
+              >
+                취소
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={editingIndex !== null ? handleUpdatePoll : handleAddPoll}
+              className="flex-1 bg-sky-500 text-white hover:bg-sky-600"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {editingIndex !== null ? '저장' : '투표 추가'}
+            </Button>
+          </div>
         </div>
       </div>
       )}
