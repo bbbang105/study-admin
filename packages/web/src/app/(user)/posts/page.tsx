@@ -1075,7 +1075,7 @@ function PostsContent() {
       }
 
       if (!response.ok) {
-        setSubmitError(result.message || '등록에 실패했습니다.');
+        setSubmitError(result.error?.message || result.message || '등록에 실패했습니다.');
         return;
       }
 

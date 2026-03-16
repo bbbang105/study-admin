@@ -1,38 +1,55 @@
-# 디스코드 활동 점수 시스템 디자인
+# 활동 점수 시스템 디자인
 
 ## 목표
-스터디원 간 경쟁심리 자극 + 스터디 종료 시 Top 3 보상 기반. 블로그 포스팅이 핵심, 디스코드 활동이 보조.
+스터디원 간 경쟁심리 자극 + 스터디 종료 시 Top 3 보상 기반. 블로그 포스팅이 핵심, 웹 활동이 보조.
 
 ## 점수 체계
 
-| 카테고리 | 활동 | 점수 | 일일 상한 |
-|---------|------|------|----------|
-| 블로그 | 포스트 발행 | +30점 | 60점 (2편) |
-| 디스코드 | 메시지 작성 (10자+) | +2점 | 10점 (5개) |
-| 디스코드 | 스레드 댓글 | +3점 | 9점 (3개) |
-| 디스코드 | 리액션 달기 | +1점 | 5점 (5개) |
-| 관리자 | 수동 부여/차감 | 자유 | 없음 |
+| 카테고리 | 활동 | 점수 | 일일 상한 | 부여 위치 |
+|---------|------|------|----------|----------|
+| 블로그 | 포스트 발행 (RSS 수집) | +30점 | 60점 (2편) | 봇 |
+| 웹 | 게시판 글 작성 | +10점 | 20점 (2편) | 웹 API |
+| 웹 | 블로그 글 댓글 작성 | +5점 | 20점 (4개) | 웹 API |
+| 웹 | 게시판 댓글 작성 | +2점 | 10점 (5개) | 웹 API |
+| 웹 | 글 조회 (타인 글) | +3점 | 15점 (5개) | 웹 API |
+| 관리자 | 수동 부여/차감 | 자유 | 없음 | 웹 API |
 
-디스코드 일일 최대: 24점. 블로그 1편(30점) > 디스코드 1일분(24점).
+웹 일일 최대: 65점. 블로그 1편(30점)이 여전히 핵심.
 
-## 어뷰징 방지
-- 봇 메시지/자기 리액션 무시
-- 메시지 최소 10자
-- 일일 상한으로 도배 방지
+## 변경 이력
+
+### v2 (2026-03-16): 디스코드 → 웹 활동으로 전환
+- **제거**: `discord_message` (+2), `discord_thread` (+3), `discord_reaction` (+1) — 봇 이벤트 핸들러 기반
+- **추가**: `board_post` (+10), `post_comment` (+5), `board_comment` (+2) — 웹 API에서 직접 DB write
+- **변경**: `post_view` 2→3점, 상한 10→15점
+- **이유**: 디스코드 활동 추적은 MessageContent Intent 필요 + DB 반영 지연. 웹에서 직접 점수 부여하면 즉시 반영 + 구현 단순화
+
+### v1 (2026-02-26): 최초 설계
+- 디스코드 활동(메시지/스레드/리액션) 기반 점수 체계
 
 ## DB 스키마: activity_scores 테이블
-- id, memberId, type (blog_post/discord_message/discord_thread/discord_reaction/admin_manual)
+- id, memberId, type (`blog_post`/`board_post`/`post_comment`/`board_comment`/`post_view`/`admin_manual`)
 - points, description, date, createdAt
 - memberId+type+date에 대한 일일 상한 체크용 인덱스
 
-## 기능
-1. **봇**: 디스코드 이벤트 감지 → 점수 자동 적립 (일일 상한 체크)
-2. **봇**: 블로그 포스트 RSS 수집 시 → 점수 자동 적립
-3. **웹 관리자**: 수동 점수 부여/차감 + 사유 입력
-4. **웹 사용자/관리자**: 점수 내역 조회
-5. **랭킹**: 기존 랭킹에 총점 반영
+## 어뷰징 방지
+- 본인 글 조회 점수 미부여
+- 같은 글 중복 조회 불가 (post_views UNIQUE)
+- 일일 상한으로 도배 방지
 
-## 구현 범위
-- shared: DB 스키마 + 마이그레이션
-- bot: intent 추가 + 이벤트 핸들러 + RSS 콜백 연동
-- web: 관리자 점수 부여 UI + API, 점수 내역 조회 UI + API, 랭킹 총점 반영
+## 점수 부여 위치
+1. **봇**: 블로그 포스트 RSS 수집 시 → `blog_post` 점수 자동 적립
+2. **웹 API**: 게시판 글 작성 시 → `board_post` 점수 부여 (`/api/board` POST)
+3. **웹 API**: 블로그 글 댓글 작성 시 → `post_comment` 점수 부여 (`/api/posts/[id]/comments` POST)
+4. **웹 API**: 게시판 댓글 작성 시 → `board_comment` 점수 부여 (`/api/board/[id]/comments` POST)
+5. **웹 API**: 글 조회 시 → `post_view` 점수 부여 (`/api/posts/[id]/view` POST)
+6. **웹 관리자**: 수동 점수 부여/차감 + 사유 입력
+
+## 구현 파일
+- `packages/shared/src/db/schema.ts` — ActivityScoreType enum
+- `packages/bot/src/services/score.service.ts` — SCORE_CONFIG (봇용)
+- `packages/web/src/lib/score.ts` — grantWebScore (웹용)
+- `packages/web/src/app/api/board/route.ts` — 게시판 글 점수
+- `packages/web/src/app/api/posts/[id]/comments/route.ts` — 블로그 댓글 점수
+- `packages/web/src/app/api/board/[id]/comments/route.ts` — 게시판 댓글 점수
+- `packages/web/src/app/api/posts/[id]/view/route.ts` — 글 조회 점수

@@ -82,7 +82,10 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 (이벤트 핸들러만) |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
 | `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
-| `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 |
+| `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 (봇: blog_post만) |
+| `packages/web/src/lib/score.ts` | 웹 활동 점수 부여 (board_post, post_comment, board_comment, post_view) |
+| `packages/web/src/lib/score-config.ts` | 활동 점수 타입별 메타데이터 (Single Source of Truth: 라벨, 이모지, 배점, 뱃지 컬러) |
+| `packages/web/src/app/(user)/profile/activity/page.tsx` | 활동 내역 페이지 (타입별 필터, 무한 로드) |
 | `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`, `withCache`) |

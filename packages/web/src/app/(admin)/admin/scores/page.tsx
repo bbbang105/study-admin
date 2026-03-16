@@ -63,43 +63,18 @@ interface MemberScoreSummary {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ACTIVITY_TYPE_LABELS: Record<string, string> = {
-  blog_post: '블로그 포스트',
-  discord_message: '디스코드 메시지',
-  discord_thread: '스레드 댓글',
-  discord_reaction: '리액션',
-  admin_manual: '관리자 부여',
-  post_view: '글 조회',
-};
+import { getScoreTypeLabel, getScoreTypeBadgeClass } from '@/lib/score-config';
 
 const TOP_MEMBERS_COUNT = 5;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getActivityTypeLabel(type: string): string {
-  return ACTIVITY_TYPE_LABELS[type] ?? type;
+  return getScoreTypeLabel(type);
 }
 
 function getActivityTypeBadgeClass(type: string): string {
-  if (type === 'admin_manual') {
-    return 'bg-sky-100 text-sky-700 border-sky-200';
-  }
-  if (type === 'blog_post') {
-    return 'bg-violet-100 text-violet-700 border-violet-200';
-  }
-  if (type === 'discord_message') {
-    return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-  }
-  if (type === 'discord_thread') {
-    return 'bg-blue-100 text-blue-700 border-blue-200';
-  }
-  if (type === 'discord_reaction') {
-    return 'bg-cyan-100 text-cyan-700 border-cyan-200';
-  }
-  if (type === 'post_view') {
-    return 'bg-teal-100 text-teal-700 border-teal-200';
-  }
-  return 'bg-muted text-muted-foreground border-border';
+  return getScoreTypeBadgeClass(type);
 }
 
 function formatDate(dateStr: string): string {

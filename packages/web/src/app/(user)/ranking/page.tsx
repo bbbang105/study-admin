@@ -38,11 +38,11 @@ interface AttendanceRecord {
   status: string;
 }
 
-interface DiscordScore {
+interface WebActivityScore {
   total: number;
-  message: number;
-  thread: number;
-  reaction: number;
+  message: number;  // boardPost
+  thread: number;   // postComment
+  reaction: number; // boardComment
 }
 
 interface RankingMember {
@@ -60,7 +60,7 @@ interface RankingMember {
   attendanceHistory: AttendanceRecord[];
   rankDelta: number;
   totalScore: number;
-  discordScore: DiscordScore;
+  discordScore: WebActivityScore;
 }
 
 interface CurrentRound {
@@ -108,7 +108,7 @@ function getSecondaryText(member: RankingMember, sort: SortKey): string | null {
     case 'score':
       return `${member.postCount}개 · ${member.discordScore.total > 0 ? `활동 ${member.discordScore.total}pt` : ''}`;
     case 'activity':
-      return `메시지 ${member.discordScore.message} · 스레드 ${member.discordScore.thread} · 리액션 ${member.discordScore.reaction}`;
+      return `게시글 ${member.discordScore.message} · 댓글 ${member.discordScore.thread} · 게시판댓글 ${member.discordScore.reaction}`;
     case 'posts':
     default:
       return member.totalScore > 0 ? `${member.totalScore}pt` : null;
@@ -392,11 +392,11 @@ function RankingRow({ member, rank, isMe, myRankGapText, sortBy }: RankingRowPro
       <TableCell className="hidden sm:table-cell py-2.5 whitespace-nowrap">
         {sortBy === 'activity' ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <span title="메시지">메시지 {member.discordScore.message}</span>
+            <span title="게시글">게시글 {member.discordScore.message}</span>
             <span>·</span>
-            <span title="스레드">스레드 {member.discordScore.thread}</span>
+            <span title="댓글">댓글 {member.discordScore.thread}</span>
             <span>·</span>
-            <span title="리액션">리액션 {member.discordScore.reaction}</span>
+            <span title="게시판댓글">게시판댓글 {member.discordScore.reaction}</span>
           </div>
         ) : (
           <div className="flex items-center gap-2">

@@ -251,7 +251,7 @@ export function buildRoundStartEmbed(round: Round, activeCount: number): EmbedBu
     .setTitle(`🚀 ${round.roundNumber}회차 시작!`)
     .setDescription([
       `이번 회차에 **${activeCount}명**이 함께합니다.`,
-      '이번 회차도 화이팅! 좋은 글 기대하고 있을게요 🔥',
+      '이번 회차도 화이팅! 짧은 글이라도 괜찮아요 😌',
     ].join('\n'))
     .addFields(
       {

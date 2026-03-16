@@ -1,16 +1,15 @@
 import { NextRequest } from 'next/server';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
-import { successResponse, errorResponse, Errors } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { grantWebScore } from '@/lib/score';
+import { sanitizeDescription } from '@/lib/sanitize';
 
-const { boardPosts, boardComments } = sharedDb;
+const { boardPosts, boardComments, ActivityScoreType } = sharedDb;
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -44,10 +43,7 @@ export async function POST(
           isSecret: boardComments.isSecret,
         })
         .from(boardComments)
-        .where(and(
-          eq(boardComments.id, parentId),
-          eq(boardComments.postId, postId),
-        ))
+        .where(and(eq(boardComments.id, parentId), eq(boardComments.postId, postId)))
         .limit(1);
 
       if (!parent) return Errors.badRequest('상위 댓글을 찾을 수 없습니다.').toResponse();
@@ -57,7 +53,9 @@ export async function POST(
         const isCommentOwner = parent.memberId === auth.memberId;
         const isPostAuthor = post.memberId === auth.memberId;
         if (!isCommentOwner && !isPostAuthor && !auth.isAdmin) {
-          return Errors.forbidden('비밀 댓글에는 작성자, 글 작성자, 관리자만 답글을 달 수 있습니다.').toResponse();
+          return Errors.forbidden(
+            '비밀 댓글에는 작성자, 글 작성자, 관리자만 답글을 달 수 있습니다.'
+          ).toResponse();
         }
         // 비밀댓글 대댓글은 강제 비밀
         isSecret = true;
@@ -80,6 +78,15 @@ export async function POST(
       .update(boardPosts)
       .set({ commentCount: sql`${boardPosts.commentCount} + 1` })
       .where(eq(boardPosts.id, postId));
+
+    // 게시판 댓글 활동 점수 (+2, 일일 상한 10) — 본인 글 제외
+    if (post.memberId !== auth.memberId) {
+      grantWebScore(
+        auth.memberId,
+        ActivityScoreType.BOARD_COMMENT,
+        sanitizeDescription(content.trim().slice(0, 50))
+      ).catch((err) => console.error('[score] grantWebScore failed:', err));
+    }
 
     return successResponse(newComment, '댓글이 작성되었습니다.', 201);
   } catch (error) {

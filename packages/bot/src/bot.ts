@@ -11,10 +11,6 @@ export function createBotClient(): Client {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.DirectMessages,
-      // MessageContent Intent 없이 버튼/인터랙션 방식으로 동작
-      // 봇이 100개 미만 서버라 Intent 활성화 불가능
-      // GatewayIntentBits.MessageContent,
-      GatewayIntentBits.GuildMessageReactions,
     ],
   });
 
