@@ -8,7 +8,9 @@ export default function ProfileNotificationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>푸시 알림</CardTitle>
+          <CardTitle asChild>
+            <h2>푸시 알림</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <PushNotificationSettings />

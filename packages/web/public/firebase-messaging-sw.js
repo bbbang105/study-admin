@@ -1,5 +1,6 @@
 // Firebase Cloud Messaging Service Worker
-// 이 파일은 Firebase SDK를 통해 로드됩니다
+// Firebase client API key는 설계상 공개 식별자입니다 (Security Rules + 도메인 제한으로 보호).
+// https://firebase.google.com/docs/projects/api-keys#api-keys-for-firebase-are-different
 
 const firebaseConfig = {
   apiKey: "AIzaSyB66yQiuAXxbLbWz_Cf5unRLuNvESo5sYM",
@@ -9,9 +10,6 @@ const firebaseConfig = {
   messagingSenderId: "816173354609",
   appId: "1:816173354609:web:a127a7308cd35cbbaf95d0",
 };
-
-// Firebase Messaging Service Worker는 자동으로 처리됩니다
-// 이 파일은 백그라운드 메시지 수신을 위한 것입니다
 
 self.addEventListener('push', (event) => {
   const payload = event.data?.json();
@@ -34,21 +32,20 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 알림 클릭 처리
+// 알림 클릭 처리 — clickUrl은 반드시 상대 경로만 허용 (오픈 리다이렉트 방지)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.clickUrl || '/dashboard';
+  const rawUrl = event.notification.data?.clickUrl || '/dashboard';
+  const url = rawUrl.startsWith('/') ? rawUrl : '/dashboard';
 
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then((clientList) => {
-      // 이미 열린 창이 있는 경우 포커스
       for (const client of clientList) {
         if (client.url === url && 'focus' in client) {
           return client.focus();
         }
       }
-      // 없으면 새 창 열기
       if (clients.openWindow) {
         return clients.openWindow(url);
       }

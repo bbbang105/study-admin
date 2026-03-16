@@ -6,6 +6,9 @@ import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 
 const { fcmTokens } = sharedDb;
 
+const MAX_TOKEN_LENGTH = 500;
+const MAX_DEVICE_INFO_LENGTH = 200;
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await getBoardAuth();
@@ -13,9 +16,16 @@ export async function POST(request: NextRequest) {
 
     const { token, deviceInfo } = await request.json();
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return Errors.badRequest('FCM 토큰이 필요합니다.').toResponse();
     }
+
+    if (token.length > MAX_TOKEN_LENGTH) {
+      return Errors.badRequest('FCM 토큰이 너무 깁니다.').toResponse();
+    }
+
+    const sanitizedDeviceInfo =
+      typeof deviceInfo === 'string' ? deviceInfo.slice(0, MAX_DEVICE_INFO_LENGTH) : null;
 
     const database = getDb();
 
@@ -24,13 +34,13 @@ export async function POST(request: NextRequest) {
       .values({
         memberId: auth.memberId,
         token,
-        deviceInfo,
+        deviceInfo: sanitizedDeviceInfo,
       })
       .onConflictDoUpdate({
         target: [fcmTokens.memberId, fcmTokens.token],
         set: {
           lastUsedAt: new Date(),
-          deviceInfo,
+          deviceInfo: sanitizedDeviceInfo,
         },
       });
 

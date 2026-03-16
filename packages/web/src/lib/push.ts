@@ -92,27 +92,36 @@ export async function sendPushToMember(
   try {
     const response = await messaging.sendEachForMulticast(message);
 
-    // 실패한 토큰 삭제
-    if (response.failureCount > 0) {
-      const failedTokens: string[] = [];
-      response.responses.forEach((resp: { success: boolean }, idx: number) => {
-        if (!resp.success) {
-          failedTokens.push(tokens[idx]!.token);
-        }
-      });
-
-      if (failedTokens.length > 0) {
-        await database
-          .delete(fcmTokens)
-          .where(inArray(fcmTokens.token, failedTokens));
+    const failedTokens: string[] = [];
+    const succeededTokens: string[] = [];
+    response.responses.forEach((resp: { success: boolean }, idx: number) => {
+      if (resp.success) {
+        succeededTokens.push(tokens[idx]!.token);
+      } else {
+        failedTokens.push(tokens[idx]!.token);
       }
+    });
+
+    // 실패한 토큰 삭제 (memberId 스코프)
+    if (failedTokens.length > 0) {
+      await database
+        .delete(fcmTokens)
+        .where(and(
+          eq(fcmTokens.memberId, memberId),
+          inArray(fcmTokens.token, failedTokens)
+        ));
     }
 
-    // 마지막 사용 시간 업데이트
-    await database
-      .update(fcmTokens)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(fcmTokens.memberId, memberId));
+    // 성공한 토큰만 마지막 사용 시간 업데이트
+    if (succeededTokens.length > 0) {
+      await database
+        .update(fcmTokens)
+        .set({ lastUsedAt: new Date() })
+        .where(and(
+          eq(fcmTokens.memberId, memberId),
+          inArray(fcmTokens.token, succeededTokens)
+        ));
+    }
 
     return {
       success: response.successCount,
@@ -133,10 +142,32 @@ export async function sendPushToMembers(
 ): Promise<{ success: number; failed: number }> {
   const database = getDb();
 
+  // 알림 설정으로 수신 거부한 멤버 필터링
+  const notificationType = payload.data?.type;
+  let filteredMemberIds = memberIds;
+  if (notificationType) {
+    const disabledPrefs = await database
+      .select({ memberId: notificationPreferences.memberId })
+      .from(notificationPreferences)
+      .where(
+        and(
+          inArray(notificationPreferences.memberId, memberIds),
+          eq(notificationPreferences.type, notificationType),
+          eq(notificationPreferences.enabled, false)
+        )
+      );
+    const disabledSet = new Set(disabledPrefs.map((p) => p.memberId));
+    filteredMemberIds = memberIds.filter((id) => !disabledSet.has(id));
+  }
+
+  if (filteredMemberIds.length === 0) {
+    return { success: 0, failed: 0 };
+  }
+
   const tokens = await database
     .select({ token: fcmTokens.token, memberId: fcmTokens.memberId })
     .from(fcmTokens)
-    .where(inArray(fcmTokens.memberId, memberIds));
+    .where(inArray(fcmTokens.memberId, filteredMemberIds));
 
   if (tokens.length === 0) {
     return { success: 0, failed: 0 };
@@ -187,27 +218,36 @@ export async function sendPushToMembers(
       totalSuccess += response.successCount;
       totalFailed += response.failureCount;
 
-      // 실패한 토큰 삭제
-      if (response.failureCount > 0) {
-        const failedTokens: string[] = [];
-        response.responses.forEach((resp: { success: boolean }, idx: number) => {
-          if (!resp.success) {
-            failedTokens.push(tokenList[idx]!);
-          }
-        });
-
-        if (failedTokens.length > 0) {
-          await database
-            .delete(fcmTokens)
-            .where(inArray(fcmTokens.token, failedTokens));
+      const failedTokens: string[] = [];
+      const succeededTokens: string[] = [];
+      response.responses.forEach((resp: { success: boolean }, idx: number) => {
+        if (resp.success) {
+          succeededTokens.push(tokenList[idx]!);
+        } else {
+          failedTokens.push(tokenList[idx]!);
         }
+      });
+
+      // 실패한 토큰 삭제 (memberId 스코프)
+      if (failedTokens.length > 0) {
+        await database
+          .delete(fcmTokens)
+          .where(and(
+            eq(fcmTokens.memberId, memberId),
+            inArray(fcmTokens.token, failedTokens)
+          ));
       }
 
-      // 마지막 사용 시간 업데이트
-      await database
-        .update(fcmTokens)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(fcmTokens.memberId, memberId));
+      // 성공한 토큰만 마지막 사용 시간 업데이트
+      if (succeededTokens.length > 0) {
+        await database
+          .update(fcmTokens)
+          .set({ lastUsedAt: new Date() })
+          .where(and(
+            eq(fcmTokens.memberId, memberId),
+            inArray(fcmTokens.token, succeededTokens)
+          ));
+      }
     } catch (error) {
       console.error(`[push] Failed to send to ${memberId}:`, error);
       totalFailed += tokenList.length;

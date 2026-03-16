@@ -1,5 +1,5 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage, type Messaging } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,13 +10,23 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// 앱이 중복 초기화되지 않도록 체크
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-export const messaging = getMessaging(app);
+let app: FirebaseApp | null = null;
+let messagingInstance: Messaging | null = null;
 
-/**
- * 서비스 워커 등록
- */
+function getApp(): FirebaseApp {
+  if (!app) {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0]!;
+  }
+  return app;
+}
+
+function getMessagingInstance(): Messaging {
+  if (!messagingInstance) {
+    messagingInstance = getMessaging(getApp());
+  }
+  return messagingInstance;
+}
+
 async function registerServiceWorker() {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     try {
@@ -24,7 +34,6 @@ async function registerServiceWorker() {
         '/firebase-messaging-sw.js',
         { type: 'classic' }
       );
-      console.log('[FCM] Service Worker registered:', registration);
       return registration;
     } catch (error) {
       console.error('[FCM] Service Worker registration failed:', error);
@@ -34,13 +43,8 @@ async function registerServiceWorker() {
   return null;
 }
 
-/**
- * FCM 토큰 요청
- * @returns FCM 등록 토큰 또는 null
- */
 export async function requestFCMToken(): Promise<string | null> {
   try {
-    // 서비스 워커 등록
     const registration = await registerServiceWorker();
 
     if (!registration) {
@@ -48,11 +52,10 @@ export async function requestFCMToken(): Promise<string | null> {
       return null;
     }
 
-    const token = await getToken(messaging, {
+    const token = await getToken(getMessagingInstance(), {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
-    console.log('[FCM] Token obtained successfully');
     return token;
   } catch (error) {
     console.error('[FCM] Token request failed:', error);
@@ -60,13 +63,8 @@ export async function requestFCMToken(): Promise<string | null> {
   }
 }
 
-/**
- * 포그라운드 메시지 수신 리스너
- * @param callback 메시지 수신 시 실행할 콜백 함수
- * @returns 구독 취소 함수
- */
 export function onForegroundMessage(
   callback: (payload: { notification?: { title?: string; body?: string } }) => void
 ): () => void {
-  return onMessage(messaging, callback);
+  return onMessage(getMessagingInstance(), callback);
 }

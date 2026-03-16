@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell, MessageCircle, MessageSquare, Megaphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bell, Megaphone, MessageCircle, MessageSquare, SendHorizonal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -14,19 +14,62 @@ interface NotificationPreference {
 
 type IconComponent = React.ComponentType<{ className?: string }>;
 
-const NOTIFICATION_LABELS: Record<string, { label: string; icon: IconComponent; description: string }> = {
-  board_comment: { label: '게시판 댓글', icon: MessageSquare, description: '내 게시글에 댓글이 달릴 때' },
-  board_reply: { label: '게시판 답글', icon: MessageCircle, description: '내 댓글에 답글이 달릴 때' },
-  post_comment: { label: '포스트 댓글', icon: MessageSquare, description: '내 포스트에 댓글이 달릴 때' },
-  post_reply: { label: '포스트 답글', icon: MessageCircle, description: '내 댓글에 답글이 달릴 때' },
+const NOTIFICATION_LABELS: Record<
+  string,
+  { label: string; icon: IconComponent; description: string }
+> = {
+  board_comment: {
+    label: '게시판 댓글',
+    icon: MessageSquare,
+    description: '내 게시글에 댓글이 달릴 때',
+  },
+  board_reply: {
+    label: '게시판 답글',
+    icon: MessageCircle,
+    description: '내 댓글에 답글이 달릴 때',
+  },
+  post_comment: {
+    label: '포스트 댓글',
+    icon: MessageSquare,
+    description: '내 포스트에 댓글이 달릴 때',
+  },
+  post_reply: {
+    label: '포스트 답글',
+    icon: MessageCircle,
+    description: '내 댓글에 답글이 달릴 때',
+  },
   board_notice: { label: '공지사항', icon: Megaphone, description: '새 공지사항이 게시될 때' },
 };
 
 export function PushNotificationSettings() {
-  const { permission, token, requestPermission, unsubscribe, isSupported } =
-    usePushNotification();
+  const { permission, token, requestPermission, unsubscribe, isSupported } = usePushNotification();
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingTest, setSendingTest] = useState<string | null>(null);
+
+  const handleTestPush = async (type: string) => {
+    setSendingTest(type);
+    try {
+      const res = await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || '테스트 알림 전송에 실패했습니다.');
+      }
+      if (data.data?.success > 0) {
+        toast.success('테스트 알림이 전송되었습니다.');
+      } else {
+        toast.error('알림 전송에 실패했습니다. Firebase 설정을 확인해주세요.');
+      }
+    } catch {
+      toast.error('테스트 알림 전송에 실패했습니다.');
+    } finally {
+      setSendingTest(null);
+    }
+  };
 
   // 알림 설정 불러오기
   useEffect(() => {
@@ -52,8 +95,8 @@ export function PushNotificationSettings() {
 
   // 알림 토글
   const handleToggle = async (type: string, enabled: boolean) => {
-    const prev = preferences;
-    setPreferences((prev) => prev.map((p) => (p.type === type ? { ...p, enabled } : p)));
+    const snapshot = preferences;
+    setPreferences((current) => current.map((p) => (p.type === type ? { ...p, enabled } : p)));
 
     try {
       const res = await fetch('/api/notification-preferences', {
@@ -68,17 +111,15 @@ export function PushNotificationSettings() {
       }
 
       toast.success(enabled ? '알림이 켜졌습니다.' : '알림이 꺼졌습니다.');
-    } catch (err) {
-      setPreferences(prev); // 롤백
+    } catch {
+      setPreferences(snapshot);
       toast.error('설정 저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
   if (!isSupported) {
     return (
-      <div className="text-sm text-muted-foreground">
-        이 브라우저는 알림을 지원하지 않습니다.
-      </div>
+      <div className="text-sm text-muted-foreground">이 브라우저는 알림을 지원하지 않습니다.</div>
     );
   }
 
@@ -100,7 +141,7 @@ export function PushNotificationSettings() {
           onClick={isPushEnabled ? unsubscribe : requestPermission}
           variant={isPushEnabled ? 'outline' : 'default'}
         >
-          <Bell className="w-4 h-4 mr-2" />
+          <Bell className="w-4 h-4 mr-2" aria-hidden="true" />
           {isPushEnabled ? '알림 끄기' : '알림 켜기'}
         </Button>
       </div>
@@ -111,11 +152,17 @@ export function PushNotificationSettings() {
           <h3 className="text-sm font-medium">알림 종류</h3>
 
           {loading ? (
-            <div className="text-sm text-muted-foreground">로딩 중...</div>
+            <div className="text-sm text-muted-foreground" aria-live="polite">
+              로딩 중…
+            </div>
           ) : (
             <div className="space-y-3">
               {preferences.map((pref) => {
-                const { label, icon: Icon, description } = NOTIFICATION_LABELS[pref.type] || {
+                const {
+                  label,
+                  icon: Icon,
+                  description,
+                } = NOTIFICATION_LABELS[pref.type] || {
                   label: pref.type,
                   icon: Bell,
                   description: '',
@@ -128,17 +175,35 @@ export function PushNotificationSettings() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4" aria-hidden="true" />
                       </div>
                       <div>
-                        <div className="text-sm font-medium">{label}</div>
+                        <div id={`label-${pref.type}`} className="text-sm font-medium">
+                          {label}
+                        </div>
                         <div className="text-xs text-muted-foreground">{description}</div>
                       </div>
                     </div>
-                    <Switch
-                      checked={pref.enabled}
-                      onCheckedChange={(checked) => handleToggle(pref.type, checked)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        disabled={!pref.enabled || sendingTest === pref.type}
+                        onClick={() => handleTestPush(pref.type)}
+                        aria-label={`${label} 테스트 알림 보내기`}
+                      >
+                        <SendHorizonal
+                          className={`h-4 w-4 ${sendingTest === pref.type ? 'motion-safe:animate-pulse' : ''}`}
+                          aria-hidden="true"
+                        />
+                      </Button>
+                      <Switch
+                        checked={pref.enabled}
+                        onCheckedChange={(checked) => handleToggle(pref.type, checked)}
+                        aria-labelledby={`label-${pref.type}`}
+                      />
+                    </div>
                   </div>
                 );
               })}

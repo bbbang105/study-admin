@@ -13,6 +13,7 @@
 | `CurationCategory` | `conference`, `article` | 큐레이션 분류 |
 | `ActivityScoreType` | `blog_post`, `board_post`, `post_comment`, `board_comment`, `admin_manual`, `post_view` | 활동 점수 |
 | `BoardCategory` | `notice`, `suggestion`, `review`, `knowledge`, `daily`, `etc` | 게시판 카테고리 (const object) |
+| `NotificationType` | `board_comment`, `board_reply`, `post_comment`, `post_reply`, `board_notice` | 알림 유형 (const object) |
 
 ## 테이블
 
@@ -133,6 +134,28 @@
 | `deleted_at` | timestamptz | nullable (soft delete) |
 | 인덱스: `post_id`, `member_id`, `parent_id` |
 
+### fcm_tokens
+| 컬럼 | 타입 | 비고 |
+|------|------|------|
+| `id` | uuid PK | defaultRandom |
+| `member_id` | uuid FK → members | not null |
+| `token` | text | not null |
+| `device_info` | text | nullable |
+| `last_used_at` | timestamptz | defaultNow |
+| unique constraint: `(member_id, token)` |
+| 인덱스: `member_id` |
+
+### notification_preferences
+| 컬럼 | 타입 | 비고 |
+|------|------|------|
+| `id` | uuid PK | defaultRandom |
+| `member_id` | uuid FK → members | not null |
+| `type` | varchar(30) | NotificationType, not null |
+| `enabled` | boolean | default true |
+| `updated_at` | timestamptz | defaultNow |
+| unique constraint: `(member_id, type)` |
+| 인덱스: `member_id` |
+
 ### keywords, curation_sources, curation_items
 - `keywords`: keyword(unique) + frequency + last_updated
 - `curation_sources`: url(unique) + name + category + rss_url + tags[] + is_active
@@ -155,8 +178,10 @@ members ──< board_posts (member_id)
 members ──< board_comments (member_id)
 board_posts ──< board_comments (post_id)
 board_comments ──< board_comments (parent_id, self-ref)
+members ──< fcm_tokens (member_id)
+members ──< notification_preferences (member_id)
 ```
 
 ## 타입 Export
 
-모든 테이블에 `Type`/`NewType` export 있음 (예: `Member`/`NewMember`, `Post`/`NewPost`, `BoardPost`/`NewBoardPost`, `BoardComment`/`NewBoardComment`)
+모든 테이블에 `Type`/`NewType` export 있음 (예: `Member`/`NewMember`, `Post`/`NewPost`, `BoardPost`/`NewBoardPost`, `BoardComment`/`NewBoardComment`, `FcmToken`/`NewFcmToken`, `NotificationPreference`/`NewNotificationPreference`)

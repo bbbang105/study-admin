@@ -21,7 +21,7 @@ deploy/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐), Sentry (에러 모니터링) |
-| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Sentry (에러 모니터링) |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Firebase (FCM 푸시 알림), Sentry (에러 모니터링) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | 배포 | AWS EC2 Docker (bot), Vercel (web), Supabase (DB + Auth) |
@@ -104,6 +104,14 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
+| `packages/web/src/lib/firebase/admin.ts` | Firebase Admin SDK (lazy 초기화, `getAdminMessaging()`) |
+| `packages/web/src/lib/firebase/client.ts` | Firebase 클라이언트 (FCM 토큰 요청, 포그라운드 메시지) |
+| `packages/web/src/lib/push.ts` | FCM 푸시 전송 (`sendPushToMember`, `sendPushToMembers`) |
+| `packages/web/src/hooks/use-push-notification.ts` | 푸시 알림 훅 (권한 관리, 토큰 복원, 구독/해제) |
+| `packages/web/src/components/settings/push-notification-settings.tsx` | 알림 설정 UI (타입별 토글 + 테스트 전송) |
+| `packages/web/src/app/api/push/test/route.ts` | 테스트 푸시 알림 API (레이트 리밋 5/min) |
+| `packages/web/src/app/api/notification-preferences/route.ts` | 알림 타입별 설정 CRUD API |
+| `packages/web/public/firebase-messaging-sw.js` | FCM 서비스 워커 (백그라운드 알림 수신) |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
@@ -208,6 +216,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - `NEXT_PUBLIC_SENTRY_DSN` (Sentry 에러 모니터링, web 전용)
 - `SENTRY_DSN` (Sentry 에러 모니터링, bot 전용)
 - `SENTRY_AUTH_TOKEN` (소스맵 업로드, Vercel/CI에서만 설정)
+- `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL` 등 (Firebase Admin, 서버용)
+- `NEXT_PUBLIC_FIREBASE_*` (Firebase 클라이언트, `API_KEY`/`AUTH_DOMAIN`/`PROJECT_ID`/`MESSAGING_SENDER_ID`/`APP_ID`/`VAPID_KEY`)
 
 **env 파일 위치** (2곳):
 - `.env.local` — 루트 (shared/bot용)

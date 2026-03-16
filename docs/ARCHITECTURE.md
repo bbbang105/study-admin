@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-16 (v8)
+> 최종 업데이트: 2026-03-17 (v9)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -41,7 +41,7 @@ graph TB
 
     subgraph DB["Supabase · PostgreSQL"]
         AUTH["Supabase Auth<br/>Discord OAuth"]
-        TABLES["members · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · board_posts · board_comments"]
+        TABLES["members · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · board_posts · board_comments<br/>fcm_tokens · notification_preferences"]
         PGBOSS["pg-boss<br/>Job Queue"]
     end
 
@@ -51,7 +51,8 @@ graph TB
         PTR["Pull-to-Refresh<br/>커스텀 터치 제스처"]
         BANNER["Notice Banner<br/>글로벌 공지 배너"]
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
-        API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board · ..."]
+        FCM["FCM Push<br/>firebase-admin · firebase/messaging<br/>서비스 워커"]
+        API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board<br/>/api/push · /api/notification-preferences"]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
         SENTRY_WEB["Sentry SDK<br/>에러 모니터링 + PII 스크러빙"]
     end
@@ -76,6 +77,12 @@ graph TB
     PAGES --> API
     SENTRY_WEB -->|tunnel /api/_sentry-tunnel| SENTRY
     SENTRY_BOT -->|HTTPS| SENTRY
+    subgraph Firebase["Firebase Cloud Messaging"]
+        FCM_CLOUD["FCM Server<br/>푸시 알림 전송"]
+    end
+
+    FCM -->|firebase-admin| FCM_CLOUD
+    FCM_CLOUD -->|push| Browser
     SENTRY -->|Alert| DISCORD_WH
 ```
 
@@ -98,6 +105,7 @@ mindmap
       sonner Toast
       Framer Motion 애니메이션
       Sentry 에러 모니터링
+      Firebase FCM 푸시 알림
       PWA 홈 화면 추가
       Supabase Auth
         Discord OAuth
@@ -122,6 +130,7 @@ mindmap
 | **Web** | Next.js App Router + shadcn/ui | App Router의 서버 컴포넌트/API Route 통합. shadcn/ui는 커스터마이징 자유도 최고 |
 | **Bot** | discord.js v14 | 사실상 유일한 선택지. 안정적이고 문서 풍부 |
 | **Job Queue** | pg-boss | PostgreSQL 기반으로 추가 인프라 불필요. 트랜잭션 보장, 재시도/동시성 관리 |
+| **Push** | Firebase Cloud Messaging | 무료 무제한 FCM. 서비스 워커 기반 백그라운드 알림. PWA 환경에 최적화 |
 | **Monorepo** | pnpm workspace | 빠른 설치, 엄격한 의존성 관리. shared 패키지로 스키마/타입 공유 |
 
 상세 결정 근거: [`docs/26-03-06-tech-decisions.md`](./26-03-06-tech-decisions.md)
@@ -239,6 +248,7 @@ flowchart TD
 | User | `/members` | 멤버 목록 | 로그인 필수 |
 | User | `/members/[id]` | 멤버 상세 | 로그인 필수 |
 | User | `/profile` | 프로필 | 로그인 필수 |
+| User | `/profile/notifications` | 알림 설정 (푸시 토글 + 타입별 설정 + 테스트) | 로그인 필수 |
 | Admin | `/admin` | 관리자 대시보드 | 관리자 전용 |
 | Admin | `/admin/members` | 멤버 관리 | 관리자 전용 |
 | Admin | `/admin/rounds` | 회차 관리 | 관리자 전용 |
@@ -289,6 +299,8 @@ erDiagram
     members ||--o{ post_views : "조회"
     members ||--o{ board_posts : "게시글"
     members ||--o{ board_comments : "댓글"
+    members ||--o{ fcm_tokens : "FCM토큰"
+    members ||--o{ notification_preferences : "알림설정"
     rounds ||--o{ posts : "회차"
     rounds ||--o{ attendance : "회차"
     rounds ||--o{ fines : "회차"
@@ -383,6 +395,21 @@ erDiagram
         text[] tags
     }
 
+    fcm_tokens {
+        uuid id PK
+        uuid member_id FK
+        text token
+        text device_info
+        timestamp last_used_at
+    }
+
+    notification_preferences {
+        uuid id PK
+        uuid member_id FK
+        varchar type
+        boolean enabled
+    }
+
     curation_items {
         uuid id PK
         uuid source_id FK
@@ -409,7 +436,8 @@ erDiagram
 - **공지 배너**: 전역 상단 스카이블루 배너 (`NoticeBanner`), 관리자가 공지 글에서 활성화 (1개만), 접기/닫기 localStorage 유지
 - **Dialog/AlertDialog**: Safari PWA 스크롤 대응 — `flex flex-col` + `inset-y-0 my-auto` 센터링 + `overflow-y-auto` (grid/transform 방식은 Safari에서 클리핑 발생)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
-- **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원, 서비스 워커 없음 (lightweight)
+- **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원
+- **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (`firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지) 개별 설정, 테스트 알림 전송 지원
 
 ## 스케줄러 (pg-boss)
 
@@ -511,5 +539,7 @@ graph LR
 | Tiptap | 3.20 | Rich text editor |
 | shadcn/ui | latest | UI components |
 | Framer Motion | 12.x | Landing page animations |
+| firebase | 11.x | FCM client (토큰 발급, 포그라운드 메시지) |
+| firebase-admin | 13.x | FCM server (푸시 전송) |
 | @sentry/nextjs | 10.43 | Web error monitoring + source maps |
 | @sentry/node | 10.43 | Bot error monitoring |
