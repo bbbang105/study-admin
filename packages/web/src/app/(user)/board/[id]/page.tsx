@@ -186,7 +186,8 @@ export default function BoardDetailPage() {
   // Refresh polls after voting
   const refreshPolls = useCallback(async () => {
     try {
-      const res = await fetch(`/api/board/${postId}/polls`);
+      // Add cache busting timestamp to bypass browser cache
+      const res = await fetch(`/api/board/${postId}/polls?t=${Date.now()}`);
       if (!res.ok) return;
       const result = await res.json();
       setPolls(result.data.polls || []);

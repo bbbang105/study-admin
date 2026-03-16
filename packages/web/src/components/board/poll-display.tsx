@@ -111,6 +111,11 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     if (voting) return; // Prevent double submission
 
     setVoting(true);
+
+    // Optimistic: Immediately refresh to show latest data from server
+    // This bypasses browser cache with timestamp
+    onRefresh();
+
     try {
       const res = await fetch(
         `/api/board/${postId}/polls/${poll.id}/vote`,
@@ -125,13 +130,18 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
 
       if (!res.ok) {
         toast.error(result.message || result.error?.message || '투표에 실패했습니다.');
+        // Refresh again to revert optimistic update
+        onRefresh();
         return;
       }
 
       toast.success(result.message || '투표가 완료되었습니다.');
+      // Final refresh to ensure data is synced
       onRefresh();
     } catch {
       toast.error('서버 오류가 발생했습니다.');
+      // Refresh again to revert optimistic update
+      onRefresh();
     } finally {
       setVoting(false);
       setVoteModalOpen(false);
