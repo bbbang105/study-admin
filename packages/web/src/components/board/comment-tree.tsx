@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Lock, Reply, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+import { Check, Loader2, Lock, Pencil, Reply, Trash2, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,17 +121,14 @@ function InlineEditForm({ comment, onSaved, onCancel }: InlineEditFormProps) {
     setError(null);
 
     try {
-      const res = await fetch(
-        `/api/board/${comment.postId}/comments/${comment.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: editContent.trim(),
-            isSecret: editSecret,
-          }),
-        }
-      );
+      const res = await fetch(`/api/board/${comment.postId}/comments/${comment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: editContent.trim(),
+          isSecret: editSecret,
+        }),
+      });
 
       const result = await res.json();
 
@@ -170,7 +167,6 @@ function InlineEditForm({ comment, onSaved, onCancel }: InlineEditFormProps) {
         rows={2}
         className="resize-none text-sm leading-relaxed focus-visible:ring-sky-500/30 focus-visible:border-sky-400 dark:focus-visible:border-sky-600"
         disabled={saving}
-        autoFocus
       />
 
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -261,20 +257,23 @@ function CommentItem({
   const canEdit = isOwner && !node.isDeleted && !node.isMasked;
   const canDelete = (isOwner || isAdmin) && !node.isDeleted;
   // 비밀댓글 답글: 본인/글작성자/관리자만 가능 (마스킹된 건 볼 수 없으므로 불가)
-  const canReply = !node.isDeleted && !node.isMasked && depth < 5
-    && (!node.isSecret || isOwner || isPostAuthor || isAdmin);
+  const canReply =
+    !node.isDeleted &&
+    !node.isMasked &&
+    depth < 5 &&
+    (!node.isSecret || isOwner || isPostAuthor || isAdmin);
 
   const displayName = node.isDeleted
     ? '알 수 없음'
     : node.isMasked
-    ? '익명'
-    : node.memberName || '알 수 없음';
+      ? '익명'
+      : node.memberName || '알 수 없음';
 
   const avatarSeed = node.isDeleted
     ? 'deleted'
     : node.isMasked
-    ? 'anonymous'
-    : node.memberDiscordId || node.memberName;
+      ? 'anonymous'
+      : node.memberDiscordId || node.memberName;
 
   // 시각적 인덴트: 최대 5단계, 단 깊은 뎁스는 좁은 간격 (모바일 깨짐 방지)
   const indentDepth = Math.min(depth, 5);
@@ -283,10 +282,9 @@ function CommentItem({
     e?.preventDefault();
     setDeleting(true);
     try {
-      const res = await fetch(
-        `/api/board/${node.postId}/comments/${node.id}`,
-        { method: 'DELETE' }
-      );
+      const res = await fetch(`/api/board/${node.postId}/comments/${node.id}`, {
+        method: 'DELETE',
+      });
       if (!res.ok) {
         const result = await res.json();
         console.error(result.message || '댓글 삭제에 실패했습니다.');
@@ -365,7 +363,6 @@ function CommentItem({
         {/* Reply form */}
         {replyOpen && !editing && (
           <div className="mt-2 mb-3 rounded-lg border border-border/50 bg-muted/20 p-2 sm:p-3 ml-9">
-
             <p className="text-xs font-medium text-muted-foreground mb-2">
               @{displayName}에게 답글
             </p>
@@ -493,12 +490,7 @@ function CommentContent({
               {displayName}
             </Link>
           ) : (
-            <span
-              className={cn(
-                'text-sm font-medium',
-                node.isDeleted && 'text-muted-foreground'
-              )}
-            >
+            <span className={cn('text-sm font-medium', node.isDeleted && 'text-muted-foreground')}>
               {displayName}
             </span>
           )}
@@ -531,8 +523,7 @@ function CommentContent({
             className={cn(
               'text-sm leading-relaxed break-words whitespace-pre-wrap',
               node.isDeleted && 'italic text-muted-foreground text-xs',
-              node.isMasked &&
-                'italic text-muted-foreground text-xs bg-muted/40 rounded px-2 py-1'
+              node.isMasked && 'italic text-muted-foreground text-xs bg-muted/40 rounded px-2 py-1'
             )}
           >
             {node.content}

@@ -41,7 +41,7 @@ graph TB
 
     subgraph DB["Supabase · PostgreSQL"]
         AUTH["Supabase Auth<br/>Discord OAuth"]
-        TABLES["members · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · board_posts · board_comments<br/>fcm_tokens · notification_preferences"]
+        TABLES["members · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · post_comments · board_posts<br/>board_comments · fcm_tokens · notification_preferences"]
         PGBOSS["pg-boss<br/>Job Queue"]
     end
 
@@ -297,6 +297,7 @@ erDiagram
     members ||--o{ fines : "벌금"
     members ||--o{ activity_scores : "활동점수"
     members ||--o{ post_views : "조회"
+    members ||--o{ post_comments : "포스트댓글"
     members ||--o{ board_posts : "게시글"
     members ||--o{ board_comments : "댓글"
     members ||--o{ fcm_tokens : "FCM토큰"
@@ -304,6 +305,7 @@ erDiagram
     rounds ||--o{ posts : "회차"
     rounds ||--o{ attendance : "회차"
     rounds ||--o{ fines : "회차"
+    posts ||--o{ post_comments : "포스트댓글"
     posts ||--o{ post_views : "조회기록"
     curation_sources ||--o{ curation_items : "수집"
     board_posts ||--o{ board_comments : "댓글"
@@ -367,6 +369,15 @@ erDiagram
         uuid id PK
         uuid member_id FK
         uuid post_id FK
+    }
+
+    post_comments {
+        uuid id PK
+        uuid post_id FK
+        uuid member_id FK
+        uuid parent_id FK
+        text content
+        boolean is_secret
     }
 
     board_posts {

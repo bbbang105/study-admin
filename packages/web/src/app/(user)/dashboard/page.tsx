@@ -224,6 +224,10 @@ export default function DashboardPage() {
         : 'text-primary'
     : '';
 
+  const attendanceChip = round
+    ? getAttendanceChip(round.myAttendanceStatus, round.isGracePeriod)
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
@@ -280,19 +284,16 @@ export default function DashboardPage() {
             </div>
 
             {/* My Attendance Status */}
-            {(() => {
-              const chip = getAttendanceChip(round.myAttendanceStatus, round.isGracePeriod);
-              return (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">나의 출석</span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${chip.className}`}
-                  >
-                    {chip.icon} {chip.label}
-                  </span>
-                </div>
-              );
-            })()}
+            {attendanceChip && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">나의 출석</span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${attendanceChip.className}`}
+                >
+                  {attendanceChip.icon} {attendanceChip.label}
+                </span>
+              </div>
+            )}
 
             {/* Submission Progress */}
             <div className="space-y-2">
