@@ -437,7 +437,7 @@ erDiagram
 - **Dialog/AlertDialog**: Safari PWA 스크롤 대응 — `flex flex-col` + `inset-y-0 my-auto` 센터링 + `overflow-y-auto` (grid/transform 방식은 Safari에서 클리핑 발생)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
 - **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원
-- **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (`firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지) 개별 설정, 테스트 알림 전송 지원
+- **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (API route `/api/firebase-sw` → rewrite `/firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지) 개별 설정, 테스트 알림 전송 지원. 푸시/점수 등 백그라운드 작업은 `after()` from `next/server` 사용
 
 ## 스케줄러 (pg-boss)
 

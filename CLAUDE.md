@@ -61,6 +61,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
 - **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
 - **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 외부 URL fetch 시 `isSafeUrl()` SSRF 체크
+- **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
+- **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`)
 
 ## 핵심 파일 위치
 
@@ -111,7 +113,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/components/settings/push-notification-settings.tsx` | 알림 설정 UI (타입별 토글 + 테스트 전송) |
 | `packages/web/src/app/api/push/test/route.ts` | 테스트 푸시 알림 API (레이트 리밋 5/min) |
 | `packages/web/src/app/api/notification-preferences/route.ts` | 알림 타입별 설정 CRUD API |
-| `packages/web/public/firebase-messaging-sw.js` | FCM 서비스 워커 (백그라운드 알림 수신) |
+| `packages/web/src/app/api/firebase-sw/route.ts` | FCM 서비스 워커 동적 서빙 (rewrite: `/firebase-messaging-sw.js` → `/api/firebase-sw`) |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
