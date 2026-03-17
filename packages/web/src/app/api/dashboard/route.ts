@@ -1,4 +1,4 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -28,13 +28,15 @@ export async function GET() {
     const discordIdentity = user.identities?.find((i) => i.provider === 'discord');
     const discordId = discordIdentity?.id;
     let currentUserNickname: string | null = null;
+    let currentMemberId: string | null = null;
     if (discordId) {
       const [me] = await database
-        .select({ nickname: members.nickname, discordUsername: members.discordUsername })
+        .select({ id: members.id, nickname: members.nickname, discordUsername: members.discordUsername })
         .from(members)
         .where(eq(members.discordId, discordId))
         .limit(1);
       currentUserNickname = me?.nickname || me?.discordUsername || null;
+      currentMemberId = me?.id ?? null;
     }
 
     // Get current round
@@ -83,6 +85,22 @@ export async function GET() {
         .where(eq(members.status, MemberStatus.ACTIVE));
       const totalActiveMembers = activeMembersResult?.count ?? 0;
 
+      // Get current user's attendance status for this round
+      let myAttendanceStatus: string | null = null;
+      if (currentMemberId) {
+        const [myAttendance] = await database
+          .select({ status: attendance.status })
+          .from(attendance)
+          .where(
+            and(
+              eq(attendance.roundId, currentRoundData.id),
+              eq(attendance.memberId, currentMemberId),
+            ),
+          )
+          .limit(1);
+        myAttendanceStatus = myAttendance?.status ?? null;
+      }
+
       currentRound = {
         roundNumber: currentRoundData.roundNumber,
         startDate: currentRoundData.startDate,
@@ -92,6 +110,7 @@ export async function GET() {
         isGracePeriod,
         submissionRate:
           totalActiveMembers > 0 ? Math.round((submitted / totalActiveMembers) * 100) : 0,
+        myAttendanceStatus,
       };
     }
 
