@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, after } from 'next/server';
 import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
@@ -252,11 +252,17 @@ export async function POST(request: NextRequest) {
     });
 
     // 게시판 글 작성 활동 점수 (+10, 일일 상한 20)
-    grantWebScore(
-      auth.memberId,
-      ActivityScoreType.BOARD_POST,
-      sanitizeDescription(title.trim().slice(0, 50))
-    ).catch((err) => console.error('[score] grantWebScore failed:', err));
+    after(async () => {
+      try {
+        await grantWebScore(
+          auth.memberId,
+          ActivityScoreType.BOARD_POST,
+          sanitizeDescription(title.trim().slice(0, 50))
+        );
+      } catch (err) {
+        console.error('[score] grantWebScore failed:', err);
+      }
+    });
 
     // 공지사항인 경우 활성 멤버 전체에게 알림
     if (category === 'notice') {
@@ -265,15 +271,19 @@ export async function POST(request: NextRequest) {
         .from(members)
         .where(eq(members.status, MemberStatus.ACTIVE));
 
-      sendPushToMembers(
-        activeMembers.map((m) => m.id),
-        {
-          title: '📢 새 공지사항',
-          body: title.trim(),
-          clickUrl: `/board/${result.id}`,
-          data: { type: 'board_notice', postId: result.id },
+      const memberIds = activeMembers.map((m) => m.id).filter((id) => id !== auth.memberId);
+      after(async () => {
+        try {
+          await sendPushToMembers(memberIds, {
+            title: '📢 새 공지사항',
+            body: title.trim(),
+            clickUrl: `/board/${result.id}`,
+            data: { type: 'board_notice', postId: result.id },
+          });
+        } catch (err) {
+          console.error('[push] Notice notification failed:', err);
         }
-      ).catch((err) => console.error('[push] Notice notification failed:', err));
+      });
     }
 
     return successResponse(result, '게시글이 작성되었습니다.', 201);

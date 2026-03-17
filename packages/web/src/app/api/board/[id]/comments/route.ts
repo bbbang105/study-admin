@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, after } from 'next/server';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
@@ -88,22 +88,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // 게시판 댓글 활동 점수 (+2, 일일 상한 10) — 본인 글 제외
     if (post.memberId !== auth.memberId) {
-      grantWebScore(
-        auth.memberId,
-        ActivityScoreType.BOARD_COMMENT,
-        sanitizeDescription(content.trim().slice(0, 50))
-      ).catch((err) => console.error('[score] grantWebScore failed:', err));
+      after(async () => {
+        try {
+          await grantWebScore(
+            auth.memberId,
+            ActivityScoreType.BOARD_COMMENT,
+            sanitizeDescription(content.trim().slice(0, 50))
+          );
+        } catch (err) {
+          console.error('[score] grantWebScore failed:', err);
+        }
+      });
     }
 
-    // 1. 내가 쓴 글에 댓글이 달리면 무조건 알림 (본인 제외)
-    if (post.memberId !== auth.memberId) {
-      const postIdentifier = postId;
-      sendPushToMember(post.memberId, {
-        title: '새 댓글이 달렸습니다',
-        body: `${content.trim().slice(0, 50)}${content.length > 50 ? '...' : ''}`,
-        clickUrl: `/board/${postIdentifier}`,
-        data: { type: 'board_comment', postId: postIdentifier, commentId: newComment.id },
-      }).catch((err) => console.error('[push] Comment notification failed:', err));
+    // 비밀댓글은 알림 내용 마스킹
+    const notificationBody = (isSecret || false)
+      ? '비밀 댓글이 달렸습니다.'
+      : `${content.trim().slice(0, 50)}${content.length > 50 ? '...' : ''}`;
+
+    // 1. 내가 쓴 글에 댓글이 달리면 알림 (본인 제외, 답글 대상자와 중복 시 생략)
+    const isReplyToPostAuthor = parentId && parent && parent.memberId === post.memberId;
+    if (post.memberId !== auth.memberId && !isReplyToPostAuthor) {
+      after(async () => {
+        try {
+          await sendPushToMember(post.memberId, {
+            title: '새 댓글이 달렸습니다',
+            body: notificationBody,
+            clickUrl: `/board/${postId}`,
+            data: { type: 'board_comment', postId, commentId: newComment.id },
+          });
+        } catch (err) {
+          console.error('[push] Comment notification failed:', err);
+        }
+      });
     }
 
     // 2. 대댓글의 경우 원댓글 작성자에게도 알림
@@ -113,13 +130,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       // 내 댓글에 답글이 달리면 알림 (작성자 본인 제외)
       if (pmid !== amid) {
-        const postIdentifier = postId;
-        sendPushToMember(pmid, {
-          title: '💬 답글이 달렸습니다',
-          body: `${content.trim().slice(0, 50)}${content.length > 50 ? '...' : ''}`,
-          clickUrl: `/board/${postIdentifier}`,
-          data: { type: 'board_reply', postId: postIdentifier, commentId: newComment.id },
-        }).catch((err) => console.error('[push] Reply notification failed:', err));
+        after(async () => {
+          try {
+            await sendPushToMember(pmid, {
+              title: '💬 답글이 달렸습니다',
+              body: notificationBody,
+              clickUrl: `/board/${postId}`,
+              data: { type: 'board_reply', postId, commentId: newComment.id },
+            });
+          } catch (err) {
+            console.error('[push] Reply notification failed:', err);
+          }
+        });
       }
     }
 
