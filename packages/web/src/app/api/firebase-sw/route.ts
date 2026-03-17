@@ -1,15 +1,16 @@
-// Firebase Cloud Messaging Service Worker
-// Firebase client API key는 설계상 공개 식별자입니다 (Security Rules + 도메인 제한으로 보호).
-// https://firebase.google.com/docs/projects/api-keys#api-keys-for-firebase-are-different
+import { NextResponse } from 'next/server';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB66yQiuAXxbLbWz_Cf5unRLuNvESo5sYM",
-  authDomain: "kusting-159f4.firebaseapp.com",
-  projectId: "kusting-159f4",
-  storageBucket: "kusting-159f4.firebasestorage.app",
-  messagingSenderId: "816173354609",
-  appId: "1:816173354609:web:a127a7308cd35cbbaf95d0",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? '',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? '',
 };
+
+const swScript = `// Firebase Cloud Messaging Service Worker (auto-generated)
+const firebaseConfig = ${JSON.stringify(firebaseConfig)};
 
 self.addEventListener('push', (event) => {
   const payload = event.data?.json();
@@ -52,3 +53,14 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+`;
+
+export function GET() {
+  return new NextResponse(swScript, {
+    headers: {
+      'Content-Type': 'application/javascript',
+      'Service-Worker-Allowed': '/',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+    },
+  });
+}
