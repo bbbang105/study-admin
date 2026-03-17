@@ -334,6 +334,7 @@ export const postComments = pgTable(
       .references(() => members.id),
     parentId: uuid('parent_id'),
     content: text('content').notNull(),
+    isSecret: boolean('is_secret').default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -430,10 +431,7 @@ export const PollType = {
 
 export type PollTypeType = (typeof PollType)[keyof typeof PollType];
 
-export const pollTypeEnum = pgEnum('poll_type', [
-  'text',
-  'date',
-]);
+export const pollTypeEnum = pgEnum('poll_type', ['text', 'date']);
 
 export const boardPolls = pgTable(
   'board_polls',
@@ -698,10 +696,7 @@ export const boardPollsRelations = relations(boardPolls, ({ one, many }) => ({
   votes: many(boardPollVotes),
 }));
 
-export const boardPollOptionsRelations = relations(boardPollOptions, ({
-  one,
-  many,
-}) => ({
+export const boardPollOptionsRelations = relations(boardPollOptions, ({ one, many }) => ({
   poll: one(boardPolls, {
     fields: [boardPollOptions.pollId],
     references: [boardPolls.id],

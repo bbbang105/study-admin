@@ -185,7 +185,10 @@ export function TiptapEditor({
     },
     editorProps: {
       handleDOMEvents: {
-        compositionstart: () => { composingRef.current = true; return false; },
+        compositionstart: () => {
+          composingRef.current = true;
+          return false;
+        },
         compositionend: (_view, event) => {
           composingRef.current = false;
           // event.target is the editor element; trigger deferred update
@@ -231,7 +234,9 @@ export function TiptapEditor({
               active={editor.isActive('paragraph') && !editor.isActive('heading')}
               title="본문"
             >
-              <span className="text-xs font-semibold w-4 h-4 flex items-center justify-center">T</span>
+              <span className="text-xs font-semibold w-4 h-4 flex items-center justify-center">
+                T
+              </span>
             </ToolbarButton>
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -360,7 +365,6 @@ export function TiptapEditor({
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://example.com"
-              autoFocus
             />
             <DialogFooter className="mt-4">
               <Button

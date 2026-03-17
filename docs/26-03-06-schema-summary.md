@@ -101,6 +101,19 @@
 | `post_id` | uuid FK → posts | not null |
 | unique constraint: `(member_id, post_id)` |
 
+### post_comments
+| 컬럼 | 타입 | 비고 |
+|------|------|------|
+| `id` | uuid PK | defaultRandom |
+| `post_id` | uuid FK → posts | not null |
+| `member_id` | uuid FK → members | not null |
+| `parent_id` | uuid | nullable (대댓글) |
+| `content` | text | not null |
+| `is_secret` | boolean | default false |
+| `created_at`, `updated_at` | timestamptz | defaultNow |
+| `deleted_at` | timestamptz | nullable (soft delete) |
+| 인덱스: `post_id`, `member_id`, `parent_id` |
+
 ### config
 `key` (varchar PK) / `value` (text) / `updated_at` — 설정 키-값 저장소
 
@@ -172,7 +185,9 @@ members ──< post_views (member_id)
 rounds  ──< posts (round_id)
 rounds  ──< attendance (round_id)
 rounds  ──< fines (round_id)
+posts   ──< post_comments (post_id)
 posts   ──< post_views (post_id)
+members ──< post_comments (member_id)
 curation_sources ──< curation_items (source_id)
 members ──< board_posts (member_id)
 members ──< board_comments (member_id)

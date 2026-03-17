@@ -60,9 +60,11 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **토스트**: `sonner` 라이브러리 사용 (`toast.success()`, `toast.error()`) — inline 상태 관리 토스트 금지
 - **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
 - **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
-- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 외부 URL fetch 시 `isSafeUrl()` SSRF 체크
+- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch 시 `isSafeUrl()` SSRF 체크
+- **댓글 길이**: 최대 5000자 제한 (API에서 검증)
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
-- **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`)
+- **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
+- **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
 
 ## 핵심 파일 위치
 

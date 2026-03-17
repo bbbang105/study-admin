@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { sanitizeDescription } from '@/lib/sanitize';
 
 const { posts, postComments } = sharedDb;
 
@@ -38,16 +39,24 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { content } = body;
+    const { content, isSecret } = body;
 
     if (!content?.trim()) {
       return Errors.badRequest('댓글 내용을 입력해주세요.').toResponse();
     }
 
+    if (content.trim().length > 5000) {
+      return Errors.badRequest('댓글은 5000자를 초과할 수 없습니다.').toResponse();
+    }
+
+    // isSecret 토글은 본인만 가능 (관리자도 타인 비밀 상태 변경 불가)
+    const canToggleSecret = isSecret !== undefined && existing.memberId === auth.memberId;
+
     const [updated] = await database
       .update(postComments)
       .set({
-        content: content.trim(),
+        content: sanitizeDescription(content.trim()),
+        ...(canToggleSecret && { isSecret }),
         updatedAt: new Date(),
       })
       .where(eq(postComments.id, commentId))

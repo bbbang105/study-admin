@@ -28,8 +28,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PageError, AdminScoresSkeleton } from '@/components/ui/page-state';
+import { AdminScoresSkeleton, PageError } from '@/components/ui/page-state';
 import { cn } from '@/lib/utils';
+import { getScoreTypeBadgeClass, getScoreTypeLabel } from '@/lib/score-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,8 +63,6 @@ interface MemberScoreSummary {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-import { getScoreTypeLabel, getScoreTypeBadgeClass } from '@/lib/score-config';
 
 const TOP_MEMBERS_COUNT = 5;
 
@@ -181,7 +180,6 @@ function MemberSelector({
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                autoFocus
                 placeholder="이름, 닉네임, 파트 검색..."
                 className="pl-8 h-8 text-sm"
                 value={searchQuery}
@@ -903,9 +901,7 @@ export default function AdminScoresPage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold">점수 내역 삭제</h2>
-                <p className="text-sm text-muted-foreground">
-                  이 작업은 되돌릴 수 없습니다.
-                </p>
+                <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
               </div>
             </div>
 
@@ -943,11 +939,7 @@ export default function AdminScoresPage() {
               <Button variant="outline" onClick={handleDeleteClose}>
                 취소
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteConfirm}
-                disabled={deleteLoading}
-              >
+              <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteLoading}>
                 {deleteLoading ? '삭제 중...' : '삭제'}
               </Button>
             </div>

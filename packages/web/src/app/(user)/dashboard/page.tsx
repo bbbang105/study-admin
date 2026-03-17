@@ -19,6 +19,7 @@ interface RoundInfo {
   daysRemaining: number;
   isGracePeriod: boolean;
   submissionRate: number;
+  myAttendanceStatus: string | null;
 }
 
 interface Post {
@@ -127,6 +128,46 @@ function getDdayLabel(days: number, isGrace: boolean): string {
   return `D-${days}`;
 }
 
+function getAttendanceChip(
+  status: string | null,
+  isGracePeriod: boolean,
+): { icon: string; label: string; className: string } {
+  switch (status) {
+    case 'SUBMITTED':
+      return {
+        icon: '✓',
+        label: '제출 완료',
+        className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      };
+    case 'LATE':
+      return {
+        icon: '△',
+        label: '지각 제출',
+        className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+      };
+    case 'ABSENT':
+      return {
+        icon: '✗',
+        label: '결석',
+        className: 'bg-destructive/10 text-destructive',
+      };
+    default:
+      // PENDING or null
+      if (isGracePeriod) {
+        return {
+          icon: '⚠',
+          label: '미제출 (지각 기간)',
+          className: 'bg-destructive/10 text-destructive',
+        };
+      }
+      return {
+        icon: '○',
+        label: '미제출',
+        className: 'bg-muted text-muted-foreground',
+      };
+  }
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [scoreData, setScoreData] = useState<MyScoreData | null>(null);
@@ -183,6 +224,10 @@ export default function DashboardPage() {
         : 'text-primary'
     : '';
 
+  const attendanceChip = round
+    ? getAttendanceChip(round.myAttendanceStatus, round.isGracePeriod)
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
@@ -237,6 +282,18 @@ export default function DashboardPage() {
                 {round.startDate} ~ {round.endDate}
               </span>
             </div>
+
+            {/* My Attendance Status */}
+            {attendanceChip && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">나의 출석</span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${attendanceChip.className}`}
+                >
+                  {attendanceChip.icon} {attendanceChip.label}
+                </span>
+              </div>
+            )}
 
             {/* Submission Progress */}
             <div className="space-y-2">
