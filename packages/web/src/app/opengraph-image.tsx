@@ -246,7 +246,7 @@ export default function OGImage() {
                     color: '#60a5fa',
                   }}
                 >
-                  {p.author[0].toUpperCase()}
+                  {p.author.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <span style={{ fontSize: '13px', color: '#fff' }}>{p.title}</span>
