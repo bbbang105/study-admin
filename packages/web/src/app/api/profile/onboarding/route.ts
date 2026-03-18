@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { config } from '@blog-study/shared/db';
 import { createClient } from '@/lib/supabase/server';
+import { notifyNewMemberPendingApproval } from '@/lib/discord-notify';
+import { isSafeUrl } from '@/lib/rss-detect';
 
 const { members } = sharedDb;
 
@@ -14,18 +17,16 @@ const { members } = sharedDb;
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return NextResponse.json(
-        { message: '인증이 필요합니다.' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
     }
 
-    const discordIdentity = user.identities?.find(
-      (identity) => identity.provider === 'discord'
-    );
+    const discordIdentity = user.identities?.find((identity) => identity.provider === 'discord');
     const discordId = discordIdentity?.id as string | undefined;
     if (!discordId) {
       return NextResponse.json(
@@ -35,65 +36,49 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, nickname, part, blogUrl, profileImageUrl, bio, interests, resolution, githubUrl, linkedinUrl, instagramUrl, rssConsent } = body;
+    const {
+      name,
+      nickname,
+      part,
+      blogUrl,
+      profileImageUrl,
+      bio,
+      interests,
+      resolution,
+      githubUrl,
+      linkedinUrl,
+      instagramUrl,
+      rssConsent,
+    } = body;
 
     // 필수 필드 검증
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return NextResponse.json(
-        { message: '이름(실명)은 필수입니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '이름(실명)은 필수입니다.' }, { status: 400 });
     }
 
     if (!nickname || typeof nickname !== 'string' || nickname.trim().length === 0) {
-      return NextResponse.json(
-        { message: '닉네임은 필수입니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '닉네임은 필수입니다.' }, { status: 400 });
     }
 
     if (!part || typeof part !== 'string') {
-      return NextResponse.json(
-        { message: '파트는 필수입니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '파트는 필수입니다.' }, { status: 400 });
     }
 
     if (!blogUrl || typeof blogUrl !== 'string') {
-      return NextResponse.json(
-        { message: '블로그 URL은 필수입니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '블로그 URL은 필수입니다.' }, { status: 400 });
     }
 
-    // 블로그 URL 검증
-    try {
-      const url = new URL(blogUrl);
-      if (!['http:', 'https:'].includes(url.protocol)) {
-        return NextResponse.json(
-          { message: '블로그 URL은 http 또는 https만 허용됩니다.' },
-          { status: 400 }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { message: '유효하지 않은 블로그 URL입니다.' },
-        { status: 400 }
-      );
+    // 블로그 URL 검증 (SSRF 방지 포함)
+    if (!isSafeUrl(blogUrl)) {
+      return NextResponse.json({ message: '유효하지 않은 블로그 URL입니다.' }, { status: 400 });
     }
 
     if (!bio || typeof bio !== 'string' || bio.trim().length < 100) {
-      return NextResponse.json(
-        { message: '자기소개는 100자 이상 작성해주세요.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '자기소개는 100자 이상 작성해주세요.' }, { status: 400 });
     }
 
     if (!interests || !Array.isArray(interests) || interests.length < 1) {
-      return NextResponse.json(
-        { message: '관심사를 1개 이상 선택해주세요.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '관심사를 1개 이상 선택해주세요.' }, { status: 400 });
     }
 
     if (interests.length > 6) {
@@ -111,28 +96,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (!resolution || typeof resolution !== 'string' || resolution.trim().length === 0) {
-      return NextResponse.json(
-        { message: '다짐은 필수입니다.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: '다짐은 필수입니다.' }, { status: 400 });
     }
 
-    // 프로필 이미지 URL 검증 (선택)
-    if (profileImageUrl) {
-      try {
-        const url = new URL(profileImageUrl);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          return NextResponse.json(
-            { message: '프로필 이미지 URL은 http 또는 https만 허용됩니다.' },
-            { status: 400 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { message: '유효하지 않은 프로필 이미지 URL입니다.' },
-          { status: 400 }
-        );
-      }
+    // 프로필 이미지 URL 검증 (선택, SSRF 방지 포함)
+    if (profileImageUrl && !isSafeUrl(profileImageUrl)) {
+      return NextResponse.json(
+        { message: '유효하지 않은 프로필 이미지 URL입니다.' },
+        { status: 400 }
+      );
     }
 
     const database = db();
@@ -170,26 +142,50 @@ export async function POST(request: NextRequest) {
         .where(eq(members.id, existingMember.id));
     } else {
       // 신규 유저: INSERT
-      await database
-        .insert(members)
-        .values({
-          discordId,
-          discordUsername,
-          name: name.trim(),
-          nickname: nickname.trim(),
-          part,
-          blogUrl,
-          profileImageUrl: profileImageUrl || null,
-          bio: bio.trim(),
-          interests,
-          resolution: resolution.trim(),
-          githubUrl: githubUrl || null,
-          linkedinUrl: linkedinUrl || null,
-          instagramUrl: instagramUrl || null,
-          rssConsent: rssConsent !== false,
-          onboardingCompleted: true,
-          status: 'pending_approval',
-        });
+      await database.insert(members).values({
+        discordId,
+        discordUsername,
+        name: name.trim(),
+        nickname: nickname.trim(),
+        part,
+        blogUrl,
+        profileImageUrl: profileImageUrl || null,
+        bio: bio.trim(),
+        interests,
+        resolution: resolution.trim(),
+        githubUrl: githubUrl || null,
+        linkedinUrl: linkedinUrl || null,
+        instagramUrl: instagramUrl || null,
+        rssConsent: rssConsent !== false,
+        onboardingCompleted: true,
+        status: 'pending_approval',
+      });
+
+      // 관리자 채널에 승인대기 알림 (fire-and-forget)
+      after(async () => {
+        try {
+          const [channelConfig] = await database
+            .select()
+            .from(config)
+            .where(eq(config.key, 'admin_notification_channel_id'))
+            .limit(1);
+
+          if (!channelConfig?.value) return;
+
+          await notifyNewMemberPendingApproval({
+            channelId: channelConfig.value,
+            nickname: nickname.trim(),
+            name: name.trim(),
+            discordUsername,
+            part,
+            blogUrl,
+            bio: bio.trim(),
+            adminDashboardUrl: 'https://kusting-web.vercel.app/admin/members',
+          });
+        } catch (error) {
+          console.error('[onboarding] 관리자 알림 전송 실패:', error);
+        }
+      });
     }
 
     return NextResponse.json({
@@ -197,9 +193,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Onboarding API error:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

@@ -26,6 +26,7 @@ interface StudySettings {
   noticeChannelId: string | null;
   rankingChannelId: string | null;
   botLogChannelId: string | null;
+  adminNotificationChannelId: string | null;
   adminDiscordIds: string;
   studyRoleId: string | null;
 }
@@ -72,6 +73,7 @@ export default function AdminSettingsPage() {
     noticeChannelId: null,
     rankingChannelId: null,
     botLogChannelId: null,
+    adminNotificationChannelId: null,
     adminDiscordIds: '',
     studyRoleId: null,
   });
@@ -342,6 +344,18 @@ export default function AdminSettingsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 벌금 납부 알림 등 봇 운영 로그가 발송되는 채널 (#봇-로그)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adminNotificationChannelId">관리자 알림 채널 ID</Label>
+              <Input
+                id="adminNotificationChannelId"
+                value={formData.adminNotificationChannelId || ''}
+                onChange={(e) => handleInputChange('adminNotificationChannelId', e.target.value)}
+                placeholder="예: 1234567890123456789"
+              />
+              <p className="text-xs text-muted-foreground">
+                신규 가입 승인대기 등 관리자 알림이 발송되는 채널
               </p>
             </div>
           </CardContent>
