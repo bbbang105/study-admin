@@ -67,8 +67,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   const attendanceService = getAttendanceService();
   const fineService = getFineService();
 
-  // 2025-07-01 이후 발행된 글만 수집
-  const POST_CUTOFF_DATE = new Date('2026-03-15T00:00:00+09:00');
+  // 2026-03-23 이후 발행된 글만 수집
+  const POST_CUTOFF_DATE = new Date('2026-03-23T00:00:00+09:00');
 
   rssPoller.setOnNewPostCallback(async (member, items) => {
     const currentRound = await getCurrentRound().catch(() => null);
