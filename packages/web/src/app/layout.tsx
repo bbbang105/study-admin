@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title: '큐스팅 4th',
     description: '함께 쓰고, 함께 성장하다. 블로그 스터디 자동화 플랫폼',
     siteName: '큐스팅 4th',
-    url: 'https://cusiting.com',
+    url: 'https://kusting.com',
     locale: 'ko_KR',
     type: 'website',
   },

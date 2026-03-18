@@ -25,6 +25,7 @@ graph TB
         subgraph DCH_OPS["🔧 운영 (관리자)"]
             CH_OPS["#운영-논의"]
             CH_LOG["#봇-로그"]
+            CH_ADMIN["#관리자-알림<br/>admin_notification_channel_id"]
             CH_PR["#github-pr"]
             CH_ERR["#서버-에러"]
             CH_SUGGEST["#건의사항-알림"]
@@ -69,6 +70,7 @@ graph TB
     Bot -->|service_role key| TABLES
     API -->|POST /api/trigger/*| BOT_API
     BOT_API --> SCH
+    API -->|Discord REST API| CH_ADMIN
 
     Web -->|HTTPS| DB
     MW --> AUTH
@@ -471,7 +473,8 @@ erDiagram
 | **인증** | Supabase Auth (Discord OAuth PKCE) + 미들웨어 세션 검증 | `middleware.ts`, `lib/supabase/` |
 | **인가** | Discord ID 기반 관리자 체크 (`ADMIN_DISCORD_IDS`) | `lib/admin.ts` |
 | **XSS** | Tiptap JSON content 새니타이즈 (`javascript:`, `data:`, `vbscript:` 프로토콜 차단) | `lib/sanitize.ts` → `api/board/` |
-| **SSRF** | 외부 URL fetch 전 `isSafeUrl()` 체크 (private IP, localhost 차단) | `lib/rss-detect.ts` → `api/posts/manual/`, `api/admin/curation/crawl/` |
+| **SSRF** | 외부 URL fetch/저장 전 `isSafeUrl()` 체크 (private IP, localhost 차단) | `lib/rss-detect.ts` → `api/posts/manual/`, `api/admin/curation/crawl/`, `api/profile/onboarding/` |
+| **Discord 인젝션** | 사용자 입력 Discord embed에 `escapeDiscordMarkdown()` 적용 + `allowed_mentions: { parse: [] }` | `lib/discord-notify.ts` |
 | **CSP** | Content-Security-Policy 헤더 (`frame-ancestors 'none'`, 허용 도메인 화이트리스트) | `next.config.ts` |
 | **SQL Injection** | Drizzle ORM 파라미터화 쿼리 (raw SQL 사용 안 함) | 전체 API Routes |
 | **CSRF** | Supabase Auth 쿠키 `SameSite=Lax` | Supabase 기본 설정 |

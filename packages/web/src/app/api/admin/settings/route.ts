@@ -74,6 +74,7 @@ export const GET = withAdminAuth(async (_request: NextRequest, adminAuth) => {
         noticeChannelId: settings['notice_channel_id'] || null,
         rankingChannelId: settings['ranking_channel_id'] || null,
         botLogChannelId: settings['bot_log_channel_id'] || null,
+        adminNotificationChannelId: settings['admin_notification_channel_id'] || null,
         adminDiscordIds: settings['admin_discord_ids'] || '',
         studyRoleId: settings['study_role_id'] || null,
       },
@@ -107,6 +108,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       noticeChannelId: 'notice_channel_id',
       rankingChannelId: 'ranking_channel_id',
       botLogChannelId: 'bot_log_channel_id',
+      adminNotificationChannelId: 'admin_notification_channel_id',
       adminDiscordIds: 'admin_discord_ids',
       studyRoleId: 'study_role_id',
     };
@@ -118,6 +120,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       'notice_channel_id',
       'ranking_channel_id',
       'bot_log_channel_id',
+      'admin_notification_channel_id',
       'study_role_id',
     ]);
 

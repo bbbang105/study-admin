@@ -60,7 +60,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **토스트**: `sonner` 라이브러리 사용 (`toast.success()`, `toast.error()`) — inline 상태 관리 토스트 금지
 - **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
 - **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
-- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch 시 `isSafeUrl()` SSRF 체크
+- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch/저장 시 `isSafeUrl()` SSRF 체크 (blogUrl, profileImageUrl 등 사용자 입력 URL 포함)
+- **Discord 알림**: 웹에서 직접 Discord REST API 호출 시 `discord-notify.ts` 유틸 사용, 사용자 입력은 `escapeDiscordMarkdown()` 적용, `allowed_mentions: { parse: [] }` 필수
 - **댓글 길이**: 최대 5000자 제한 (API에서 검증)
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
@@ -123,7 +124,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
 | `packages/bot/src/api-server.ts` | 봇 HTTP API 서버 (Express, 수동 트리거 엔드포인트, rate limit 10/min) |
-| `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation 채널) |
+| `packages/web/src/lib/discord-notify.ts` | Discord REST API 채널 메시지 전송 유틸 (웹→Discord 직접 알림) |
+| `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation/admin_notification 채널) |
 | `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
 | `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |
 | `packages/web/src/app/opengraph-image.tsx` | OG 이미지 동적 생성 (Edge Runtime, `next/og` ImageResponse, 1200×630) |

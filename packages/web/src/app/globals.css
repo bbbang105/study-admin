@@ -243,6 +243,11 @@
   font-size: 0.85em;
 }
 
+.tiptap code::before,
+.tiptap code::after {
+  content: none;
+}
+
 .tiptap blockquote {
   border-left: 3px solid hsl(var(--border));
   padding-left: 1rem;
