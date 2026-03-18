@@ -65,6 +65,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
 - **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
+- **포스트 삭제**: 본인 또는 관리자만 가능, 트랜잭션으로 댓글/조회기록/활동점수(blog_post) 일괄 삭제
+- **스터디원 목록**: active + dormant + ob 모두 표시, 상태 칩으로 구분 (OB: 황금 파스텔, 휴면: secondary)
 
 ## 핵심 파일 위치
 
@@ -107,6 +109,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/admin/bot-operations/page.tsx` | 봇 수동 실행 대시보드 (관리자 전용) |
 | `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
+| `packages/web/src/app/api/posts/[id]/route.ts` | 포스트 삭제 API (본인/관리자, 댓글+조회+점수 일괄 삭제) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/web/src/lib/firebase/admin.ts` | Firebase Admin SDK (lazy 초기화, `getAdminMessaging()`) |
 | `packages/web/src/lib/firebase/client.ts` | Firebase 클라이언트 (FCM 토큰 요청, 포그라운드 메시지) |
@@ -152,7 +155,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `pending_approval` | 차단 (`/pending`) | 제외 | 온보딩 후 기본 상태 |
 | `active` | 허용 | 대상 | 관리자 승인 시 전환 |
 | `inactive` | 차단 (`/inactive`) | 제외 | |
-| `dormant` | 허용 | 제외 | 1회 사용 가능 |
+| `dormant` | 허용 | 제외 | 관리자가 반복 전환 가능 (1회 제한 해제됨) |
 | `ob` | 허용 | 제외 | 관리자 승인 시 선택 가능 |
 | `withdrawn` | 차단 | 제외 | soft delete |
 

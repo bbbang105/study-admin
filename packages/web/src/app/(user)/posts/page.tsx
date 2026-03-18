@@ -117,6 +117,8 @@ interface Post {
 
 interface PostsData {
   posts: Post[];
+  currentMemberId: string | null;
+  isAdmin: boolean;
   pagination: {
     page: number;
     pageSize: number;
@@ -802,11 +804,15 @@ function PostCard({
   post,
   onView,
   onCommentCountChange,
+  onDelete,
+  canDelete,
   rank,
 }: {
   post: Post;
   onView: (id: string) => void;
   onCommentCountChange: (postId: string, delta: number) => void;
+  onDelete: (postId: string) => void;
+  canDelete: boolean;
   rank?: number; // 1, 2, 3 for medal styling
 }) {
   const authorName = post.memberNickname || post.memberDiscordUsername;
@@ -819,6 +825,8 @@ function PostCard({
   const [newCommentSecret, setNewCommentSecret] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchComments = useCallback(async () => {
     try {
@@ -837,6 +845,25 @@ function PostCard({
       fetchComments();
     }
   }, [showComments, commentsLoaded, fetchComments]);
+
+  const handleDeletePost = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const result = await res.json();
+        toast.error(result.error?.message || '삭제에 실패했습니다.');
+        return;
+      }
+      toast.success('포스트가 삭제되었습니다.');
+      setDeleteOpen(false);
+      onDelete(post.id);
+    } catch {
+      toast.error('서버 오류가 발생했습니다.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -988,7 +1015,51 @@ function PostCard({
             <MessageCircle className="h-3.5 w-3.5" />
             <span className="tabular-nums">{post.commentCount}</span>
           </button>
+
+          {canDelete && (
+            <button
+              onClick={() => setDeleteOpen(true)}
+              aria-label="포스트 삭제"
+              className="ml-auto flex items-center gap-1 rounded-md p-1.5 text-xs text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+
+        {/* 삭제 확인 다이얼로그 */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent className="max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-base">포스트를 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground">
+                삭제된 포스트는 복구할 수 없습니다. 댓글, 조회 기록, 활동 점수도 함께 삭제됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting} className="h-9 text-sm">
+                취소
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault(); // Radix auto-close 방지 — deleting 스피너 표시 위해 수동 제어
+                  handleDeletePost();
+                }}
+                disabled={deleting}
+                className="h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {deleting ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    삭제 중...
+                  </span>
+                ) : (
+                  '삭제하기'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Comments section (게시판 스타일) */}
         {showComments && (
@@ -1097,6 +1168,8 @@ function PostsContent() {
 
   const [tab, setTab] = useState<TabType>(initialTab);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [currentMemberId, setCurrentMemberId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -1145,6 +1218,9 @@ function PostsContent() {
         if (!response.ok) throw new Error('Failed to fetch posts');
         const result = await response.json();
         const data = result.data as PostsData;
+
+        setCurrentMemberId(data.currentMemberId);
+        setIsAdmin(data.isAdmin);
 
         if (append) {
           setPosts((prev) => {
@@ -1216,6 +1292,11 @@ function PostsContent() {
         p.id === postId ? { ...p, commentCount: Math.max(0, p.commentCount + delta) } : p
       )
     );
+  };
+
+  const handleDeletePost = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setTotalCount((prev) => prev - 1);
   };
 
   const resetDialog = () => {
@@ -1515,6 +1596,8 @@ function PostsContent() {
                 post={post}
                 onView={trackPostView}
                 onCommentCountChange={handleCommentCountChange}
+                onDelete={handleDeletePost}
+                canDelete={isAdmin || post.memberId === currentMemberId}
                 rank={tab === 'popular' ? index + 1 : undefined}
               />
             ))}
