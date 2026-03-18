@@ -65,6 +65,7 @@ interface ProfileData {
     name: string;
     nickname: string;
     part: string;
+    blogUrl: string;
     profileImageUrl: string | null;
     bio: string | null;
     interests: string[] | null;
@@ -82,7 +83,6 @@ export default function ProfileEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Form state
   const [userId, setUserId] = useState('');
@@ -90,6 +90,7 @@ export default function ProfileEditPage() {
   const [nickname, setNickname] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [customPart, setCustomPart] = useState('');
+  const [blogUrl, setBlogUrl] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [bio, setBio] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
@@ -127,6 +128,7 @@ export default function ProfileEditPage() {
             setCustomPart(data.member.part);
           }
         }
+        if (data.member.blogUrl) setBlogUrl(data.member.blogUrl);
         if (data.member.profileImageUrl) setProfileImageUrl(data.member.profileImageUrl);
         if (data.member.bio) setBio(data.member.bio);
         if (data.member.interests) setInterests(data.member.interests);
@@ -161,7 +163,6 @@ export default function ProfileEditPage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    setSuccess(false);
 
     try {
       const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
@@ -172,6 +173,7 @@ export default function ProfileEditPage() {
           name: name.trim() || null,
           nickname: nickname.trim() || null,
           part: part || null,
+          blogUrl: blogUrl.trim() || null,
           profileImageUrl: profileImageUrl || null,
           bio: bio || null,
           interests: interests.length > 0 ? interests : null,
@@ -190,7 +192,6 @@ export default function ProfileEditPage() {
         return;
       }
 
-      setSuccess(true);
       toast.success('프로필이 저장되었습니다.');
       setTimeout(() => {
         router.push('/profile');
@@ -400,6 +401,31 @@ export default function ProfileEditPage() {
           </CardContent>
         </Card>
 
+        {/* Blog URL */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              <CardTitle>블로그</CardTitle>
+            </div>
+            <CardDescription>
+              블로그 주소를 변경하면 RSS URL이 자동으로 재감지됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="blogUrl">
+              블로그 URL <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="blogUrl"
+              placeholder="https://velog.io/@username"
+              value={blogUrl}
+              onChange={(e) => setBlogUrl(e.target.value)}
+              maxLength={500}
+            />
+          </CardContent>
+        </Card>
+
         {/* RSS 설정 */}
         <Card>
           <CardHeader>
@@ -473,7 +499,6 @@ export default function ProfileEditPage() {
 
         {/* Messages */}
         {error && <p className="text-sm text-destructive text-center">{error}</p>}
-        {success && <p className="text-sm text-success text-center">프로필이 수정되었습니다!</p>}
 
         {/* Submit Button */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
@@ -486,6 +511,7 @@ export default function ProfileEditPage() {
               saving ||
               !name.trim() ||
               !nickname.trim() ||
+              !blogUrl.trim() ||
               interests.length < 3 ||
               bio.trim().length < 100
             }

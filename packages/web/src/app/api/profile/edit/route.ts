@@ -1,9 +1,10 @@
-import { NextRequest } from 'next/server';
+import { after, NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { detectRssUrl, isSafeUrl } from '@/lib/rss-detect';
 
 const { members } = sharedDb;
 
@@ -45,6 +46,7 @@ export async function PUT(request: NextRequest) {
       name,
       nickname,
       part,
+      blogUrl,
       profileImageUrl,
       bio,
       interests,
@@ -55,20 +57,52 @@ export async function PUT(request: NextRequest) {
       rssConsent,
     } = body;
 
+    // --- 검증 ---
+
+    if (name && (typeof name !== 'string' || name.trim().length > 50)) {
+      return Errors.badRequest('이름은 50자 이내여야 합니다.').toResponse();
+    }
+
+    if (nickname && (typeof nickname !== 'string' || nickname.trim().length > 100)) {
+      return Errors.badRequest('닉네임은 100자 이내여야 합니다.').toResponse();
+    }
+
     if (part && (typeof part !== 'string' || part.length > 50)) {
       return Errors.badRequest('파트는 50자 이내의 문자열이어야 합니다.').toResponse();
     }
 
-    if (profileImageUrl) {
-      try {
-        const url = new URL(profileImageUrl);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          return Errors.badRequest(
-            '프로필 이미지 URL은 http 또는 https만 허용됩니다.'
-          ).toResponse();
+    // 블로그 URL 검증
+    const trimmedBlogUrl = typeof blogUrl === 'string' ? blogUrl.trim() : null;
+    const blogUrlChanged =
+      typeof blogUrl === 'string' &&
+      trimmedBlogUrl !== null &&
+      trimmedBlogUrl.length > 0 &&
+      trimmedBlogUrl !== memberData.blogUrl;
+
+    if (blogUrlChanged) {
+      if (trimmedBlogUrl!.length > 500) {
+        return Errors.badRequest('블로그 URL은 500자 이내여야 합니다.').toResponse();
+      }
+      if (!isSafeUrl(trimmedBlogUrl!)) {
+        return Errors.badRequest('유효하지 않은 블로그 URL입니다.').toResponse();
+      }
+    }
+
+    // 프로필 이미지 URL 검증 (SSRF 방지)
+    if (profileImageUrl && !isSafeUrl(profileImageUrl)) {
+      return Errors.badRequest('유효하지 않은 프로필 이미지 URL입니다.').toResponse();
+    }
+
+    // 소셜 URL 검증 (SSRF 방지)
+    const socialUrls = { githubUrl, linkedinUrl, instagramUrl };
+    for (const [key, value] of Object.entries(socialUrls)) {
+      if (value && typeof value === 'string' && value.trim().length > 0) {
+        if (value.length > 500) {
+          return Errors.badRequest(`${key}은 500자 이내여야 합니다.`).toResponse();
         }
-      } catch {
-        return Errors.badRequest('유효하지 않은 프로필 이미지 URL입니다.').toResponse();
+        if (!isSafeUrl(value)) {
+          return Errors.badRequest(`유효하지 않은 ${key}입니다.`).toResponse();
+        }
       }
     }
 
@@ -93,6 +127,15 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // --- DB 업데이트 ---
+
+    // 블로그 URL 변경 시: 즉시 blogUrl 저장 + rssUrl null 초기화, RSS 감지는 after()로 비동기 처리
+    const blogFields: { blogUrl?: string; rssUrl?: string | null } = {};
+    if (blogUrlChanged) {
+      blogFields.blogUrl = trimmedBlogUrl!;
+      blogFields.rssUrl = null;
+    }
+
     await database
       .update(members)
       .set({
@@ -103,6 +146,7 @@ export async function PUT(request: NextRequest) {
           ? { nickname: nickname.trim() }
           : {}),
         ...(part ? { part } : {}),
+        ...blogFields,
         profileImageUrl: profileImageUrl || null,
         bio: bio || null,
         interests: interests || null,
@@ -114,6 +158,23 @@ export async function PUT(request: NextRequest) {
         updatedAt: new Date(),
       })
       .where(eq(members.id, memberData.id));
+
+    // RSS URL 비동기 감지 (fire-and-forget)
+    if (blogUrlChanged) {
+      after(async () => {
+        try {
+          const newRssUrl = await detectRssUrl(trimmedBlogUrl!);
+          if (newRssUrl) {
+            await db()
+              .update(members)
+              .set({ rssUrl: newRssUrl, updatedAt: new Date() })
+              .where(eq(members.id, memberData.id));
+          }
+        } catch (err) {
+          console.error('[profile-edit] RSS 재감지 실패:', err);
+        }
+      });
+    }
 
     return successResponse(null, '프로필이 수정되었습니다.');
   } catch (error) {

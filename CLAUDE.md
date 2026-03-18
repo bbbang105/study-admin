@@ -60,7 +60,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **토스트**: `sonner` 라이브러리 사용 (`toast.success()`, `toast.error()`) — inline 상태 관리 토스트 금지
 - **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
 - **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
-- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch/저장 시 `isSafeUrl()` SSRF 체크 (blogUrl, profileImageUrl 등 사용자 입력 URL 포함)
+- **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch/저장 시 `isSafeUrl()` SSRF 체크 (blogUrl, profileImageUrl, 소셜 URL 등 사용자 입력 URL 포함)
+- **블로그 URL 수정**: 프로필 수정 시 blogUrl 변경 가능, 변경 시 rssUrl을 null 초기화 후 `after()`로 RSS 비동기 재감지
 - **Discord 알림**: 웹에서 직접 Discord REST API 호출 시 `discord-notify.ts` 유틸 사용, 사용자 입력은 `escapeDiscordMarkdown()` 적용, `allowed_mentions: { parse: [] }` 필수
 - **댓글 길이**: 최대 5000자 제한 (API에서 검증)
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
@@ -110,6 +111,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/admin/bot-operations/page.tsx` | 봇 수동 실행 대시보드 (관리자 전용) |
 | `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
+| `packages/web/src/app/api/profile/edit/route.ts` | 프로필 수정 API (blogUrl 변경 시 RSS 재감지, 소셜 URL SSRF 체크) |
 | `packages/web/src/app/api/posts/[id]/route.ts` | 포스트 삭제 API (본인/관리자, 댓글+조회+점수 일괄 삭제) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/web/src/lib/firebase/admin.ts` | Firebase Admin SDK (lazy 초기화, `getAdminMessaging()`) |
