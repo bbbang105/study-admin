@@ -28,10 +28,12 @@ function MainContent({
   children,
   showSidebar,
   collapsed,
+  isAdmin,
 }: {
   children: React.ReactNode;
   showSidebar: boolean;
   collapsed: boolean;
+  isAdmin: boolean;
 }) {
   return (
     <main
@@ -45,9 +47,12 @@ function MainContent({
     >
       <div
         data-ptr-scroll="true"
-        className="w-full h-full overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto"
+        className="w-full h-full overflow-y-auto"
       >
-        {children}
+        {!isAdmin && <NoticeBanner />}
+        <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+          {children}
+        </div>
       </div>
     </main>
   );
@@ -95,7 +100,6 @@ export function MainLayout({
         본문으로 바로가기
       </a>
       <Header user={user} isAdmin={isAdmin} onLogout={handleLogout} />
-      {!isAdmin && <NoticeBanner />}
       <PullToRefresh>
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {showSidebar && (
@@ -105,7 +109,7 @@ export function MainLayout({
               onToggleCollapsed={handleToggleCollapsed}
             />
           )}
-          <MainContent showSidebar={showSidebar} collapsed={collapsed}>
+          <MainContent showSidebar={showSidebar} collapsed={collapsed} isAdmin={isAdmin}>
             {children}
           </MainContent>
         </div>
