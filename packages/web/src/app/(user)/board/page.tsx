@@ -14,14 +14,6 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MemberAvatar } from '@/components/ui/member-avatar';
@@ -117,70 +109,7 @@ function CategoryBadge({ category }: { category: string }) {
 }
 
 // ─────────────────────────────────────────────
-// Post Row (desktop table)
-// ─────────────────────────────────────────────
-
-function PostTableRow({ post }: { post: BoardPost }) {
-  const displayName = post.isMasked ? '익명' : post.memberName || '알 수 없음';
-  const avatarSeed = post.isMasked ? 'anonymous' : post.memberDiscordId || post.memberName;
-
-  return (
-    <TableRow className="border-border/40 hover:bg-muted/30">
-      <TableCell className="py-2.5 w-[90px]">
-        <CategoryBadge category={post.category} />
-      </TableCell>
-      <TableCell className="py-2.5 max-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {post.isSecret && (
-            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-          )}
-          <Link
-            href={`/board/${post.id}`}
-            className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
-            title={post.isMasked ? '비밀글입니다' : post.title}
-          >
-            {post.isMasked ? '비밀글입니다' : post.title}
-          </Link>
-          <div className="shrink-0 flex items-center gap-1">
-            {post.pollCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 font-medium" title="투표 있음">
-                <BarChart3 className="h-3 w-3" />
-                {post.pollCount}
-              </span>
-            )}
-            {post.commentCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
-                <MessageSquare className="h-3 w-3" />
-                {post.commentCount}
-              </span>
-            )}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
-        <div className="max-w-[140px]">
-          <MemberAvatar
-            memberId={post.memberId}
-            name={displayName}
-            seed={avatarSeed}
-            imageUrl={post.isMasked ? null : post.memberProfileImage}
-            size="sm"
-            noLink={post.isMasked}
-            showName
-            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-            isAdmin={post.memberIsAdmin}
-          />
-        </div>
-      </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
-        {formatRelativeTime(post.createdAt)}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Post Card (mobile)
+// Post Card
 // ─────────────────────────────────────────────
 
 function PostCard({ post }: { post: BoardPost }) {
@@ -188,53 +117,51 @@ function PostCard({ post }: { post: BoardPost }) {
   const avatarSeed = post.isMasked ? 'anonymous' : post.memberDiscordId || post.memberName;
 
   return (
-    <div className="block group">
-      <div className="flex items-start gap-3 py-3 border-b border-border/40 last:border-0">
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <CategoryBadge category={post.category} />
-            {post.isSecret && (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-            )}
-          </div>
-          <Link
-            href={`/board/${post.id}`}
-            className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
-          >
-            {post.isMasked ? '비밀글입니다' : post.title}
-          </Link>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <MemberAvatar
-              memberId={post.memberId}
-              name={displayName}
-              seed={avatarSeed}
-              imageUrl={post.isMasked ? null : post.memberProfileImage}
-              size="xs"
-              noLink={post.isMasked}
-              showName
-              isAdmin={post.memberIsAdmin}
-            />
-            <span>·</span>
-            <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
-            {post.pollCount > 0 && (
-              <>
-                <span>·</span>
-                <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
-                  <BarChart3 className="h-3 w-3" />
-                  {post.pollCount}
-                </span>
-              </>
-            )}
-            {post.commentCount > 0 && (
-              <>
-                <span>·</span>
-                <span className="inline-flex items-center gap-0.5 text-sky-500 font-medium">
-                  <MessageSquare className="h-3 w-3" />
-                  {post.commentCount}
-                </span>
-              </>
-            )}
-          </div>
+    <div className="group flex items-start gap-3 py-3 border-b border-border/40 last:border-0">
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <CategoryBadge category={post.category} />
+          {post.isSecret && (
+            <Lock className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
+          )}
+        </div>
+        <Link
+          href={`/board/${post.id}`}
+          className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
+        >
+          {post.isMasked ? '비밀글입니다' : post.title}
+        </Link>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.isMasked ? null : post.memberProfileImage}
+            size="xs"
+            noLink={post.isMasked}
+            showName
+            isAdmin={post.memberIsAdmin}
+          />
+          <span>·</span>
+          <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
+          {post.pollCount > 0 && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
+                <BarChart3 className="h-3 w-3" />
+                {post.pollCount}
+              </span>
+            </>
+          )}
+          {post.commentCount > 0 && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-0.5 text-sky-500 font-medium">
+                <MessageSquare className="h-3 w-3" />
+                {post.commentCount}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -242,69 +169,7 @@ function PostCard({ post }: { post: BoardPost }) {
 }
 
 // ─────────────────────────────────────────────
-// Pinned Post Row (desktop)
-// ─────────────────────────────────────────────
-
-function PinnedTableRow({ post }: { post: BoardPost }) {
-  const displayName = post.memberName || '알 수 없음';
-  const avatarSeed = post.memberDiscordId || post.memberName;
-
-  return (
-    <TableRow className="border-border/40 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70 dark:hover:bg-amber-950/20">
-      <TableCell className="py-2.5 w-[90px]">
-        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-          <Pin className="h-2.5 w-2.5" />
-          공지
-        </span>
-      </TableCell>
-      <TableCell className="py-2.5 max-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Link
-            href={`/board/${post.id}`}
-            className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
-            title={post.title}
-          >
-            {post.title}
-          </Link>
-          <div className="shrink-0 flex items-center gap-1">
-            {post.pollCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 font-medium" title="투표 있음">
-                <BarChart3 className="h-3 w-3" />
-                {post.pollCount}
-              </span>
-            )}
-            {post.commentCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-500 font-medium">
-                <MessageSquare className="h-3 w-3" />
-                {post.commentCount}
-              </span>
-            )}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap" title={displayName}>
-        <div className="max-w-[140px]">
-          <MemberAvatar
-            memberId={post.memberId}
-            name={displayName}
-            seed={avatarSeed}
-            imageUrl={post.memberProfileImage}
-            size="sm"
-            showName
-            nameClassName="text-sm text-foreground/80 truncate max-w-[80px]"
-            isAdmin={post.memberIsAdmin}
-          />
-        </div>
-      </TableCell>
-      <TableCell className="py-2.5 whitespace-nowrap text-sm text-muted-foreground tabular-nums">
-        {formatRelativeTime(post.createdAt)}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Pinned Post Card (mobile)
+// Pinned Post Card
 // ─────────────────────────────────────────────
 
 function PinnedCard({ post }: { post: BoardPost }) {
@@ -312,52 +177,50 @@ function PinnedCard({ post }: { post: BoardPost }) {
   const avatarSeed = post.memberDiscordId || post.memberName;
 
   return (
-    <div className="block group">
-      <div className="flex items-start gap-3 py-3 border-b border-amber-200/60 dark:border-amber-800/30 last:border-0">
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-              <Pin className="h-2.5 w-2.5" />
-              공지
-            </span>
-          </div>
-          <Link
-            href={`/board/${post.id}`}
-            className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
-          >
-            {post.title}
-          </Link>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <MemberAvatar
-              memberId={post.memberId}
-              name={displayName}
-              seed={avatarSeed}
-              imageUrl={post.memberProfileImage}
-              size="xs"
-              showName
-              isAdmin={post.memberIsAdmin}
-            />
-            <span>·</span>
-            <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
-            {post.pollCount > 0 && (
-              <>
-                <span>·</span>
-                <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
-                  <BarChart3 className="h-3 w-3" />
-                  {post.pollCount}
-                </span>
-              </>
-            )}
-            {post.commentCount > 0 && (
-              <>
-                <span>·</span>
-                <span className="inline-flex items-center gap-0.5 text-sky-500 font-medium">
-                  <MessageSquare className="h-3 w-3" />
-                  {post.commentCount}
-                </span>
-              </>
-            )}
-          </div>
+    <div className="group flex items-start gap-3 py-3 border-b border-amber-200/60 dark:border-amber-800/30 last:border-0">
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <Pin className="h-2.5 w-2.5" />
+            공지
+          </span>
+        </div>
+        <Link
+          href={`/board/${post.id}`}
+          className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary hover:text-primary line-clamp-2 leading-snug"
+        >
+          {post.title}
+        </Link>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MemberAvatar
+            memberId={post.memberId}
+            name={displayName}
+            seed={avatarSeed}
+            imageUrl={post.memberProfileImage}
+            size="xs"
+            showName
+            isAdmin={post.memberIsAdmin}
+          />
+          <span>·</span>
+          <span className="tabular-nums">{formatRelativeTime(post.createdAt)}</span>
+          {post.pollCount > 0 && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-0.5 text-indigo-500 font-medium">
+                <BarChart3 className="h-3 w-3" />
+                {post.pollCount}
+              </span>
+            </>
+          )}
+          {post.commentCount > 0 && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-0.5 text-sky-500 font-medium">
+                <MessageSquare className="h-3 w-3" />
+                {post.commentCount}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -483,19 +346,7 @@ function BoardContent() {
               </span>
             </div>
 
-            {/* Desktop: pinned table */}
-          <div className="hidden lg:block">
-            <Table>
-              <TableBody>
-                {pinnedPosts.map((post) => (
-                  <PinnedTableRow key={post.id} post={post} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile: pinned cards */}
-          <div className="lg:hidden px-4">
+          <div className="px-4">
             {pinnedPosts.map((post) => (
               <PinnedCard key={post.id} post={post} />
             ))}
@@ -509,35 +360,7 @@ function BoardContent() {
         <Card className="border-border/60 shadow-none overflow-hidden">
         {posts.length > 0 ? (
           <>
-            {/* Desktop: table */}
-            <div className="hidden lg:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/60">
-                    <TableHead className="w-[90px] text-xs font-medium text-muted-foreground h-9">
-                      분류
-                    </TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground h-9">
-                      제목
-                    </TableHead>
-                    <TableHead className="w-[130px] text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
-                      작성자
-                    </TableHead>
-                    <TableHead className="w-[100px] text-xs font-medium text-muted-foreground h-9 whitespace-nowrap">
-                      날짜
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {posts.map((post) => (
-                    <PostTableRow key={post.id} post={post} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile: card list */}
-            <CardContent className="lg:hidden px-4 py-0">
+            <CardContent className="px-4 py-0">
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
