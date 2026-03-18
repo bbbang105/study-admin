@@ -123,6 +123,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation 채널) |
 | `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
 | `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |
+| `packages/web/src/app/opengraph-image.tsx` | OG 이미지 동적 생성 (Edge Runtime, `next/og` ImageResponse, 1200×630) |
 | `packages/web/public/logo.svg` | 풀 로고 SVG (픽토그램 + 텍스트) |
 | `packages/bot/Dockerfile` | 봇 Docker 이미지 (multi-stage, node:22-alpine) |
 | `.github/workflows/bot-deploy.yml` | 봇 CI/CD (CI Gate → ECR 빌드/푸시 → SSH 배포) |
@@ -174,6 +175,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **PWA**: 홈 화면 추가 지원 (manifest.json, 서비스 워커 없음)
 - **랜딩 페이지**: Linear 스타일 다크 모드 원페이지 (큐시즘 블루 그라디언트 `#0091FF→#004DFF`, Framer Motion 풀 애니메이션, DB 스탯 ISR 60s, 인증 유저 `/dashboard` 리다이렉트)
 - **로고**: 커스텀 SVG 픽토그램 (펜촉+화살표, 큐시즘 블루 그라디언트), `icon.svg`/`icon-192.png`/`icon-512.png`
+- **OG 이미지**: `opengraph-image.tsx` 동적 생성 (Edge Runtime, 1200×630, 다크 테마 + Mock UI 카드), `layout.tsx`에 `openGraph`/`twitter` 메타데이터
 - **토스트**: sonner (`<Toaster />` in root layout, `position="bottom-center"`, `richColors`)
 - **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — Sentry 전송 + 리셋 버튼, `global-error.tsx` — 전역 폴백 (다크모드 인라인 스타일)
 - **404 페이지**: `not-found.tsx` — 대시보드 링크 포함

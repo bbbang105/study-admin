@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-17 (v9)
+> 최종 업데이트: 2026-03-18 (v10)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -448,6 +448,7 @@ erDiagram
 - **Dialog/AlertDialog**: Safari PWA 스크롤 대응 — `flex flex-col` + `inset-y-0 my-auto` 센터링 + `overflow-y-auto` (grid/transform 방식은 Safari에서 클리핑 발생)
 - **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
 - **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원
+- **OG 이미지**: `opengraph-image.tsx` Edge Runtime 동적 생성 (1200×630, `next/og` ImageResponse). 다크 테마 + K 로고 + 히어로 카피 + Mock UI 카드 (랭킹/포스트). `layout.tsx`에 `openGraph`/`twitter` 메타데이터 + `og:url`
 - **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (API route `/api/firebase-sw` → rewrite `/firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지) 개별 설정, 테스트 알림 전송 지원. 푸시/점수 등 백그라운드 작업은 `after()` from `next/server` 사용
 
 ## 스케줄러 (pg-boss)
