@@ -127,16 +127,8 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (blogUrl !== undefined) updateData.blogUrl = blogUrl.trim();
     if (rssUrl !== undefined) updateData.rssUrl = rssUrl?.trim() || null;
     if (status !== undefined) {
-      // 휴면 전환 시 전용 로직
+      // 휴면 전환 시 전용 로직 (1회 제한 해제됨 — 관리자가 필요에 따라 반복 전환 가능)
       if (status === MemberStatus.DORMANT) {
-        // 이미 휴면을 사용한 멤버는 재사용 불가 (1회 제한)
-        if (existingMember.dormantUsed) {
-          return NextResponse.json(
-            { message: '이미 휴면을 사용한 멤버입니다. (1회 제한)' },
-            { status: 400 }
-          );
-        }
-
         // 현재 회차 조회
         const [currentRound] = await database
           .select()

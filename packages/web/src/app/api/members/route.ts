@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { count, eq, sql } from 'drizzle-orm';
+import { count, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -7,7 +7,7 @@ import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-err
 
 const { members, posts, attendance, AttendanceStatus } = sharedDb;
 
-const ALLOWED_STATUSES = ['active', 'dormant'];
+const ALLOWED_STATUSES = ['active', 'dormant', 'ob'];
 
 /**
  * GET /api/members
@@ -25,16 +25,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'active';
+    const statusParam = searchParams.get('status') || 'active';
 
-    if (!ALLOWED_STATUSES.includes(status)) {
+    // 쉼표 구분으로 복수 상태 지원: ?status=active,dormant,ob
+    const statuses = statusParam.split(',').map((s) => s.trim()).filter(Boolean);
+    if (statuses.some((s) => !ALLOWED_STATUSES.includes(s))) {
       return Errors.badRequest('유효하지 않은 상태입니다.').toResponse();
     }
 
     const database = db();
 
-    // Get members by status
-    const membersList = await database.select().from(members).where(eq(members.status, status));
+    // Get members by status(es)
+    const membersList = await database
+      .select()
+      .from(members)
+      .where(statuses.length === 1 ? eq(members.status, statuses[0]!) : inArray(members.status, statuses));
 
     // Get post counts for all members
     const postCounts = await database

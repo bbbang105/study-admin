@@ -7,9 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PART_OPTIONS } from '@/lib/part-config';
-import { getDefaultAvatar } from '@/lib/utils';
+import { cn, getDefaultAvatar } from '@/lib/utils';
 import { MembersListSkeleton, PageError } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
+import { Badge } from '@/components/ui/badge';
+import { MEMBER_STATUS_CONFIG } from '@/lib/member-config';
 
 interface Member {
   id: string;
@@ -43,7 +45,7 @@ export default function MembersPage() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const response = await fetch('/api/members?status=active');
+        const response = await fetch('/api/members?status=active,dormant,ob');
         if (!response.ok) {
           throw new Error('Failed to fetch members');
         }
@@ -146,7 +148,20 @@ export default function MembersPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                        {member.status !== 'active' && (
+                          <Badge
+                            variant={member.status === 'ob' ? 'outline' : (MEMBER_STATUS_CONFIG[member.status]?.variant ?? 'secondary')}
+                            className={cn(
+                              'h-4 px-1.5 text-[10px] font-medium shrink-0',
+                              member.status === 'ob' && 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            )}
+                          >
+                            {MEMBER_STATUS_CONFIG[member.status]?.label ?? member.status}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-xs text-muted-foreground">
                           @{member.discordUsername.replace(/#0$/, '')}

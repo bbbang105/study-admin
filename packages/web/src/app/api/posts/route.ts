@@ -10,6 +10,7 @@ import {
   successResponse,
 } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
+import { isAdminDiscordId } from '@/lib/admin';
 
 const { posts, members, rounds, postViews } = sharedDb;
 
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
     if (authError || !user) {
       return Errors.unauthorized().toResponse();
     }
+
+    // 현재 유저의 discordId → memberId 조회
+    const discordIdentity = user.identities?.find((i) => i.provider === 'discord');
+    const currentDiscordId = discordIdentity?.id as string | undefined;
 
     const { searchParams } = new URL(request.url);
     const { page, pageSize, offset } = parsePagination(searchParams);
@@ -179,6 +184,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 현재 유저의 memberId + 관리자 여부 조회
+    let currentMemberId: string | null = null;
+    let isAdmin = false;
+    if (currentDiscordId) {
+      const [currentMember] = await database
+        .select({ id: members.id })
+        .from(members)
+        .where(eq(members.discordId, currentDiscordId))
+        .limit(1);
+      currentMemberId = currentMember?.id ?? null;
+      isAdmin = await isAdminDiscordId(currentDiscordId);
+    }
+
     return successResponse({
       posts: postsResult.map((post) => ({
         id: post.id,
@@ -199,6 +217,8 @@ export async function GET(request: NextRequest) {
         viewers: (viewersMap.get(post.id) ?? []).slice(0, 3),
         totalViewers: viewCountMap.get(post.id) ?? 0,
       })),
+      currentMemberId,
+      isAdmin,
       pagination: createPaginationMeta(page, pageSize, totalCount),
     });
   } catch (error) {
