@@ -416,7 +416,7 @@ function PostCommentItem({
                     setReplyContent('');
                   }
                 }}
-                placeholder={`@${displayName}에게 답글 달기\u2026`}
+                placeholder={`@${displayName}에게 답글 달기…`}
                 rows={2}
                 className="resize-none text-sm leading-relaxed"
                 disabled={replySubmitting}
@@ -1038,7 +1038,7 @@ function PostCard({
                 onKeyDown={(e) => {
                   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSubmitComment();
                 }}
-                placeholder="댓글을 입력해주세요\u2026"
+                placeholder="댓글을 입력해주세요…"
                 aria-label="댓글 입력"
                 rows={2}
                 className="resize-none text-sm leading-relaxed"

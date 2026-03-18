@@ -16,8 +16,21 @@ export const metadata: Metadata = {
     default: '큐스팅 4th',
     template: '%s | 큐스팅 4th',
   },
-  description: '큐스팅 4th · 스터디 자동화 플랫폼',
+  description: '큐스팅 4th · 블로그 스터디 자동화 플랫폼',
   manifest: '/manifest.json',
+  openGraph: {
+    title: '큐스팅 4th',
+    description: '함께 쓰고, 함께 성장하다. 블로그 스터디 자동화 플랫폼',
+    siteName: '큐스팅 4th',
+    url: 'https://cusiting.com',
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '큐스팅 4th',
+    description: '함께 쓰고, 함께 성장하다. 블로그 스터디 자동화 플랫폼',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

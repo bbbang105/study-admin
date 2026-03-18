@@ -31,7 +31,7 @@ export function CommentForm({
   parentIsSecret = false,
   onSuccess,
   onCancel,
-  placeholder = '댓글을 입력해주세요...',
+  placeholder = '댓글을 입력해주세요…',
 }: CommentFormProps) {
   const [content, setContent] = useState('');
   const [isSecret, setIsSecret] = useState(parentIsSecret);
