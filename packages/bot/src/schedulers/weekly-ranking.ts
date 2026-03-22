@@ -4,7 +4,7 @@
  */
 
 import { bold, Client, EmbedBuilder } from 'discord.js';
-import { count, eq, sql } from 'drizzle-orm';
+import { count, eq, inArray, sql } from 'drizzle-orm';
 import logger from '../lib/logger';
 import { activityScores, ActivityScoreType, getDb, members, MemberStatus, posts } from '@blog-study/shared/db';
 import { ConfigKeys, getConfigValue } from '../services/round.service';
@@ -53,7 +53,7 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     })
     .from(members)
     .leftJoin(posts, eq(members.id, posts.memberId))
-    .where(eq(members.status, MemberStatus.ACTIVE))
+    .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]))
     .groupBy(members.id);
 
   // 전체 누적 점수 (주간 필터 없음 — 웹 랭킹과 동일)
@@ -127,27 +127,44 @@ function createRankingEmbed(rankings: MemberRanking[]): EmbedBuilder {
     });
   }
 
-  // 전체 랭킹 (Top 15)
-  const displayRankings = rankings.slice(0, 15);
-  let rankingText = '';
-
-  for (const r of displayRankings) {
+  // 전체 랭킹 (전원 표시, 1024자 제한 시 여러 field로 분할)
+  const rankingLines: string[] = [];
+  for (const r of rankings) {
     const rankDisplay = r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] ?? `${r.rank}.` : `${r.rank}.`;
     const activity = r.webActivityScore > 0 ? ` | 활동 ${r.webActivityScore}pt` : '';
-    rankingText += `${rankDisplay} <@${r.discordId}> — ${r.totalScore}pt (포스트 ${r.postCount}개${activity})\n`;
+    rankingLines.push(`${rankDisplay} <@${r.discordId}> — ${r.totalScore}pt (포스트 ${r.postCount}개${activity})`);
   }
 
-  if (rankings.length > 15) {
-    rankingText += `\n_외 ${rankings.length - 15}명_`;
+  if (rankingLines.length === 0) {
+    embed.addFields({
+      name: `# 📊 전체 랭킹`,
+      value: '등록된 멤버가 없습니다.',
+      inline: false,
+    });
+  } else {
+    // 1024자 제한 대응: 여러 field로 분할
+    let chunk = '';
+    let isFirst = true;
+    for (const line of rankingLines) {
+      if (chunk.length + line.length + 1 > 1000) {
+        embed.addFields({
+          name: isFirst ? `# 📊 전체 랭킹 (${rankings.length}명)` : '\u200b',
+          value: chunk,
+          inline: false,
+        });
+        chunk = '';
+        isFirst = false;
+      }
+      chunk += (chunk ? '\n' : '') + line;
+    }
+    if (chunk) {
+      embed.addFields({
+        name: isFirst ? `# 📊 전체 랭킹 (${rankings.length}명)` : '\u200b',
+        value: chunk,
+        inline: false,
+      });
+    }
   }
-
-  embed.addFields({
-    name: `# 📊 전체 랭킹 (${rankings.length}명)`,
-    value: (rankingText || '등록된 멤버가 없습니다.').length > 1024
-      ? rankingText.substring(0, 1021) + '...'
-      : rankingText || '등록된 멤버가 없습니다.',
-    inline: false,
-  });
 
   return embed;
 }

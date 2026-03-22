@@ -4,14 +4,8 @@
  * 주간/월간 랭킹, 포디움 추출
  */
 
-import { and, count, eq, inArray, sql } from 'drizzle-orm';
-import {
-  getDb,
-  members,
-  posts,
-  activityScores,
-  MemberStatus,
-} from '@blog-study/shared/db';
+import { and, count, inArray, sql } from 'drizzle-orm';
+import { activityScores, getDb, members, MemberStatus, posts, } from '@blog-study/shared/db';
 
 /**
  * 블로그 포스트 점수 (포스트 1개당 부여되는 점수)
@@ -61,7 +55,7 @@ export class RankingService {
         part: members.part,
       })
       .from(members)
-      .where(eq(members.status, MemberStatus.ACTIVE));
+      .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]));
 
     if (activeMembers.length === 0) {
       return [];

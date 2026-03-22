@@ -58,8 +58,6 @@ interface RankingData {
   currentRound: CurrentRound | null;
 }
 
-const TOP_N = 10;
-
 // ─────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────
@@ -394,13 +392,13 @@ export default function RankingPage() {
         </div>
       )}
 
-      {/* ── Ranking Table (Top 10 + My Rank) ── */}
+      {/* ── Ranking Table (전체) ── */}
       <Card className="rounded-xl border-border/60 shadow-none">
         <CardHeader className="pb-3 pt-5 px-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Top 10</span>
+              <span className="text-sm font-medium">전체 랭킹</span>
             </div>
             <span className="text-xs text-muted-foreground">총 {data?.totalMembers ?? 0}명</span>
           </div>
@@ -426,34 +424,15 @@ export default function RankingPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rankings.slice(0, TOP_N).map((member, index) => (
+                {rankings.slice(3).map((member, index) => (
                   <RankingRow
                     key={member.id}
                     member={member}
-                    rank={index + 1}
+                    rank={index + 4}
                     isMe={member.id === currentUserId}
                     myRankGapText={member.id === currentUserId ? myRankGapText : null}
                   />
                 ))}
-
-                {/* 내가 Top 10 밖이면 구분선 + 내 순위 표시 */}
-                {myRank !== null && myRank > TOP_N && myRankIndex >= 0 && rankings[myRankIndex] && (
-                  <>
-                    <TableRow className="border-0 hover:bg-transparent">
-                      <TableCell colSpan={4} className="py-1 text-center">
-                        <span className="text-[10px] text-muted-foreground/60 tracking-widest">
-                          ···
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                    <RankingRow
-                      member={rankings[myRankIndex]}
-                      rank={myRank}
-                      isMe
-                      myRankGapText={myRankGapText}
-                    />
-                  </>
-                )}
               </TableBody>
             </Table>
           ) : (

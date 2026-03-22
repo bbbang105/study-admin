@@ -14,17 +14,36 @@ interface EmbedField {
 
 interface DiscordEmbed {
   title?: string;
+  url?: string;
   description?: string;
   color?: number;
   fields?: EmbedField[];
+  image?: { url: string };
+  thumbnail?: { url: string };
+  author?: { name: string; icon_url?: string };
   timestamp?: string;
   footer?: { text: string };
+}
+
+interface DiscordButton {
+  type: 2;
+  style: 5;
+  label: string;
+  url: string;
+  emoji?: { name: string };
+}
+
+interface DiscordActionRow {
+  type: 1;
+  components: DiscordButton[];
 }
 
 interface SendChannelMessageOptions {
   channelId: string;
   content?: string;
   embeds?: DiscordEmbed[];
+  components?: DiscordActionRow[];
+  allowEveryone?: boolean;
 }
 
 /**
@@ -65,7 +84,8 @@ export async function sendDiscordChannelMessage(
         body: JSON.stringify({
           content: options.content,
           embeds: options.embeds,
-          allowed_mentions: { parse: [] },
+          components: options.components,
+          allowed_mentions: { parse: options.allowEveryone ? ['everyone'] : [] },
         }),
       }
     );

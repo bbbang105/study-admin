@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Heart, Target, ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Heart, Loader2, Target, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import { PART_OPTIONS } from '@/lib/part-config';
 import { INTEREST_OPTIONS } from '@blog-study/shared/config';
 import { FormPageSkeleton } from '@/components/ui/page-state';
@@ -82,16 +83,46 @@ export default function OnboardingPage() {
   };
 
   const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
-  const isStep1Valid = name.trim().length > 0 && nickname.trim().length > 0 && part.length > 0 && blogUrl.trim().length > 0;
+  const isStep1Valid =
+    name.trim().length > 0 &&
+    nickname.trim().length > 0 &&
+    part.length > 0 &&
+    blogUrl.trim().length > 0;
   const isStep2Valid = interests.length >= 3 && interests.length <= 6 && bio.trim().length >= 100;
   const isStep3Valid = resolution.trim().length > 0;
 
   const canProceed = () => {
     switch (step) {
-      case 1: return isStep1Valid;
-      case 2: return isStep2Valid;
-      case 3: return isStep3Valid;
-      default: return false;
+      case 1:
+        return isStep1Valid;
+      case 2:
+        return isStep2Valid;
+      case 3:
+        return isStep3Valid;
+      default:
+        return false;
+    }
+  };
+
+  const showValidationErrors = () => {
+    switch (step) {
+      case 1: {
+        const missing: string[] = [];
+        if (!name.trim()) missing.push('이름');
+        if (!nickname.trim()) missing.push('닉네임');
+        if (!part) missing.push('파트');
+        if (!blogUrl.trim()) missing.push('블로그 URL');
+        if (missing.length > 0) toast.error(`${missing.join(', ')}을(를) 입력해주세요.`);
+        break;
+      }
+      case 2: {
+        if (interests.length < 3) toast.error('관심사를 3개 이상 선택해주세요.');
+        else if (bio.trim().length < 100) toast.error('자기소개를 100자 이상 작성해주세요.');
+        break;
+      }
+      case 3:
+        if (!resolution.trim()) toast.error('다짐을 작성해주세요.');
+        break;
     }
   };
 
@@ -147,9 +178,7 @@ export default function OnboardingPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">스터디 시작하기</h1>
-        <p className="text-muted-foreground mt-1">
-          프로필을 작성하고 스터디에 참가하세요.
-        </p>
+        <p className="text-muted-foreground mt-1">프로필을 작성하고 스터디에 참가하세요.</p>
       </div>
 
       {/* Progress Steps */}
@@ -161,8 +190,8 @@ export default function OnboardingPage() {
                 s < step
                   ? 'bg-primary text-primary-foreground'
                   : s === step
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
               }`}
             >
               {s < step ? <Check className="h-4 w-4" /> : s}
@@ -186,9 +215,7 @@ export default function OnboardingPage() {
               <User className="h-5 w-5" />
               <CardTitle>기본 정보</CardTitle>
             </div>
-            <CardDescription>
-              스터디에서 사용할 기본 정보를 입력해주세요.
-            </CardDescription>
+            <CardDescription>스터디에서 사용할 기본 정보를 입력해주세요.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -274,18 +301,16 @@ export default function OnboardingPage() {
                   </p>
                 )}
               </div>
-              <Switch
-                id="rssConsent"
-                checked={rssConsent}
-                onCheckedChange={setRssConsent}
-              />
+              <Switch id="rssConsent" checked={rssConsent} onCheckedChange={setRssConsent} />
             </div>
 
             <Separator />
 
             <div className="space-y-1">
               <p className="text-sm font-medium">소셜 링크 (선택)</p>
-              <p className="text-xs text-muted-foreground">다른 스터디원들이 볼 수 있는 소셜 링크를 입력하세요.</p>
+              <p className="text-xs text-muted-foreground">
+                다른 스터디원들이 볼 수 있는 소셜 링크를 입력하세요.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -332,9 +357,7 @@ export default function OnboardingPage() {
               <Heart className="h-5 w-5" />
               <CardTitle>관심사 & 자기소개</CardTitle>
             </div>
-            <CardDescription>
-              다른 스터디원들에게 나를 소개해보세요.
-            </CardDescription>
+            <CardDescription>다른 스터디원들에게 나를 소개해보세요.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
@@ -365,9 +388,7 @@ export default function OnboardingPage() {
             <div className="space-y-2">
               <Label htmlFor="bio">
                 자기소개 <span className="text-destructive">*</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  (최소 100자, 최대 200자)
-                </span>
+                <span className="text-xs text-muted-foreground ml-2">(최소 100자, 최대 200자)</span>
               </Label>
               <textarea
                 id="bio"
@@ -378,9 +399,11 @@ export default function OnboardingPage() {
                 rows={4}
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
               />
-              <p className={`text-xs text-right ${
-                bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
-              }`}>
+              <p
+                className={`text-xs text-right ${
+                  bio.trim().length >= 100 ? 'text-muted-foreground' : 'text-destructive'
+                }`}
+              >
                 {bio.trim().length}/100자 이상 (최대 200자)
               </p>
             </div>
@@ -396,9 +419,7 @@ export default function OnboardingPage() {
               <Target className="h-5 w-5" />
               <CardTitle>마무리</CardTitle>
             </div>
-            <CardDescription>
-              프로필 이미지와 다짐을 작성해주세요.
-            </CardDescription>
+            <CardDescription>프로필 이미지와 다짐을 작성해주세요.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -431,28 +452,33 @@ export default function OnboardingPage() {
       )}
 
       {/* Error Message */}
-      {error && (
-        <p className="text-sm text-destructive text-center">{error}</p>
-      )}
+      {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
       {/* Navigation Buttons */}
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={prevStep}
-          disabled={step === 1}
-        >
+        <Button variant="outline" onClick={prevStep} disabled={step === 1}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           이전
         </Button>
 
         {step < TOTAL_STEPS ? (
-          <Button onClick={nextStep} disabled={!canProceed()}>
+          <Button
+            onClick={() => {
+              if (canProceed()) nextStep();
+              else showValidationErrors();
+            }}
+          >
             다음
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={saving || !canProceed()}>
+          <Button
+            onClick={() => {
+              if (canProceed()) handleSubmit();
+              else showValidationErrors();
+            }}
+            disabled={saving}
+          >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />

@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       })
       .from(members)
       .leftJoin(posts, eq(members.id, posts.memberId))
-      .where(eq(members.status, MemberStatus.ACTIVE))
+      .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]))
       .groupBy(members.id);
 
     // Get current round post counts

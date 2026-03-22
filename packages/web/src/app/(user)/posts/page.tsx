@@ -805,14 +805,18 @@ function PostCard({
   onView,
   onCommentCountChange,
   onDelete,
+  onEdit,
   canDelete,
+  canEdit,
   rank,
 }: {
   post: Post;
   onView: (id: string) => void;
   onCommentCountChange: (postId: string, delta: number) => void;
   onDelete: (postId: string) => void;
+  onEdit: (postId: string, title: string, description: string | null) => void;
   canDelete: boolean;
+  canEdit: boolean;
   rank?: number; // 1, 2, 3 for medal styling
 }) {
   const authorName = post.memberNickname || post.memberDiscordUsername;
@@ -827,6 +831,37 @@ function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editDescription, setEditDescription] = useState(post.description || '');
+  const [editing, setEditing] = useState(false);
+
+  const handleEditSubmit = async () => {
+    if (!editTitle.trim()) return;
+    setEditing(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        toast.error(json.error?.message || '수정에 실패했습니다.');
+        return;
+      }
+      toast.success('수정되었습니다.');
+      onEdit(post.id, editTitle.trim(), editDescription.trim() || null);
+      setEditOpen(false);
+    } catch {
+      toast.error('서버 오류가 발생했습니다.');
+    } finally {
+      setEditing(false);
+    }
+  };
 
   const fetchComments = useCallback(async () => {
     try {
@@ -1016,15 +1051,30 @@ function PostCard({
             <span className="tabular-nums">{post.commentCount}</span>
           </button>
 
-          {canDelete && (
-            <button
-              onClick={() => setDeleteOpen(true)}
-              aria-label="포스트 삭제"
-              className="ml-auto flex items-center gap-1 rounded-md p-1.5 text-xs text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-0.5">
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setEditTitle(post.title);
+                  setEditDescription(post.description || '');
+                  setEditOpen(true);
+                }}
+                aria-label="포스트 수정"
+                className="flex items-center gap-1 rounded-md p-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                aria-label="포스트 삭제"
+                className="flex items-center gap-1 rounded-md p-1.5 text-xs text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 삭제 확인 다이얼로그 */}
@@ -1060,6 +1110,57 @@ function PostCard({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* 수정 다이얼로그 */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base">포스트 수정</DialogTitle>
+              <DialogDescription>제목과 설명을 수정할 수 있습니다.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor={`editTitle-${post.id}`}>제목</Label>
+                <Input
+                  id={`editTitle-${post.id}`}
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`editDesc-${post.id}`}>설명</Label>
+                <textarea
+                  id={`editDesc-${post.id}`}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={3}
+                  maxLength={300}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOpen(false)}
+                disabled={editing}
+              >
+                취소
+              </Button>
+              <Button size="sm" onClick={handleEditSubmit} disabled={editing || !editTitle.trim()}>
+                {editing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    수정 중...
+                  </>
+                ) : (
+                  '수정'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Comments section (게시판 스타일) */}
         {showComments && (
@@ -1195,7 +1296,11 @@ function PostsContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [postUrl, setPostUrl] = useState('');
   const [postTitle, setPostTitle] = useState('');
-  const [needsTitle, setNeedsTitle] = useState(false);
+  const [postDescription, setPostDescription] = useState('');
+  const [postThumbnailUrl, setPostThumbnailUrl] = useState('');
+  const [previewed, setPreviewed] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [notifyDiscord, setNotifyDiscord] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -1302,20 +1407,54 @@ function PostsContent() {
   const resetDialog = () => {
     setPostUrl('');
     setPostTitle('');
-    setNeedsTitle(false);
+    setPostDescription('');
+    setPostThumbnailUrl('');
+    setPreviewed(false);
+    setPreviewing(false);
+    setNotifyDiscord(true);
     setSubmitError(null);
   };
 
-  const handleManualSubmit = async () => {
+  const handlePreview = async () => {
     if (!postUrl.trim()) return;
+    setPreviewing(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch('/api/posts/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: postUrl.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSubmitError(json.error?.message || '미리보기를 가져올 수 없습니다.');
+        return;
+      }
+      const { title, description, thumbnailUrl } = json.data;
+      setPostTitle(title || '');
+      setPostDescription(description || '');
+      setPostThumbnailUrl(thumbnailUrl || '');
+      setPreviewed(true);
+    } catch {
+      setSubmitError('서버 오류가 발생했습니다.');
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleManualSubmit = async () => {
+    if (!postUrl.trim() || !postTitle.trim()) return;
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      const body: Record<string, string> = { url: postUrl.trim() };
-      if (needsTitle && postTitle.trim()) {
-        body.title = postTitle.trim();
-      }
+      const body: Record<string, unknown> = {
+        url: postUrl.trim(),
+        title: postTitle.trim(),
+        notifyDiscord,
+      };
+      if (postDescription.trim()) body.description = postDescription.trim();
+      if (postThumbnailUrl.trim()) body.thumbnailUrl = postThumbnailUrl.trim();
 
       const response = await fetch('/api/posts/manual', {
         method: 'POST',
@@ -1325,12 +1464,6 @@ function PostsContent() {
 
       const result = await response.json();
 
-      if (response.status === 422 && result.needsTitle) {
-        setNeedsTitle(true);
-        setSubmitError(null);
-        return;
-      }
-
       if (!response.ok) {
         setSubmitError(result.error?.message || result.message || '등록에 실패했습니다.');
         return;
@@ -1339,7 +1472,6 @@ function PostsContent() {
       toast.success('글이 등록되었습니다.');
       setDialogOpen(false);
       resetDialog();
-      // 리로드: 첫 페이지부터 다시
       setPosts([]);
       setPage(1);
       fetchPosts(1, false);
@@ -1399,51 +1531,112 @@ function PostsContent() {
                 <DialogHeader>
                   <DialogTitle>글 등록</DialogTitle>
                   <DialogDescription>
-                    블로그 글 URL을 입력하면 제목이 자동으로 추출됩니다.
+                    URL을 입력하고 미리보기를 확인한 후 등록하세요.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
+                  {/* Step 1: URL 입력 */}
                   <div className="space-y-2">
                     <Label htmlFor="postUrl">URL</Label>
-                    <Input
-                      id="postUrl"
-                      placeholder="https://velog.io/@username/post-title"
-                      value={postUrl}
-                      onChange={(e) => setPostUrl(e.target.value)}
-                    />
-                  </div>
-                  {needsTitle && (
-                    <div className="space-y-2">
-                      <Label htmlFor="postTitle">
-                        제목 <span className="text-destructive">*</span>
-                      </Label>
+                    <div className="flex gap-2">
                       <Input
-                        id="postTitle"
-                        placeholder="글 제목을 직접 입력해주세요"
-                        value={postTitle}
-                        onChange={(e) => setPostTitle(e.target.value)}
+                        id="postUrl"
+                        placeholder="https://velog.io/@username/post-title"
+                        value={postUrl}
+                        onChange={(e) => {
+                          setPostUrl(e.target.value);
+                          setPreviewed(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handlePreview();
+                          }
+                        }}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        제목을 자동으로 가져올 수 없습니다. 직접 입력해주세요.
-                      </p>
+                      {!previewed && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreview}
+                          disabled={previewing || !postUrl.trim()}
+                          className="shrink-0"
+                        >
+                          {previewing ? <Loader2 className="h-4 w-4 animate-spin" /> : '미리보기'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Step 2: 미리보기 편집 */}
+                  {previewed && (
+                    <>
+                      {postThumbnailUrl && (
+                        <div className="rounded-md overflow-hidden border border-border/60">
+                          <img
+                            src={postThumbnailUrl}
+                            alt="썸네일 미리보기"
+                            className="w-full max-h-48 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="postTitle">
+                          제목 <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="postTitle"
+                          placeholder="글 제목"
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="postDescription">설명</Label>
+                        <textarea
+                          id="postDescription"
+                          placeholder="글 설명 (선택)"
+                          value={postDescription}
+                          onChange={(e) => setPostDescription(e.target.value)}
+                          rows={3}
+                          maxLength={300}
+                          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {previewed && (
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">디스코드 새 글 알림</p>
+                        <p className="text-xs text-muted-foreground">
+                          등록 시 #새-글-알림 채널에 전송
+                        </p>
+                      </div>
+                      <Switch checked={notifyDiscord} onCheckedChange={setNotifyDiscord} />
                     </div>
                   )}
+
                   {submitError && <p className="text-sm text-destructive">{submitError}</p>}
                 </div>
                 <DialogFooter>
-                  <Button
-                    onClick={handleManualSubmit}
-                    disabled={submitting || !postUrl.trim() || (needsTitle && !postTitle.trim())}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        등록 중...
-                      </>
-                    ) : (
-                      '등록'
-                    )}
-                  </Button>
+                  {previewed && (
+                    <Button onClick={handleManualSubmit} disabled={submitting || !postTitle.trim()}>
+                      {submitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          등록 중...
+                        </>
+                      ) : (
+                        '등록'
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -1597,7 +1790,13 @@ function PostsContent() {
                 onView={trackPostView}
                 onCommentCountChange={handleCommentCountChange}
                 onDelete={handleDeletePost}
+                onEdit={(postId, title, description) => {
+                  setPosts((prev) =>
+                    prev.map((p) => (p.id === postId ? { ...p, title, description } : p))
+                  );
+                }}
                 canDelete={isAdmin || post.memberId === currentMemberId}
+                canEdit={isAdmin || post.memberId === currentMemberId}
                 rank={tab === 'popular' ? index + 1 : undefined}
               />
             ))}

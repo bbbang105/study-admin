@@ -1,4 +1,4 @@
-import { NextRequest, after } from 'next/server';
+import { after, NextRequest } from 'next/server';
 import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
@@ -15,8 +15,17 @@ import { isValidCategory } from '@/lib/board-config';
 import { sanitizeDescription, sanitizeTiptapContent } from '@/lib/sanitize';
 import { grantWebScore } from '@/lib/score';
 import { sendPushToMembers } from '@/lib/push';
+import { sendDiscordChannelMessage } from '@/lib/discord-notify';
 
-const { boardPosts, members, boardPolls, boardPollOptions, ActivityScoreType, MemberStatus } = sharedDb;
+const {
+  boardPosts,
+  members,
+  boardPolls,
+  boardPollOptions,
+  config,
+  ActivityScoreType,
+  MemberStatus,
+} = sharedDb;
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,10 +69,10 @@ export async function GET(request: NextRequest) {
             })
             .from(boardPosts)
             .innerJoin(members, eq(boardPosts.memberId, members.id))
-            .leftJoin(boardPolls, and(
-              eq(boardPolls.postId, boardPosts.id),
-              isNull(boardPolls.deletedAt)
-            ))
+            .leftJoin(
+              boardPolls,
+              and(eq(boardPolls.postId, boardPosts.id), isNull(boardPolls.deletedAt))
+            )
             .where(and(isNull(boardPosts.deletedAt), eq(boardPosts.isPinned, true)))
             .groupBy(boardPosts.id, members.id)
             .orderBy(desc(boardPosts.createdAt))
@@ -84,10 +93,7 @@ export async function GET(request: NextRequest) {
       })
       .from(boardPosts)
       .innerJoin(members, eq(boardPosts.memberId, members.id))
-      .leftJoin(boardPolls, and(
-        eq(boardPolls.postId, boardPosts.id),
-        isNull(boardPolls.deletedAt)
-      ))
+      .leftJoin(boardPolls, and(eq(boardPolls.postId, boardPosts.id), isNull(boardPolls.deletedAt)))
       .where(and(...normalConditions))
       .groupBy(boardPosts.id, members.id)
       .orderBy(desc(boardPosts.createdAt))
@@ -135,15 +141,7 @@ export async function POST(request: NextRequest) {
     if (!auth) return Errors.unauthorized().toResponse();
 
     const body = await request.json();
-    const {
-      category,
-      title,
-      content,
-      contentText,
-      isSecret,
-      isNoticeBanner,
-      polls,
-    } = body;
+    const { category, title, content, contentText, isSecret, isNoticeBanner, polls } = body;
 
     // Validation
     if (!category || !title?.trim() || !content || !contentText?.trim()) {
@@ -273,6 +271,7 @@ export async function POST(request: NextRequest) {
 
       const memberIds = activeMembers.map((m) => m.id).filter((id) => id !== auth.memberId);
       after(async () => {
+        // 푸시 알림
         try {
           await sendPushToMembers(memberIds, {
             title: '📢 새 공지사항',
@@ -282,6 +281,42 @@ export async function POST(request: NextRequest) {
           });
         } catch (err) {
           console.error('[push] Notice notification failed:', err);
+        }
+
+        // 디스코드 공지 채널 알림
+        try {
+          const db2 = getDb();
+          const [channelRow] = await db2
+            .select({ value: config.value })
+            .from(config)
+            .where(eq(config.key, 'notice_channel_id'))
+            .limit(1);
+
+          const channelId = channelRow?.value;
+          if (channelId) {
+            const postUrl = `https://kusting-web.vercel.app/board/${result.id}`;
+            await sendDiscordChannelMessage({
+              channelId,
+              allowEveryone: true,
+              content: `@everyone\n\n📢 **새로운 공지사항이 등록되었습니다!**\n\n## ${title.trim().slice(0, 100)}`,
+              components: [
+                {
+                  type: 1,
+                  components: [
+                    {
+                      type: 2,
+                      style: 5,
+                      label: '큐스팅 웹에서 보기',
+                      url: postUrl,
+                      emoji: { name: '🔗' },
+                    },
+                  ],
+                },
+              ],
+            });
+          }
+        } catch (err) {
+          console.error('[discord] Notice notification failed:', err);
         }
       });
     }

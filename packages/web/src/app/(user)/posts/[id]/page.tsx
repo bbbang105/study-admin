@@ -626,6 +626,8 @@ export default function PostDetailPage() {
     authorAvatar: string;
     authorId: string | null;
     publishedAt: string;
+    thumbnailUrl: string | null;
+    description: string | null;
   } | null>(null);
 
   const fetchComments = useCallback(async () => {
@@ -659,6 +661,8 @@ export default function PostDetailPage() {
               authorAvatar: post.memberProfileImageUrl || getDefaultAvatar(name),
               authorId: post.memberId,
               publishedAt: post.publishedAt,
+              thumbnailUrl: post.thumbnailUrl || null,
+              description: post.description || null,
             });
           }
         }
@@ -748,6 +752,23 @@ export default function PostDetailPage() {
               </h1>
               <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground/40 group-hover/link:text-primary transition-colors mt-0.5" />
             </a>
+            {postInfo.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                {postInfo.description}
+              </p>
+            )}
+            {postInfo.thumbnailUrl && (
+              <div className="rounded-md overflow-hidden border border-border/40">
+                <img
+                  src={postInfo.thumbnailUrl}
+                  alt={postInfo.title}
+                  className="w-full max-h-64 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

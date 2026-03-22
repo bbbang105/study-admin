@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
@@ -30,6 +31,8 @@ export async function GET(request: Request) {
   const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
+    Sentry.setContext('auth', { hasCode: !!code });
+    Sentry.captureException(error, { extra: { message: error.message } });
     if (isDev) console.error(`[auth/callback] exchangeCodeForSession 실패: ${error.message}`);
     return NextResponse.redirect(`${origin}/login?error=auth`);
   }
@@ -73,6 +76,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/profile/onboarding`);
     }
   } catch (e) {
+    Sentry.captureException(e);
     console.error('[auth/callback] 온보딩 체크 에러:', e);
     // DB 오류 시 안전하게 대시보드로 (layout에서 2차 체크)
   }
