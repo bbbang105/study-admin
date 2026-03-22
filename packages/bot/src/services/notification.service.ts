@@ -13,6 +13,8 @@ import {
   type MessageCreateOptions,
   TextChannel,
 } from 'discord.js';
+
+const KUSTING_WEB_URL = 'https://kusting-web.vercel.app';
 import type { AttendanceStatusType, Member, Post, Round } from '@blog-study/shared/db';
 import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
@@ -127,11 +129,23 @@ export function buildPostNotificationButtons(): ActionRowBuilder<ButtonBuilder> 
  * Requirements: 7.2 - Include all required fields
  */
 export function buildPostNotificationMessage(input: PostNotificationInput): MessageCreateOptions {
-  const { member } = input;
-  
+  const { post, member } = input;
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setLabel('📖 블로그 원문 보기')
+      .setStyle(ButtonStyle.Link)
+      .setURL(post.url),
+    new ButtonBuilder()
+      .setLabel('🔗 큐스팅 웹에서 보기')
+      .setStyle(ButtonStyle.Link)
+      .setURL(`${KUSTING_WEB_URL}/posts/${post.id}`),
+  );
+
   return {
     content: `<@${member.discordId}>님이 새 글을 발행했습니다! 🎉`,
     embeds: [buildPostNotificationEmbed(input)],
+    components: [row],
   };
 }
 
