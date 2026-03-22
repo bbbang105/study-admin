@@ -101,25 +101,33 @@ describe('RSS Poller Property Tests', () => {
               )
             );
 
-            // Filter to only active members (what the service should return)
+            // Filter to active and OB members (what the service should return)
             const activeMembers = allMembers.filter(
               m => m.status === MemberStatus.ACTIVE
             );
+            const obMembers = allMembers.filter(
+              m => m.status === MemberStatus.OB
+            );
 
-            // Mock the service to return only active members
-            mockGetAllByStatus.mockResolvedValue(activeMembers);
+            // Mock the service to return active and OB members separately
+            mockGetAllByStatus.mockImplementation(async (status: string) => {
+              if (status === MemberStatus.ACTIVE) return activeMembers;
+              if (status === MemberStatus.OB) return obMembers;
+              return [];
+            });
 
             // Get members to poll
             const membersToPoll = await poller.getMembersToPoll();
 
-            // Verify: all returned members should be active AND have RSS URL
+            // Verify: all returned members should be active or OB AND have RSS URL
             for (const member of membersToPoll) {
-              expect(member.status).toBe(MemberStatus.ACTIVE);
+              expect([MemberStatus.ACTIVE, MemberStatus.OB]).toContain(member.status);
               expect(member.rssUrl).not.toBeNull();
             }
 
-            // Verify: the service was called with ACTIVE status
+            // Verify: the service was called with both ACTIVE and OB
             expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.ACTIVE);
+            expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.OB);
           }
         ),
         { numRuns: 100 }
@@ -148,7 +156,10 @@ describe('RSS Poller Property Tests', () => {
               )
             );
 
-            mockGetAllByStatus.mockResolvedValue(activeMembers);
+            mockGetAllByStatus.mockImplementation(async (status: string) => {
+              if (status === MemberStatus.ACTIVE) return activeMembers;
+              return []; // OB returns empty for this test
+            });
 
             const membersToPoll = await poller.getMembersToPoll();
 
