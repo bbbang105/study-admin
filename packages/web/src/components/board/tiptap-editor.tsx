@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { NodeViewProps } from '@tiptap/react';
 import {
   EditorContent,
+  Extension,
   NodeViewContent,
   NodeViewWrapper,
   ReactNodeViewRenderer,
@@ -20,6 +21,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  ImagePlus,
   Italic,
   Link as LinkIcon,
   List,
@@ -31,6 +33,8 @@ import {
   Undo,
   Unlink,
 } from 'lucide-react';
+import { ImageBlockExtension } from './image-block';
+import { createImageDropPlugin } from './image-drop-plugin';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -176,6 +180,13 @@ export function TiptapEditor({
           return ReactNodeViewRenderer(CodeBlockView);
         },
       }).configure({ lowlight }),
+      ImageBlockExtension,
+      Extension.create({
+        name: 'imageDropUpload',
+        addProseMirrorPlugins() {
+          return [createImageDropPlugin()];
+        },
+      }),
     ],
     content: content || '',
     editable,
@@ -207,6 +218,26 @@ export function TiptapEditor({
     },
   });
 
+  const uploadAndInsertImage = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+      const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!ALLOWED.includes(file.type) || file.size > 5 * 1024 * 1024) return;
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        const res = await fetch('/api/board/image', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (json.success && json.data?.url) {
+          editor.chain().focus().setImage({ src: json.data.url }).run();
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    [editor]
+  );
+
   const handleLinkSubmit = useCallback(() => {
     if (!editor || !linkUrl.trim()) return;
     const url = linkUrl.trim().startsWith('http') ? linkUrl.trim() : `https://${linkUrl.trim()}`;
@@ -228,7 +259,7 @@ export function TiptapEditor({
     <>
       <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
         {editable && (
-          <div className="flex flex-wrap items-center gap-0.5 border-b border-zinc-200 dark:border-zinc-800 p-1.5">
+          <div className="flex flex-wrap items-center gap-0.5 border-b border-zinc-200 dark:border-zinc-800 p-1.5 sticky top-0 z-10 bg-background rounded-t-md">
             <ToolbarButton
               onClick={() => editor.chain().focus().setParagraph().run()}
               active={editor.isActive('paragraph') && !editor.isActive('heading')}
@@ -315,6 +346,21 @@ export function TiptapEditor({
               title="구분선"
             >
               <Minus className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/jpeg,image/png,image/gif,image/webp';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) uploadAndInsertImage(file);
+                };
+                input.click();
+              }}
+              title="이미지"
+            >
+              <ImagePlus className="h-4 w-4" />
             </ToolbarButton>
             <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
             {isLinkActive ? (

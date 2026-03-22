@@ -51,14 +51,17 @@ export class RssPoller {
 
   /**
    * Get members that should be polled
-   * Requirements: 6.2 - Only active members should be polled
+   * Active + OB members with RSS consent
    */
   async getMembersToPoll(): Promise<Member[]> {
     const memberService = getMemberService();
-    const activeMembers = await memberService.getAllByStatus(MemberStatus.ACTIVE);
-    
+    const [activeMembers, obMembers] = await Promise.all([
+      memberService.getAllByStatus(MemberStatus.ACTIVE),
+      memberService.getAllByStatus(MemberStatus.OB),
+    ]);
+
     // Filter to only members with RSS URLs and RSS consent
-    return activeMembers.filter(member => member.rssUrl && member.rssConsent !== false);
+    return [...activeMembers, ...obMembers].filter(member => member.rssUrl && member.rssConsent !== false);
   }
 
   /**

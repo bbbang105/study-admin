@@ -26,6 +26,13 @@ const DANGEROUS_PROTOCOLS = /^(javascript|data|vbscript):/i;
 export function sanitizeTiptapContent(content: any): any {
   if (!content || typeof content !== 'object') return content;
 
+  // Node 레벨 검사 (image-block의 src)
+  if (content.type === 'imageBlock' && content.attrs?.src) {
+    if (DANGEROUS_PROTOCOLS.test(content.attrs.src.trim())) {
+      content.attrs.src = '';
+    }
+  }
+
   // Mark 레벨 검사 (link mark의 href)
   if (Array.isArray(content.marks)) {
     content.marks = content.marks.filter((mark: { type: string; attrs?: { href?: string } }) => {

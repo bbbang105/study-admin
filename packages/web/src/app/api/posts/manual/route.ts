@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isSafeUrl } from '@/lib/rss-detect';
+import { sendDiscordChannelMessage } from '@/lib/discord-notify';
 
 const {
   posts,
@@ -30,9 +31,7 @@ function getTodayDateString(): string {
 /**
  * OG 태그에서 제목, 발행일, 썸네일, 설명 추출
  */
-async function fetchOgData(
-  url: string
-): Promise<{
+async function fetchOgData(url: string): Promise<{
   title: string | null;
   publishedAt: string | null;
   thumbnailUrl: string | null;
@@ -110,7 +109,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { url, title: manualTitle } = body;
+    const {
+      url,
+      title: manualTitle,
+      description: manualDescription,
+      thumbnailUrl: manualThumbnailUrl,
+      notifyDiscord: shouldNotify = true,
+    } = body;
 
     if (!url || typeof url !== 'string') {
       return Errors.badRequest('URL은 필수입니다.').toResponse();
@@ -125,7 +130,15 @@ export async function POST(request: NextRequest) {
 
     // 멤버 조회
     const [member] = await database
-      .select({ id: members.id })
+      .select({
+        id: members.id,
+        discordId: members.discordId,
+        discordUsername: members.discordUsername,
+        name: members.name,
+        part: members.part,
+        profileImageUrl: members.profileImageUrl,
+        status: members.status,
+      })
       .from(members)
       .where(eq(members.discordId, discordId))
       .limit(1);
@@ -145,17 +158,17 @@ export async function POST(request: NextRequest) {
       return Errors.conflict('이미 등록된 URL입니다.').toResponse();
     }
 
-    // OG 크롤링 시도
-    let title = manualTitle as string | null;
+    // 클라이언트에서 미리보기 후 편집된 값 우선 사용, 없으면 OG 크롤링
+    let title = (manualTitle as string | null) || null;
     let publishedAt: Date = new Date();
-    let thumbnailUrl: string | null = null;
-    let description: string | null = null;
-
-    const ogData = await fetchOgData(url);
-    thumbnailUrl = ogData.thumbnailUrl;
-    description = ogData.description;
+    let thumbnailUrl = (manualThumbnailUrl as string | null) || null;
+    let description = (manualDescription as string | null) || null;
 
     if (!title) {
+      const ogData = await fetchOgData(url);
+      if (!thumbnailUrl) thumbnailUrl = ogData.thumbnailUrl;
+      if (!description) description = ogData.description;
+
       if (ogData.title) {
         title = ogData.title;
         if (ogData.publishedAt) {
@@ -257,25 +270,88 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 블로그 포스트 점수 부여 (30점, 일일 60점 상한)
-    const today = getTodayDateString();
-    // Drizzle sql`` 태그가 자동으로 parameterize하므로 추가 sanitize 불필요
-    const safeTitle = title.slice(0, 200);
-    await database.execute(sql`
-      WITH daily AS (
-        SELECT COALESCE(SUM(points), 0) AS total
-        FROM activity_scores
-        WHERE member_id = ${member.id}
-          AND type = ${ActivityScoreType.BLOG_POST}
-          AND date = ${today}
-      )
-      INSERT INTO activity_scores (id, member_id, type, points, description, date)
-      SELECT gen_random_uuid(), ${member.id}, ${ActivityScoreType.BLOG_POST}, ${BLOG_POST_POINTS},
-        ${`블로그 포스트: ${safeTitle}`}, ${today}
-      FROM daily
-      WHERE daily.total < ${BLOG_POST_DAILY_CAP}
-      RETURNING points
-    `);
+    // 블로그 포스트 점수 부여 (30점, 일일 60점 상한) — active 유저만
+    if (member.status === 'active') {
+      const today = getTodayDateString();
+      const safeTitle = title.slice(0, 200);
+      await database.execute(sql`
+        WITH daily AS (
+          SELECT COALESCE(SUM(points), 0) AS total
+          FROM activity_scores
+          WHERE member_id = ${member.id}
+            AND type = ${ActivityScoreType.BLOG_POST}
+            AND date = ${today}
+        )
+        INSERT INTO activity_scores (id, member_id, type, points, description, date)
+        SELECT gen_random_uuid(), ${member.id}, ${ActivityScoreType.BLOG_POST}, ${BLOG_POST_POINTS},
+          ${`블로그 포스트: ${safeTitle}`}, ${today}
+        FROM daily
+        WHERE daily.total < ${BLOG_POST_DAILY_CAP}
+        RETURNING points
+      `);
+    }
+
+    // Discord 새 글 알림 (fire-and-forget)
+    if (shouldNotify && newPost) {
+      after(async () => {
+        try {
+          const database2 = db();
+          const { config } = sharedDb;
+          const [channelRow] = await database2
+            .select({ value: config.value })
+            .from(config)
+            .where(eq(config.key, 'announcement_channel_id'))
+            .limit(1);
+
+          const channelId = channelRow?.value;
+          if (!channelId) return;
+
+          const roundText = currentRound ? `${currentRound.roundNumber}회차` : null;
+
+          const postUrl = `https://kusting-web.vercel.app/posts/${newPost!.id}`;
+
+          await sendDiscordChannelMessage({
+            channelId,
+            content: `<@${member.discordId}>님이 새 글을 발행했습니다! 🎉`,
+            embeds: [
+              {
+                title: `📝 ${title!.slice(0, 200)}`,
+                url,
+                description: description ? description.slice(0, 200) : undefined,
+                color: 0x5865f2,
+                image: thumbnailUrl ? { url: thumbnailUrl } : undefined,
+                author: {
+                  name: member.discordUsername,
+                  icon_url: member.profileImageUrl || undefined,
+                },
+                fields: roundText
+                  ? [{ name: '📅 회차', value: roundText, inline: true }]
+                  : undefined,
+                timestamp: publishedAt.toISOString(),
+                footer: { text: `${member.name} • ${member.part}` },
+              },
+            ],
+            components: [
+              {
+                type: 1,
+                components: [
+                  { type: 2, style: 5, label: '블로그 원문 보기', url, emoji: { name: '📖' } },
+                  {
+                    type: 2,
+                    style: 5,
+                    label: '큐스팅 웹에서 보기',
+                    url: postUrl,
+                    emoji: { name: '🔗' },
+                  },
+                ],
+              },
+            ],
+          });
+        } catch (e) {
+          console.error('[manual-post] Discord 알림 전송 실패:', e);
+        }
+      });
+    }
 
     return successResponse({ post: newPost }, '글이 등록되었습니다.');
   } catch (error) {

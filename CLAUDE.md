@@ -21,7 +21,7 @@ deploy/
 |------|------|
 | Runtime | Node.js 22, TypeScript 5.x |
 | Bot | discord.js v14, feedsmith (RSS 파서), pg-boss (PostgreSQL 잡 큐), Sentry (에러 모니터링) |
-| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Firebase (FCM 푸시 알림), Sentry (에러 모니터링) |
+| Web | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Tiptap (리치 에디터), sonner (토스트), Framer Motion (랜딩 애니메이션), Firebase (FCM 푸시 알림), Sentry (에러 모니터링), Cloudflare R2 (이미지 스토리지) |
 | DB | Supabase PostgreSQL + Drizzle ORM (Transaction Pooler, `prepare: false`) |
 | Auth | Supabase Auth (Discord OAuth) + `@supabase/ssr` |
 | 배포 | AWS EC2 Docker (bot), Vercel (web), Supabase (DB + Auth) |
@@ -64,6 +64,15 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **블로그 URL 수정**: 프로필 수정 시 blogUrl 변경 가능, 변경 시 rssUrl을 null 초기화 후 `after()`로 RSS 비동기 재감지
 - **Discord 알림**: 웹에서 직접 Discord REST API 호출 시 `discord-notify.ts` 유틸 사용, 사용자 입력은 `escapeDiscordMarkdown()` 적용, `allowed_mentions: { parse: [] }` 필수
 - **댓글 길이**: 최대 5000자 제한 (API에서 검증)
+- **이미지 업로드**: Cloudflare R2 (`board-images/{userId}/{uuid}.{ext}`), 5MB 제한, rate limit 20회/분/유저
+- **포스트 수동등록**: 2단계 UX (URL→미리보기→편집→등록), OG HTML 엔티티 자동 디코딩, Discord 알림 토글
+- **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
+- **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + 웹 딥링크 버튼
+- **벌금 DM**: 계좌 정보 포함 (3333333114501 카카오뱅크), 납부완료 시 관리자 채널 알림
+- **D-Day 계산**: KST 기준 (`+09:00` 명시), 제출률은 active 유저만 카운트
+- **랭킹**: active + OB + dormant 전원 표시, 웹 페이지 4위부터 (포디움과 분리), 주간랭킹 전원 나열
+- **RSS 수집**: active + OB (rssConsent=true만), 포스트 점수는 active만 부여
+- **Discord 버튼**: `discord-notify.ts`에 `components` (Link Button) + `allowEveryone` 옵션 지원
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
 - **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
@@ -126,7 +135,12 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
 | `packages/bot/src/scripts/list-channels.ts` | 서버 채널 구조 조회 스크립트 |
 | `packages/bot/src/api-server.ts` | 봇 HTTP API 서버 (Express, 수동 트리거 엔드포인트, rate limit 10/min) |
-| `packages/web/src/lib/discord-notify.ts` | Discord REST API 채널 메시지 전송 유틸 (웹→Discord 직접 알림) |
+| `packages/web/src/lib/discord-notify.ts` | Discord REST API 채널 메시지 전송 유틸 (웹→Discord 직접 알림, 버튼/embed/allowEveryone 지원) |
+| `packages/web/src/lib/r2.ts` | Cloudflare R2 업로드/삭제 유틸 (`uploadToR2`, `deleteFromR2`) |
+| `packages/web/src/app/api/board/image/route.ts` | 게시판 이미지 업로드 API (R2, 5MB, JPEG/PNG/GIF/WebP) |
+| `packages/web/src/app/api/posts/preview/route.ts` | 포스트 URL OG 미리보기 API (제목/설명/썸네일 추출) |
+| `packages/web/src/components/board/image-block.tsx` | Tiptap ImageBlock 커스텀 노드 (리사이즈, 삭제, 캡션) |
+| `packages/web/src/components/board/image-drop-plugin.ts` | Tiptap 이미지 드래그앤드롭 + 붙여넣기 플러그인 |
 | `packages/bot/src/services/round.service.ts` | 회차 관리 + ConfigKeys (announcement/notice/curation/admin_notification 채널) |
 | `packages/web/src/components/landing/landing-client.tsx` | 랜딩 페이지 클라이언트 (7섹션: Hero, Stats, Bento, HowItWorks, Marquee, CTA, Footer) |
 | `packages/web/src/components/landing/motion.tsx` | 랜딩 애니메이션 컴포넌트 (FadeUp, StaggerContainer, CountUp, DrawLine) |

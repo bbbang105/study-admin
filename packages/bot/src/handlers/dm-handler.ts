@@ -161,7 +161,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
           .where(eq(rounds.id, paidFine.roundId))
           .limit(1);
 
-        const displayName = member.nickname || member.name;
+        const displayName = member.name || member.nickname;
         const reason = formatFineReason(paidFine.type as 'late' | 'absent');
         const roundText = round ? `${round.roundNumber}회차` : '';
 
@@ -170,7 +170,7 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
           const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
           if (channel && channel.isTextBased() && !channel.isDMBased()) {
             await (channel as TextChannel).send(
-              `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${paidFine.amount.toLocaleString()}원 납부를 완료했습니다. 확인해주세요.`
+              `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${paidFine.amount.toLocaleString()}원 납부를 완료했습니다.`
             );
           }
         }
@@ -219,6 +219,7 @@ export async function sendFineNotification(
       ``,
       `💰 **금액**: ${amount.toLocaleString()}원`,
       `📝 **사유**: ${reason}`,
+      `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
       ``,
       `납부 완료 후 아래 버튼을 클릭해주세요.`,
     ].join('\n');
@@ -277,6 +278,7 @@ export async function sendFineReminder(
       `(${daysSinceCreation}일 경과)`,
       ``,
       `💰 **금액**: ${amount.toLocaleString()}원`,
+      `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
       ``,
       `납부 완료 후 아래 버튼을 클릭해주세요.`,
     ].join('\n');

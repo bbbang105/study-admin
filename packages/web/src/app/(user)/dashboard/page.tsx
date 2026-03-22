@@ -36,10 +36,12 @@ interface Post {
 
 interface DashboardData {
   nickname: string | null;
+  myStatus: string | null;
   currentRound: RoundInfo | null;
   recentPosts: Post[];
   totalMembers: number;
   totalPosts: number;
+  memberBreakdown: { active: number; ob: number; dormant: number };
 }
 
 interface ScoreProgress {
@@ -130,7 +132,7 @@ function getDdayLabel(days: number, isGrace: boolean): string {
 
 function getAttendanceChip(
   status: string | null,
-  isGracePeriod: boolean,
+  isGracePeriod: boolean
 ): { icon: string; label: string; className: string } {
   switch (status) {
     case 'SUBMITTED':
@@ -283,42 +285,56 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {/* My Attendance Status */}
-            {attendanceChip && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">나의 출석</span>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${attendanceChip.className}`}
-                >
-                  {attendanceChip.icon} {attendanceChip.label}
-                </span>
+            {/* My Status Message (OB/Dormant) or Attendance */}
+            {data?.myStatus === 'ob' ? (
+              <div className="rounded-lg bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+                글을 필수로 작성할 필요는 없어요. 자유롭게 활동해주세요!
               </div>
+            ) : data?.myStatus === 'dormant' ? (
+              <div className="rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+                푹 쉬다가 돌아오세요 😌
+              </div>
+            ) : (
+              <>
+                {attendanceChip && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">나의 출석</span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${attendanceChip.className}`}
+                    >
+                      {attendanceChip.icon} {attendanceChip.label}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Submission Progress */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">제출률</p>
-                <p className="text-sm font-bold">
-                  {round.submissionRate >= 100 && <span className="mr-1">🎊</span>}
-                  {round.submissionRate}%
-                </p>
+            {/* Submission Progress (active만 표시) */}
+            {data?.myStatus !== 'ob' && data?.myStatus !== 'dormant' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">제출률</p>
+                  <p className="text-sm font-bold">
+                    {round.submissionRate >= 100 && <span className="mr-1">🎊</span>}
+                    {round.submissionRate}%
+                  </p>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      round.submissionRate >= 100
+                        ? 'bg-emerald-500'
+                        : round.submissionRate >= 70
+                          ? 'bg-primary'
+                          : round.submissionRate >= 40
+                            ? 'bg-amber-500'
+                            : 'bg-destructive'
+                    }`}
+                    style={{ width: `${Math.min(round.submissionRate, 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out ${
-                    round.submissionRate >= 100
-                      ? 'bg-emerald-500'
-                      : round.submissionRate >= 70
-                        ? 'bg-primary'
-                        : round.submissionRate >= 40
-                          ? 'bg-amber-500'
-                          : 'bg-destructive'
-                  }`}
-                  style={{ width: `${Math.min(round.submissionRate, 100)}%` }}
-                />
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -340,7 +356,14 @@ export default function DashboardPage() {
                   {data?.totalMembers ?? 0}
                   <span className="text-sm font-normal text-muted-foreground ml-0.5">명</span>
                 </p>
-                <p className="text-xs text-muted-foreground">🏃🏻 함께 성장하는 중</p>
+                {data?.memberBreakdown ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    활성 {data.memberBreakdown.active} · OB {data.memberBreakdown.ob} · 휴면{' '}
+                    {data.memberBreakdown.dormant}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">🏃🏻 함께 성장하는 중</p>
+                )}
               </div>
               <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
                 <TrendingUp className="h-4 w-4" />
@@ -406,6 +429,8 @@ export default function DashboardPage() {
               {scoreData.todayProgress.map((p) => {
                 const isFull = p.earned >= p.dailyCap;
                 const pct = Math.min((p.earned / p.dailyCap) * 100, 100);
+                const isPostScore = p.type === 'blog_post';
+                const isNonActive = data?.myStatus === 'ob' || data?.myStatus === 'dormant';
                 return (
                   <div
                     key={p.type}
@@ -419,27 +444,35 @@ export default function DashboardPage() {
                           +{p.points}pt
                         </span>
                       </div>
-                      <div
-                        className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={p.earned}
-                        aria-valuemin={0}
-                        aria-valuemax={p.dailyCap}
-                        aria-label={`${p.label} ${p.earned}/${p.dailyCap}`}
-                      >
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isFull ? 'bg-emerald-500' : 'bg-primary'
-                          }`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-[10px] text-muted-foreground tabular-nums">
-                          {p.earned}/{p.dailyCap}
-                        </span>
-                        {isFull && <Check className="h-3 w-3 text-emerald-500" />}
-                      </div>
+                      {isPostScore && isNonActive ? (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          활성 스터디원만 포스트 등록 점수를 받을 수 있어요.
+                        </p>
+                      ) : (
+                        <>
+                          <div
+                            className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden"
+                            role="progressbar"
+                            aria-valuenow={p.earned}
+                            aria-valuemin={0}
+                            aria-valuemax={p.dailyCap}
+                            aria-label={`${p.label} ${p.earned}/${p.dailyCap}`}
+                          >
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isFull ? 'bg-emerald-500' : 'bg-primary'
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              {p.earned}/{p.dailyCap}
+                            </span>
+                            {isFull && <Check className="h-3 w-3 text-emerald-500" />}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
+import { getAdminDiscordIds } from '@/lib/admin';
 
 const { members, posts, attendance, AttendanceStatus } = sharedDb;
 
@@ -28,7 +29,10 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status') || 'active';
 
     // 쉼표 구분으로 복수 상태 지원: ?status=active,dormant,ob
-    const statuses = statusParam.split(',').map((s) => s.trim()).filter(Boolean);
+    const statuses = statusParam
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (statuses.some((s) => !ALLOWED_STATUSES.includes(s))) {
       return Errors.badRequest('유효하지 않은 상태입니다.').toResponse();
     }
@@ -39,7 +43,9 @@ export async function GET(request: NextRequest) {
     const membersList = await database
       .select()
       .from(members)
-      .where(statuses.length === 1 ? eq(members.status, statuses[0]!) : inArray(members.status, statuses));
+      .where(
+        statuses.length === 1 ? eq(members.status, statuses[0]!) : inArray(members.status, statuses)
+      );
 
     // Get post counts for all members
     const postCounts = await database
@@ -66,6 +72,8 @@ export async function GET(request: NextRequest) {
       attendanceStats.map((a) => [a.memberId, { total: a.total, submitted: a.submitted }])
     );
 
+    const adminDiscordIds = await getAdminDiscordIds();
+
     const result = membersList.map((member) => {
       const postCount = postCountMap.get(member.id) || 0;
       const attStats = attendanceMap.get(member.id) || { total: 0, submitted: 0 };
@@ -88,7 +96,13 @@ export async function GET(request: NextRequest) {
         postCount,
         attendanceRate,
         joinedAt: member.joinedAt,
+        isAdmin: adminDiscordIds.includes(member.discordId),
       };
+    });
+
+    result.sort((a, b) => {
+      if (a.isAdmin !== b.isAdmin) return a.isAdmin ? -1 : 1;
+      return (a.name ?? '').localeCompare(b.name ?? '');
     });
 
     return withCache(successResponse({ members: result, total: result.length }), 60);

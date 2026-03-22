@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { UsersRound, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
+import { ExternalLink, Github, Instagram, Linkedin, UsersRound } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ interface Member {
   postCount: number;
   attendanceRate: number;
   joinedAt: string;
+  isAdmin: boolean;
 }
 
 interface MembersData {
@@ -102,9 +103,8 @@ export default function MembersPage() {
           >
             전체
           </Button>
-          {PART_OPTIONS
-            .filter((opt) => data.members.some((m) => m.part === opt.value))
-            .map((opt) => (
+          {PART_OPTIONS.filter((opt) => data.members.some((m) => m.part === opt.value)).map(
+            (opt) => (
               <Button
                 key={opt.value}
                 variant="ghost"
@@ -118,97 +118,115 @@ export default function MembersPage() {
               >
                 {opt.label}
               </Button>
-            ))}
+            )
+          )}
         </div>
       )}
 
       {/* Members grid */}
       {data?.members && data.members.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.members.filter((m) => !filterPart || m.part === filterPart).map((member) => {
-            const socialLinks = [
-              { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
-              { url: member.githubUrl, icon: Github, label: 'GitHub' },
-              { url: member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
-              { url: member.instagramUrl, icon: Instagram, label: 'Instagram' },
-            ].filter((link) => link.url);
+          {data.members
+            .filter((m) => !filterPart || m.part === filterPart)
+            .map((member) => {
+              const socialLinks = [
+                { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
+                { url: member.githubUrl, icon: Github, label: 'GitHub' },
+                { url: member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
+                { url: member.instagramUrl, icon: Instagram, label: 'Instagram' },
+              ].filter((link) => link.url);
 
-            return (
-              <Card
-                key={member.id}
-                className="h-full border-border/60 shadow-none transition-colors hover:border-border hover:bg-muted/30"
-              >
-                <CardContent className="flex h-full flex-col p-4">
-                  {/* Top: Avatar + Name + Part */}
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-11 w-11 shrink-0 ring-2 ring-border ring-offset-1 ring-offset-background">
-                      <AvatarImage src={member.profileImageUrl || getDefaultAvatar(member.nickname)} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                        {member.nickname.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold">{member.nickname}</p>
-                        {member.status !== 'active' && (
-                          <Badge
-                            variant={member.status === 'ob' ? 'outline' : (MEMBER_STATUS_CONFIG[member.status]?.variant ?? 'secondary')}
-                            className={cn(
-                              'h-4 px-1.5 text-[10px] font-medium shrink-0',
-                              member.status === 'ob' && 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                            )}
-                          >
-                            {MEMBER_STATUS_CONFIG[member.status]?.label ?? member.status}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs text-muted-foreground">
-                          @{member.discordUsername.replace(/#0$/, '')}
-                        </p>
-                        <PartBadge part={member.part} size="sm" />
+              return (
+                <Card
+                  key={member.id}
+                  className="h-full border-border/60 shadow-none transition-colors hover:border-border hover:bg-muted/30"
+                >
+                  <CardContent className="flex h-full flex-col p-4">
+                    {/* Top: Avatar + Name + Part */}
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-11 w-11 shrink-0 ring-2 ring-border ring-offset-1 ring-offset-background">
+                        <AvatarImage
+                          src={member.profileImageUrl || getDefaultAvatar(member.nickname)}
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                          {member.nickname.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-sm font-semibold">{member.nickname}</p>
+                          {member.isAdmin && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 px-1.5 text-[10px] font-medium shrink-0 border-primary/30 bg-primary/10 text-primary"
+                            >
+                              관리자
+                            </Badge>
+                          )}
+                          {member.status !== 'active' && (
+                            <Badge
+                              variant={
+                                member.status === 'ob'
+                                  ? 'outline'
+                                  : (MEMBER_STATUS_CONFIG[member.status]?.variant ?? 'secondary')
+                              }
+                              className={cn(
+                                'h-4 px-1.5 text-[10px] font-medium shrink-0',
+                                member.status === 'ob' &&
+                                  'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              )}
+                            >
+                              {MEMBER_STATUS_CONFIG[member.status]?.label ?? member.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs text-muted-foreground">
+                            @{member.discordUsername.replace(/#0$/, '')}
+                          </p>
+                          <PartBadge part={member.part} size="sm" />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Bio */}
-                  {member.bio && (
-                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                      {member.bio}
-                    </p>
-                  )}
+                    {/* Bio */}
+                    {member.bio && (
+                      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {member.bio}
+                      </p>
+                    )}
 
-                  {/* Social link chips */}
-                  {socialLinks.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {socialLinks.map((link) => {
-                        const Icon = link.icon;
-                        return (
-                          <a
-                            key={link.label}
-                            href={link.url!}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
-                          >
-                            <Icon className="h-3 w-3" />
-                            {link.label}
-                          </a>
-                        );
-                      })}
+                    {/* Social link chips */}
+                    {socialLinks.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {socialLinks.map((link) => {
+                          const Icon = link.icon;
+                          return (
+                            <a
+                              key={link.label}
+                              href={link.url!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+                            >
+                              <Icon className="h-3 w-3" />
+                              {link.label}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <Button asChild variant="outline" size="sm" className="w-full">
+                        <Link href={`/members/${member.id}`}>프로필 보기</Link>
+                      </Button>
                     </div>
-                  )}
-                  <div className="mt-4">
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link href={`/members/${member.id}`}>프로필 보기</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 gap-2">

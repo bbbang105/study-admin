@@ -123,13 +123,15 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
           }
         }
 
-        // 블로그 포스트 점수 부여 (+30점, 일일 2편 상한)
-        const safeTitle = item.title.replace(/[<>"'&]/g, '').slice(0, 200);
-        await scoreService.grantScore(
-          member.id,
-          ActivityScoreType.BLOG_POST,
-          `블로그 포스트: ${safeTitle}`,
-        );
+        // 블로그 포스트 점수 부여 (+30점, 일일 2편 상한) — active 유저만
+        if (member.status === 'active') {
+          const safeTitle = item.title.replace(/[<>"'&]/g, '').slice(0, 200);
+          await scoreService.grantScore(
+            member.id,
+            ActivityScoreType.BLOG_POST,
+            `블로그 포스트: ${safeTitle}`,
+          );
+        }
 
         await notificationService.sendPostNotification({
           member,

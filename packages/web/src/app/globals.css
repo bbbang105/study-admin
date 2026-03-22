@@ -252,6 +252,18 @@
   border-left: 3px solid hsl(var(--border));
   padding-left: 1rem;
   color: hsl(var(--muted-foreground));
+  quotes: none;
+}
+.tiptap blockquote::before,
+.tiptap blockquote::after {
+  content: none;
+}
+
+/* 리스트 간격 축소 (에디터 + 렌더러) */
+.prose ul li,
+.prose ol li {
+  margin-top: 0.15em;
+  margin-bottom: 0.15em;
 }
 
 /* ── Syntax Highlighting (Light) ── */
@@ -307,6 +319,83 @@
 .dark .hljs-selector-class,
 .dark .hljs-selector-id { color: #d2a8ff; }
 .dark .hljs-property { color: #79c0ff; }
+
+/* ── Image block ── */
+.image-block {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  outline: 2px solid transparent;
+  transition: outline-color 0.15s;
+}
+.image-block.selected {
+  outline-color: hsl(var(--primary));
+}
+.image-block img {
+  display: block;
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+.image-block-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  background: hsl(var(--background) / 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid hsl(var(--border));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.image-block:hover .image-block-delete {
+  opacity: 1;
+}
+.image-block-delete:hover {
+  background: hsl(var(--destructive));
+  color: white;
+}
+.image-block-resize-handle {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+  border-radius: 4px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.image-block:hover .image-block-resize-handle {
+  opacity: 1;
+}
+.image-block-caption {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  outline: none;
+  margin-top: 0.5rem;
+}
+.image-upload-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  border: 2px dashed hsl(var(--border));
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+.image-upload-spinner svg {
+  animation: spin 1s linear infinite;
+}
 
 /* Scrollbar hide utility for horizontal scroll filters */
 .scrollbar-hide {
