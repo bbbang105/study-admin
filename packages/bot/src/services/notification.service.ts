@@ -413,17 +413,17 @@ export class NotificationService {
     const channel = await this.getAnnouncementChannel();
     
     if (!channel) {
-      logger.error('📢 [알림] 포스트 알림 발송 불가: 채널 미설정');
+      logger.error('📢 [알림] 디스코드 알림 발송 불가: 채널 미설정');
       return false;
     }
 
     try {
       const message = buildPostNotificationMessage(input);
       await channel.send(message);
-      logger.info({ postTitle: input.post.title }, '📢 [알림] 포스트 알림 발송 완료');
+      logger.info({ postTitle: input.post.title }, '📢 [알림] 디스코드 알림 발송 완료');
       return true;
     } catch (error) {
-      logger.error({ error }, '📢 [알림] 포스트 알림 발송 실패');
+      logger.error({ error }, '📢 [알림] 디스코드 알림 발송 실패');
       return false;
     }
   }
