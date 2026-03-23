@@ -159,6 +159,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
   };
 
   const canVote = !poll.isExpired;
+  const showResults = poll.hasVoted || poll.isExpired;
 
   const handleShowVoters = (option: PollOption) => {
     setSelectedOption(option);
@@ -179,10 +180,12 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                   <Clock className="h-3 w-3" />
                   {formatExpiresAt(poll.expiresAt)}
                 </span>
-                <span className="inline-flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {poll.totalVotes}명 참여
-                </span>
+                {showResults && (
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {poll.totalVotes}명 참여
+                  </span>
+                )}
                 {poll.isAnonymous && (
                   <span className="inline-flex items-center gap-1">
                     <Lock className="h-3 w-3" />
@@ -211,7 +214,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
               }`}
             >
               {/* Progress bar background */}
-              {option.percentage > 0 && (
+              {showResults && option.percentage > 0 && (
                 <div
                   className="absolute inset-0 bg-primary/5 transition-all"
                   style={{ width: `${option.percentage}%` }}
@@ -220,7 +223,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
 
               {/* Content */}
               <div className="relative">
-                <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {option.voted && (
                       <Check className="h-4 w-4 text-primary shrink-0" />
@@ -229,14 +232,16 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                       {poll.pollType === 'date' ? formatPollDate(option.optionText) : option.optionText}
                     </span>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {option.voteCount}표 ({option.percentage}%)
-                  </span>
+                  {showResults && (
+                    <span className="text-sm font-semibold tabular-nums">
+                      {option.voteCount}표 ({option.percentage}%)
+                    </span>
+                  )}
                 </div>
 
                 {/* Progress bar */}
-                {option.percentage > 0 && (
-                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                {showResults && option.percentage > 0 && (
+                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden mt-2">
                     <div
                       className="h-full bg-primary transition-all duration-300"
                       style={{ width: `${option.percentage}%` }}
@@ -245,7 +250,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                 )}
 
                 {/* Voters (non-anonymous only) */}
-                {!poll.isAnonymous && option.voters.length > 0 && (
+                {showResults && !poll.isAnonymous && option.voters.length > 0 && (
                   <div className="flex items-center justify-between gap-2 mt-2.5">
                     <div className="flex flex-wrap gap-2">
                       {option.voters.slice(0, 5).map((voter) => (
@@ -302,6 +307,12 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
             >
               {voting ? '투표 중...' : poll.hasVoted ? '투표 변경' : '투표하기'}
             </Button>
+          </div>
+        )}
+
+        {!showResults && canVote && (
+          <div className="text-center text-xs text-muted-foreground">
+            투표 후 결과를 확인할 수 있습니다
           </div>
         )}
 
