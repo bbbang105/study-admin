@@ -527,6 +527,7 @@ export const NotificationType = {
   POST_COMMENT: 'post_comment',
   POST_REPLY: 'post_reply',
   BOARD_NOTICE: 'board_notice',
+  NEW_POST: 'new_post',
 } as const;
 
 export type NotificationTypeType = (typeof NotificationType)[keyof typeof NotificationType];

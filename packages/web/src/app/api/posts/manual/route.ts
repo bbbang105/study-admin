@@ -1,11 +1,13 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isSafeUrl } from '@/lib/rss-detect';
 import { sendDiscordChannelMessage } from '@/lib/discord-notify';
+import { sendPushToMembers } from '@/lib/push';
+import { decodeHtmlEntities } from '@/lib/sanitize';
 
 const {
   posts,
@@ -349,6 +351,32 @@ export async function POST(request: NextRequest) {
           });
         } catch (e) {
           console.error('[manual-post] Discord 알림 전송 실패:', e);
+        }
+      });
+    }
+
+    // 푸시 알림 (Discord 토글과 무관하게 항상 발송)
+    if (newPost) {
+      after(async () => {
+        try {
+          const database3 = db();
+          const allMembers = await database3
+            .select({ id: members.id })
+            .from(members)
+            .where(inArray(members.status, ['active', 'ob', 'dormant']));
+
+          const targetIds = allMembers.map((m) => m.id).filter((id) => id !== member.id);
+
+          if (targetIds.length > 0) {
+            await sendPushToMembers(targetIds, {
+              title: '📝 새 글이 등록되었어요',
+              body: `${member.name}님이 새 글을 등록했어요: ${decodeHtmlEntities(title!).slice(0, 100)}`,
+              clickUrl: `/posts/${newPost!.id}`,
+              data: { type: 'new_post' },
+            });
+          }
+        } catch (e) {
+          console.error('[manual-post] 푸시 알림 전송 실패:', e);
         }
       });
     }

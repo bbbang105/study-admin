@@ -138,6 +138,31 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
           post: result.post,
           roundNumber: currentRound?.roundNumber ?? null,
         });
+
+        // 푸시 알림 (웹 내부 API 호출, fire-and-forget — RSS 루프 블로킹 방지)
+        const webUrl = process.env.WEB_URL;
+        const apiKey = process.env.INTERNAL_API_KEY;
+        if (webUrl && apiKey) {
+          fetch(`${webUrl}/api/internal/new-post-push`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              postId: result.post.id,
+              authorMemberId: member.id,
+              authorName: member.name,
+              postTitle: item.title,
+            }),
+          })
+            .then((res) => {
+              if (!res.ok) logger.warn({ status: res.status }, '📢 [알림] 푸시 알림 API 응답 실패');
+            })
+            .catch((e) => {
+              logger.error({ error: e }, '📢 [알림] 푸시 알림 전송 실패');
+            });
+        }
       }
     }
   });

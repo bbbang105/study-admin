@@ -65,7 +65,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **Discord 알림**: 웹에서 직접 Discord REST API 호출 시 `discord-notify.ts` 유틸 사용, 사용자 입력은 `escapeDiscordMarkdown()` 적용, `allowed_mentions: { parse: [] }` 필수
 - **댓글 길이**: 최대 5000자 제한 (API에서 검증)
 - **이미지 업로드**: Cloudflare R2 (`board-images/{userId}/{uuid}.{ext}`), 5MB 제한, rate limit 20회/분/유저
-- **포스트 수동등록**: 2단계 UX (URL→미리보기→편집→등록), OG HTML 엔티티 자동 디코딩, Discord 알림 토글
+- **포스트 수동등록**: 2단계 UX (URL→미리보기→편집→등록), OG HTML 엔티티 자동 디코딩, Discord 알림 토글, 푸시 알림은 Discord 토글과 무관하게 항상 발송
+- **새 글 푸시 알림**: 수동 등록 + RSS 수집 모두 지원. 대상: active/OB/dormant (작성자 본인 제외), 알림 타입 `new_post`. 봇→웹 내부 API(`/api/internal/new-post-push`, Bearer 인증) 경유
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
 - **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + 웹 딥링크 버튼
 - **벌금 DM**: 계좌 정보 포함 (3333333114501 카카오뱅크), 납부완료 시 관리자 채널 알림
@@ -98,7 +99,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/lib/sentry.ts` | 봇 Sentry SDK 초기화 (PII 스크러빙, DB URL/토큰 마스킹) |
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 (이벤트 핸들러만) |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
-| `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification 파이프라인 |
+| `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification→Push 파이프라인 |
 | `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 (봇: blog_post만) |
 | `packages/web/src/lib/score.ts` | 웹 활동 점수 부여 (board_post, post_comment, board_comment, post_view) |
 | `packages/web/src/lib/score-config.ts` | 활동 점수 타입별 메타데이터 (Single Source of Truth: 라벨, 이모지, 배점, 뱃지 컬러) |
@@ -106,7 +107,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`, `withCache`) |
-| `packages/web/src/lib/sanitize.ts` | 입력 새니타이즈 (`sanitizeDescription`, `sanitizeTiptapContent`, `getTodayKST`) |
+| `packages/web/src/lib/sanitize.ts` | 입력 새니타이즈 (`sanitizeDescription`, `sanitizeTiptapContent`, `decodeHtmlEntities`, `getTodayKST`) |
 | `packages/web/src/app/not-found.tsx` | 커스텀 404 페이지 |
 | `packages/web/src/app/(user)/error.tsx` | 사용자 에러 바운더리 |
 | `packages/web/src/app/(admin)/error.tsx` | 관리자 에러 바운더리 |
@@ -130,6 +131,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/components/settings/push-notification-settings.tsx` | 알림 설정 UI (타입별 토글 + 테스트 전송) |
 | `packages/web/src/app/api/push/test/route.ts` | 테스트 푸시 알림 API (레이트 리밋 5/min) |
 | `packages/web/src/app/api/notification-preferences/route.ts` | 알림 타입별 설정 CRUD API |
+| `packages/web/src/app/api/internal/new-post-push/route.ts` | 새 글 푸시 알림 내부 API (봇→웹, Bearer 인증, rate limit 20/min) |
 | `packages/web/src/app/api/firebase-sw/route.ts` | FCM 서비스 워커 동적 서빙 (rewrite: `/firebase-messaging-sw.js` → `/api/firebase-sw`) |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
@@ -245,6 +247,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - `SENTRY_AUTH_TOKEN` (소스맵 업로드, Vercel/CI에서만 설정)
 - `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL` 등 (Firebase Admin, 서버용)
 - `NEXT_PUBLIC_FIREBASE_*` (Firebase 클라이언트, `API_KEY`/`AUTH_DOMAIN`/`PROJECT_ID`/`MESSAGING_SENDER_ID`/`APP_ID`/`VAPID_KEY`)
+- `INTERNAL_API_KEY` (봇→웹 내부 API 인증, 웹+봇 공유)
+- `WEB_URL` (봇에서 웹 API 호출 시 base URL, 봇 전용)
 
 **env 파일 위치** (2곳):
 - `.env.local` — 루트 (shared/bot용)

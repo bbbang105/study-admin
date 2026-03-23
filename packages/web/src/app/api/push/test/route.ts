@@ -24,6 +24,10 @@ const TEST_MESSAGES: Record<string, { title: string; body: string }> = {
     title: '📢 공지사항 테스트',
     body: '새로운 공지사항이 게시되었습니다.',
   },
+  new_post: {
+    title: '📝 새 글 알림 테스트',
+    body: '스터디원이 새 글을 등록했습니다.',
+  },
 };
 
 // 유저별 레이트 리밋 (분당 5회)

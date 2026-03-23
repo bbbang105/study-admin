@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-18 (v11)
+> 최종 업데이트: 2026-03-23 (v12)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -53,7 +53,7 @@ graph TB
         BANNER["Notice Banner<br/>글로벌 공지 배너"]
         PWA["PWA<br/>manifest.json<br/>홈 화면 추가"]
         FCM["FCM Push<br/>firebase-admin · firebase/messaging<br/>서비스 워커"]
-        API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board<br/>/api/push · /api/notification-preferences"]
+        API["API Routes<br/>/api/auth · /api/posts<br/>/api/admin · /api/board<br/>/api/push · /api/notification-preferences<br/>/api/internal (봇→웹 내부 API)"]
         SUPA_CLIENT["Supabase SSR Client<br/>@supabase/ssr"]
         SENTRY_WEB["Sentry SDK<br/>에러 모니터링 + PII 스크러빙"]
     end
@@ -70,6 +70,7 @@ graph TB
     Bot -->|service_role key| TABLES
     API -->|POST /api/trigger/*| BOT_API
     BOT_API --> SCH
+    BOT_API -->|POST /api/internal/new-post-push| API
     API -->|Discord REST API| CH_ADMIN
 
     Web -->|HTTPS| DB
@@ -218,6 +219,7 @@ flowchart TD
     D --> E["출석 상태 업데이트"]
     E --> F["활동 점수 부여 (봇: blog_post)"]
     F --> G["Discord 채널 알림"]
+    G --> H["FCM 푸시 알림<br/>(웹 내부 API 호출, fire-and-forget)"]
 ```
 
 ### 큐레이션 추천 흐름
@@ -451,7 +453,7 @@ erDiagram
 - **Pull-to-Refresh**: 커스텀 터치 제스처 기반 새로고침 (`PullToRefresh` + `usePullToRefresh`), Safari PWA 최적화, 다이얼로그 열림 시 `data-scroll-locked` 가드로 비활성화
 - **PWA**: `manifest.json` + 커스텀 로고 아이콘 (SVG/192/512, maskable) → 홈 화면 추가 지원
 - **OG 이미지**: `opengraph-image.tsx` Edge Runtime 동적 생성 (1200×630, `next/og` ImageResponse). 다크 테마 + K 로고 + 히어로 카피 + Mock UI 카드 (랭킹/포스트). `layout.tsx`에 `openGraph`/`twitter` 메타데이터 + `og:url`
-- **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (API route `/api/firebase-sw` → rewrite `/firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지) 개별 설정, 테스트 알림 전송 지원. 푸시/점수 등 백그라운드 작업은 `after()` from `next/server` 사용
+- **FCM 푸시**: Firebase Cloud Messaging 서비스 워커 (API route `/api/firebase-sw` → rewrite `/firebase-messaging-sw.js`) → 백그라운드 알림. 타입별(댓글/답글/공지/새글) 개별 설정, 테스트 알림 전송 지원. 새 글 알림은 수동 등록(`after()`) + RSS 수집(봇→웹 내부 API) 모두 지원. 푸시/점수 등 백그라운드 작업은 `after()` from `next/server` 사용
 
 ## 스케줄러 (pg-boss)
 
@@ -479,6 +481,7 @@ erDiagram
 | **SQL Injection** | Drizzle ORM 파라미터화 쿼리 (raw SQL 사용 안 함) | 전체 API Routes |
 | **CSRF** | Supabase Auth 쿠키 `SameSite=Lax` | Supabase 기본 설정 |
 | **입력 검증** | description 새니타이즈 (제어 문자/제로 너비 유니코드 제거, 300자 제한) | `lib/sanitize.ts` |
+| **내부 API 인증** | Bearer 토큰 (`INTERNAL_API_KEY`, timing-safe 비교) + rate limit 20/min + UUID/길이 검증 | `api/internal/new-post-push/` |
 
 ### 에러 처리
 

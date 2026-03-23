@@ -52,6 +52,29 @@ export function sanitizeTiptapContent(content: any): any {
 }
 
 /**
+ * HTML 엔티티를 일반 문자로 디코딩 (RSS 제목에 사용)
+ */
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#(\d+);/g, (match, num) => {
+      const cp = Number(num);
+      if (cp < 0x20 && cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) return '';
+      try { return String.fromCodePoint(cp); } catch { return match; }
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+      const cp = parseInt(hex, 16);
+      if (cp < 0x20 && cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) return '';
+      try { return String.fromCodePoint(cp); } catch { return match; }
+    });
+}
+
+/**
  * KST (UTC+9) 기준 오늘 날짜 문자열 (YYYY-MM-DD)
  */
 export function getTodayKST(): string {
