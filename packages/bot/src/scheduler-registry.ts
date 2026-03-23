@@ -90,6 +90,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       });
 
       if (result.isNew) {
+        logger.info({ member: member.name, title: item.title.slice(0, 80) }, '📡 [RSS] 새 글 DB 저장 완료');
+
         // P0 #3: 출석 상태 업데이트 (제출 또는 지각)
         if (currentRound) {
           // 회차 기간 내 제출 여부 판단
@@ -131,6 +133,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             ActivityScoreType.BLOG_POST,
             `블로그 포스트: ${safeTitle}`,
           );
+          logger.info({ member: member.name, points: 30 }, '🏆 [점수] 블로그 포스트 점수 부여');
         }
 
         await notificationService.sendPostNotification({
@@ -157,11 +160,17 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             }),
           })
             .then((res) => {
-              if (!res.ok) logger.warn({ status: res.status }, '📢 [알림] 푸시 알림 API 응답 실패');
+              if (res.ok) {
+                logger.info({ member: member.name }, '📢 [알림] 푸시 알림 전송 완료');
+              } else {
+                logger.warn({ status: res.status }, '📢 [알림] 푸시 알림 API 응답 실패');
+              }
             })
             .catch((e) => {
               logger.error({ error: e }, '📢 [알림] 푸시 알림 전송 실패');
             });
+        } else {
+          logger.warn('📢 [알림] 푸시 알림 스킵 (WEB_URL 또는 INTERNAL_API_KEY 미설정)');
         }
       }
     }
