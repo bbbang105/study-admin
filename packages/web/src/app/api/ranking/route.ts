@@ -4,8 +4,9 @@ import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminDiscordIds } from '@/lib/admin';
 
-const { members, posts, attendance, rounds, activityScores, MemberStatus, AttendanceStatus } =
+const { members, posts, attendance, rounds, activityScores, config, MemberStatus, AttendanceStatus } =
   sharedDb;
 
 const VALID_SORT_KEYS = ['score', 'posts', 'activity'] as const;
@@ -140,6 +141,7 @@ export async function GET(request: NextRequest) {
         id: members.id,
         name: members.name,
         nickname: members.nickname,
+        discordId: members.discordId,
         discordUsername: members.discordUsername,
         profileImageUrl: members.profileImageUrl,
         resolution: members.resolution,
@@ -149,6 +151,21 @@ export async function GET(request: NextRequest) {
       .leftJoin(posts, eq(members.id, posts.memberId))
       .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]))
       .groupBy(members.id);
+
+    // 관리자 + config 제외 대상을 랭킹에서 제외
+    const adminDiscordIds = await getAdminDiscordIds();
+    const [excludedRow] = await database
+      .select({ value: config.value })
+      .from(config)
+      .where(eq(config.key, 'ranking_excluded_ids'))
+      .limit(1);
+    const configExcludedIds = excludedRow
+      ? excludedRow.value.split(',').map((id) => id.trim()).filter(Boolean)
+      : [];
+    const excludedDiscordIds = new Set([...adminDiscordIds, ...configExcludedIds]);
+    const filteredMembersWithPosts = membersWithPosts.filter(
+      (member) => !excludedDiscordIds.has(member.discordId)
+    );
 
     // Get current round post counts
     const currentRoundPostCounts = new Map<string, number>();
@@ -295,7 +312,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Combine all data
-    const rankings = membersWithPosts.map((member) => {
+    const rankings = filteredMembersWithPosts.map((member) => {
       const stats = attendanceMap.get(member.id) || { totalRounds: 0, submittedRounds: 0 };
       const attendanceRate =
         stats.totalRounds > 0 ? (stats.submittedRounds / stats.totalRounds) * 100 : 0;
