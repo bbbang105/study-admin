@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PageError, ProfileSkeleton } from '@/components/ui/page-state';
 import { PartBadge } from '@/components/ui/part-badge';
+import { usePushNotification } from '@/hooks/use-push-notification';
 
 interface UserInfo {
   id: string;
@@ -92,6 +93,20 @@ export default function ProfilePage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const { permission, requestPermission, isSupported } = usePushNotification();
+  const [pushDismissed, setPushDismissed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const showPushPrompt = isSupported && permission !== 'granted' && !pushDismissed;
+
+  const handleEnablePush = async () => {
+    setPushLoading(true);
+    const success = await requestPermission();
+    setPushLoading(false);
+    if (success) {
+      setPushDismissed(true);
+      router.push('/profile/notifications');
+    }
+  };
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -161,11 +176,48 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="space-y-0.5">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-          Profile
-        </p>
-        <h1 className="text-xl font-semibold tracking-tight">내 프로필</h1>
+      <div className="flex items-end justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Profile
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight">내 프로필</h1>
+          </div>
+          {/* Push Notification Prompt Bubble */}
+          {showPushPrompt && (
+            <div className="relative animate-in fade-in slide-in-from-bottom-2 duration-500 ml-1">
+              <div className="rounded-xl border border-blue-200/60 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-950/40 px-3.5 py-2.5 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="relative flex h-5 w-5 items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-40" />
+                    <Bell className="relative h-3.5 w-3.5 text-blue-500" />
+                  </span>
+                  <p className="text-xs font-medium text-blue-900 dark:text-blue-100">
+                    공지, 댓글, 새 포스트 알림을 받아보세요!
+                  </p>
+                </div>
+                <div className="ml-7">
+                  <button
+                    onClick={handleEnablePush}
+                    disabled={pushLoading}
+                    className="rounded-md bg-blue-500 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+                  >
+                    {pushLoading ? '켜는 중...' : '알림 켜기'}
+                  </button>
+                </div>
+              </div>
+              {/* Tail */}
+              <div className="absolute -left-1.5 top-4 w-0 h-0 border-t-[5px] border-t-transparent border-r-[7px] border-r-blue-200/60 dark:border-r-blue-800/40 border-b-[5px] border-b-transparent" />
+              <div className="absolute -left-1 top-4 w-0 h-0 border-t-[5px] border-t-transparent border-r-[7px] border-r-blue-50 dark:border-r-blue-950/40 border-b-[5px] border-b-transparent" />
+            </div>
+          )}
+        </div>
+        {data?.member?.onboardingCompleted && (
+          <Button size="sm" onClick={() => router.push('/profile/edit')}>
+            프로필 수정
+          </Button>
+        )}
       </div>
 
       {/* Account Info */}
@@ -445,67 +497,61 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Edit Profile & Withdraw Buttons */}
+          {/* Withdraw Button */}
           {data.member.onboardingCompleted && (
-            <div className="flex items-center justify-between">
-              <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  탈퇴하기
+                </Button>
+              </AlertDialogTrigger>
+
+              <AlertDialogContent className="max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-base">
+                    정말 탈퇴하시겠습니까?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-sm text-muted-foreground">
+                    탈퇴하면 스터디 활동이 중단되며, 다시 참가하려면 관리자 승인이 필요합니다.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                {withdrawError && (
+                  <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 border border-destructive/20">
+                    {withdrawError}
+                  </p>
+                )}
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    disabled={withdrawing}
+                    className="h-9 text-sm"
+                    onClick={() => setWithdrawError(null)}
                   >
-                    <LogOut className="h-3.5 w-3.5" />
-                    탈퇴하기
-                  </Button>
-                </AlertDialogTrigger>
-
-                <AlertDialogContent className="max-w-sm">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-base">
-                      정말 탈퇴하시겠습니까?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm text-muted-foreground">
-                      탈퇴하면 스터디 활동이 중단되며, 다시 참가하려면 관리자 승인이 필요합니다.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-
-                  {withdrawError && (
-                    <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 border border-destructive/20">
-                      {withdrawError}
-                    </p>
-                  )}
-
-                  <AlertDialogFooter>
-                    <AlertDialogCancel
-                      disabled={withdrawing}
-                      className="h-9 text-sm"
-                      onClick={() => setWithdrawError(null)}
-                    >
-                      취소
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleWithdraw}
-                      disabled={withdrawing}
-                      className="h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-                    >
-                      {withdrawing ? (
-                        <span className="flex items-center gap-1.5">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          처리 중...
-                        </span>
-                      ) : (
-                        '탈퇴하기'
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <Button size="sm" onClick={() => router.push('/profile/edit')}>
-                프로필 수정
-              </Button>
-            </div>
+                    취소
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleWithdraw}
+                    disabled={withdrawing}
+                    className="h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                  >
+                    {withdrawing ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        처리 중...
+                      </span>
+                    ) : (
+                      '탈퇴하기'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </>
       )}

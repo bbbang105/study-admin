@@ -86,15 +86,24 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     rank: 0,
   }));
 
-  rankings.sort((a, b) =>
+  // 관리자 + config 제외 대상을 랭킹에서 제외
+  const adminIds = (process.env.ADMIN_DISCORD_IDS || '').split(',').map((id) => id.trim()).filter(Boolean);
+  const configExcluded = await getConfigValue('ranking_excluded_ids');
+  const configExcludedIds = configExcluded
+    ? configExcluded.split(',').map((id) => id.trim()).filter(Boolean)
+    : [];
+  const excludedIds = new Set([...adminIds, ...configExcludedIds]);
+  const filtered = rankings.filter((r) => !excludedIds.has(r.discordId));
+
+  filtered.sort((a, b) =>
     b.totalScore - a.totalScore || b.postCount - a.postCount
   );
 
-  rankings.forEach((ranking, index) => {
+  filtered.forEach((ranking, index) => {
     ranking.rank = index + 1;
   });
 
-  return rankings;
+  return filtered;
 }
 
 /**
