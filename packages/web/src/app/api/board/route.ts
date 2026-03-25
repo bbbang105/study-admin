@@ -249,18 +249,20 @@ export async function POST(request: NextRequest) {
       return post;
     });
 
-    // 게시판 글 작성 활동 점수 (+10, 일일 상한 20)
-    after(async () => {
-      try {
-        await grantWebScore(
-          auth.memberId,
-          ActivityScoreType.BOARD_POST,
-          sanitizeDescription(title.trim().slice(0, 50))
-        );
-      } catch (err) {
-        console.error('[score] grantWebScore failed:', err);
-      }
-    });
+    // 게시판 글 작성 활동 점수 (+10, 일일 상한 20) — 공지글은 점수 부여 제외
+    if (category !== 'notice') {
+      after(async () => {
+        try {
+          await grantWebScore(
+            auth.memberId,
+            ActivityScoreType.BOARD_POST,
+            sanitizeDescription(title.trim().slice(0, 50))
+          );
+        } catch (err) {
+          console.error('[score] grantWebScore failed:', err);
+        }
+      });
+    }
 
     // 공지사항인 경우 활성 멤버 전체에게 알림
     if (category === 'notice') {
