@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: '큐스팅 4th',
   },
   other: {
@@ -68,8 +68,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           {children}
+          {/*
+           * offset pushes toasts above the bottom nav + iOS home indicator.
+           * On desktop the bottom nav is hidden (lg:hidden) so the extra
+           * offset is invisible but harmless.
+           * --bottom-nav-height = 3.5rem + env(safe-area-inset-bottom)
+           * We add 8px breathing room on top of that.
+           */}
           <Toaster
             position="bottom-center"
+            offset="calc(var(--bottom-nav-height, calc(3.5rem + env(safe-area-inset-bottom, 0px))) + 8px)"
             toastOptions={{
               className: 'font-sans',
               style: {
