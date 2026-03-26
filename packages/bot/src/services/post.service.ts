@@ -4,7 +4,7 @@
  * Requirements: 6.3, 6.4, 6.6
  */
 
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, inArray } from 'drizzle-orm';
 import {
   getDb,
   posts,
@@ -173,6 +173,22 @@ export class PostService {
       .limit(1);
 
     return post || null;
+  }
+
+  /**
+   * Get existing URLs from a list of URLs (batch duplicate check)
+   * Note: URL is globally unique across all members (schema unique constraint),
+   * so no memberId scoping is needed here.
+   */
+  async getExistingUrls(urls: string[]): Promise<Set<string>> {
+    if (urls.length === 0) return new Set();
+
+    const results = await this.db
+      .select({ url: posts.url })
+      .from(posts)
+      .where(inArray(posts.url, urls));
+
+    return new Set(results.map(r => r.url));
   }
 
   /**
