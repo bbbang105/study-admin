@@ -27,6 +27,11 @@ const logger = pino({
   formatters: {
     level: (label) => ({ level: label }),
   },
+  // Serialize Error objects properly (pino defaults to {} for non-'err' keys)
+  serializers: {
+    error: pino.stdSerializers.err,
+    err: pino.stdSerializers.err,
+  },
   // ISO 8601 timestamp with timezone offset
   timestamp: pino.stdTimeFunctions.isoTime,
   // Development: pretty print

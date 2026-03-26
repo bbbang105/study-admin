@@ -5,6 +5,7 @@
  */
 
 import { getMemberService } from '../services/member.service';
+import { getPostService } from '../services/post.service';
 import { getRssService, type PollResult, type RssFeedItem } from '../services/rss.service';
 import { type Member, MemberStatus } from '@blog-study/shared/db';
 import logger from '../lib/logger';
@@ -79,26 +80,36 @@ export class RssPoller {
 
     try {
       const rssService = getRssService();
+      const postService = getPostService();
       const items = await rssService.fetchFeed(member.rssUrl);
-      
+
+      if (items.length === 0) {
+        return { memberId: member.id, success: true, newItems: [] };
+      }
+
+      // Batch duplicate check: 1 IN query instead of N individual SELECTs
+      // postService.create() has its own getByUrl guard as a write-time safety net
+      const feedUrls = items.map(item => item.link).filter(Boolean);
+      const existingUrls = await postService.getExistingUrls(feedUrls);
+      const newItems = items.filter(item => !existingUrls.has(item.link));
+
       return {
         memberId: member.id,
         success: true,
-        newItems: items,
+        newItems,
       };
     } catch (error) {
       // Requirements: 6.5 - Log error and continue processing other feeds
-      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error({
         member: member.discordUsername,
-        error: errorMessage,
+        error,
       }, '📡 [RSS] 멤버 피드 폴링 에러');
-      
+
       return {
         memberId: member.id,
         success: false,
         newItems: [],
-        error: errorMessage,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -141,13 +152,13 @@ export class RssPoller {
           try {
             await this.onNewPost(member, result.newItems);
           } catch (callbackError) {
+            logger.error({
+              member: member.discordUsername,
+              error: callbackError,
+            }, '📡 [RSS] 콜백 에러');
             const errorMsg = callbackError instanceof Error
               ? callbackError.message
               : String(callbackError);
-            logger.error({
-              member: member.discordUsername,
-              error: errorMsg,
-            }, '📡 [RSS] 콜백 에러');
             errors.push(`Callback error for ${member.discordUsername}: ${errorMsg}`);
           }
         }
