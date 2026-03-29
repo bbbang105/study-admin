@@ -7,3 +7,5 @@ export * from './fine-reminder';
 export * from './round-reporter';
 export * from './curation-crawler';
 export * from './weekly-ranking';
+export * from './poll-reminder';
+export * from './deadline-reminder';

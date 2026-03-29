@@ -1,18 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Pin,
-  Lock,
-  Pencil,
-  MessageSquare,
-} from 'lucide-react';
+import { ArrowLeft, Lock, MessageSquare, Pencil, Pin } from 'lucide-react';
 import { TiptapRenderer } from '@/components/board/tiptap-renderer';
-import { PollDisplay, type Poll } from '@/components/board/poll-display';
-import { CommentTree, type Comment } from '@/components/board/comment-tree';
+import { type Poll, PollDisplay } from '@/components/board/poll-display';
+import { type Comment, CommentTree } from '@/components/board/comment-tree';
 import { CommentForm } from '@/components/board/comment-form';
 import { DeletePostDialog } from '@/components/board/delete-post-dialog';
 import { categoryBadgeConfig } from '@/lib/board-config';
@@ -175,9 +169,7 @@ export default function BoardDetailPage() {
       if (!res.ok) return;
       const result = await res.json();
       setComments(result.data.comments);
-      setPost((prev) =>
-        prev ? { ...prev, commentCount: result.data.post.commentCount } : prev
-      );
+      setPost((prev) => (prev ? { ...prev, commentCount: result.data.post.commentCount } : prev));
     } catch {
       // Fail silently — user can manually refresh
     }
@@ -318,9 +310,7 @@ export default function BoardDetailPage() {
                     </Link>
                   </Button>
                 )}
-                {canDelete && (
-                  <DeletePostDialog postId={post.id} />
-                )}
+                {canDelete && <DeletePostDialog postId={post.id} />}
               </div>
             )}
           </div>
@@ -341,6 +331,7 @@ export default function BoardDetailPage() {
               postId={postId}
               poll={poll}
               onRefresh={refreshPolls}
+              isAdmin={currentUser.isAdmin}
             />
           ))}
         </div>
@@ -373,10 +364,7 @@ export default function BoardDetailPage() {
         {/* Comment form */}
         <div className="px-6 py-5 border-t border-border/40 bg-muted/10">
           <p className="text-xs font-medium text-muted-foreground mb-3">댓글 작성</p>
-          <CommentForm
-            postId={post.id}
-            onSuccess={refreshComments}
-          />
+          <CommentForm postId={post.id} onSuccess={refreshComments} />
         </div>
       </div>
     </div>

@@ -10,7 +10,9 @@ import { Sentry } from './lib/sentry';
 import {
   getAttendanceChecker,
   getCurationCrawler,
+  getDeadlineReminder,
   getFineReminder,
+  getPollReminder,
   getRoundReporter,
   getRssPoller,
   getWeeklyRanking,
@@ -199,6 +201,67 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '🌐 [API] 주간 랭킹 에러');
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
+    }
+  });
+
+  app.post('/api/trigger/poll-reminder-dm', authMiddleware, triggerLimiter, async (req, res) => {
+    try {
+      const pollReminder = getPollReminder();
+
+      if (pollReminder.isReminding()) {
+        return res.status(409).json({ error: '투표 리마인더가 이미 실행 중입니다' });
+      }
+
+      const { pollId, discordId } = req.body || {};
+
+      if (!pollId) {
+        return res.status(400).json({ error: 'pollId가 필요합니다' });
+      }
+
+      const result = await pollReminder.sendRemindersForPoll(pollId, discordId);
+
+      const serializedResult = {
+        ...result,
+        timestamp: result.timestamp instanceof Date
+          ? result.timestamp.toISOString()
+          : result.timestamp,
+      };
+
+      res.json({ success: true, result: serializedResult });
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '🌐 [API] 투표 리마인더 에러');
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
+    }
+  });
+
+  app.post('/api/trigger/deadline-reminder', authMiddleware, triggerLimiter, async (req, res) => {
+    try {
+      const deadlineReminder = getDeadlineReminder();
+
+      if (deadlineReminder.isSending()) {
+        return res.status(409).json({ error: '마감 리마인더가 이미 실행 중입니다' });
+      }
+
+      const { dDay } = req.body || {};
+
+      // dDay가 지정되면 수동 발송, 아니면 자동(오늘 날짜 기준)
+      const result = typeof dDay === 'number'
+        ? await deadlineReminder.sendManual(dDay)
+        : await deadlineReminder.sendReminders();
+
+      const serializedResult = {
+        ...result,
+        timestamp: result.timestamp instanceof Date
+          ? result.timestamp.toISOString()
+          : result.timestamp,
+      };
+
+      res.json({ success: true, result: serializedResult });
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '🌐 [API] 마감 리마인더 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });

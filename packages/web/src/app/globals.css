@@ -262,8 +262,27 @@
 /* 리스트 간격 축소 (에디터 + 렌더러) */
 .prose ul li,
 .prose ol li {
-  margin-top: 0.15em;
-  margin-bottom: 0.15em;
+  margin-top: 0.1em !important;
+  margin-bottom: 0.1em !important;
+}
+
+.prose li > p,
+.prose li > p:first-child,
+.prose li > p:last-child {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 0.25em !important;
+  margin-bottom: 0.25em !important;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-top: 0.1em !important;
+  margin-bottom: 0.1em !important;
 }
 
 /* ── Syntax Highlighting (Light) ── */

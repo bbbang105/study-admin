@@ -118,6 +118,15 @@ function getStatusConfig(status: string): StatusConfigItem {
 // Number of rounds to show per page
 const ROUNDS_PER_PAGE = 5;
 
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: '전체' },
+  { value: 'active', label: '활성' },
+  { value: 'dormant', label: '휴면' },
+  { value: 'ob', label: 'OB' },
+] as const;
+
+const INACTIVE_STATUSES = new Set(['ob', 'dormant']);
+
 const attendanceStatuses = [
   { value: 'SUBMITTED', label: '제출', className: 'text-success' },
   { value: 'PENDING', label: '대기', className: 'text-muted-foreground' },
@@ -130,7 +139,7 @@ export default function AdminAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -244,11 +253,10 @@ export default function AdminAttendancePage() {
     visibleRounds.some((r) => r.id === rs.roundId)
   );
 
-  // Filter members by status
-  const filteredGrid =
-    statusFilter === 'all'
-      ? data.grid
-      : data.grid.filter((row) => row.member.status === statusFilter);
+  // Filter members by status (withdrawn always excluded)
+  const filteredGrid = data.grid
+    .filter((row) => row.member.status !== 'withdrawn')
+    .filter((row) => statusFilter === 'all' || row.member.status === statusFilter);
 
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(0, prev - 1));
@@ -341,18 +349,25 @@ export default function AdminAttendancePage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">상태:</span>
-                <select
-                  className="text-sm border rounded px-2 py-1"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">전체</option>
-                  <option value="active">활성</option>
-                  <option value="dormant">휴면</option>
-                  <option value="withdrawn">탈퇴</option>
-                </select>
+              <div className="flex items-center gap-1.5">
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setStatusFilter(opt.value)}
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                      statusFilter === opt.value
+                        ? 'bg-primary text-primary-foreground border-transparent'
+                        : 'bg-transparent text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                    {statusFilter === opt.value && opt.value !== 'all' && (
+                      <span className="ml-1 tabular-nums">
+                        {data.grid.filter((row) => row.member.status === opt.value).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
               {/* Pagination */}
               <div className="flex items-center gap-2">
@@ -439,7 +454,10 @@ export default function AdminAttendancePage() {
                         }
 
                         const att = row.attendance[round.id];
-                        const cellConfig = getStatusConfig(att?.status || 'none');
+                        const isInactive = INACTIVE_STATUSES.has(row.member.status);
+                        const cellConfig = getStatusConfig(
+                          isInactive ? 'none' : att?.status || 'none'
+                        );
                         const cellKey = `${row.member.id}-${round.id}`;
                         const isEditing = editingCell === cellKey;
                         return (

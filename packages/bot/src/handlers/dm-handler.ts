@@ -309,6 +309,63 @@ export async function sendFineReminder(
 }
 
 /**
+ * Send poll reminder DM to a user
+ * 투표 마감 전 미참여자에게 리마인더 발송
+ */
+export async function sendPollReminderDM(
+  client: Client,
+  discordId: string,
+  pollQuestion: string,
+  expiresAt: Date,
+  postId: string,
+): Promise<boolean> {
+  try {
+    const user = await client.users.fetch(discordId);
+    if (!user) {
+      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
+      return false;
+    }
+
+    const expiresHour = expiresAt.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    const webUrl = process.env.WEB_URL || 'https://kusting-web.vercel.app';
+    const postUrl = `${webUrl}/board/${postId}`;
+
+    const message = [
+      `📊 **투표 참여 요청**`,
+      ``,
+      `"${pollQuestion}" 투표가 내일 ${expiresHour}에 마감됩니다!`,
+      `아직 참여하지 않으셨으니 투표해주세요 🙏`,
+    ].join('\n');
+
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setLabel('📊 투표하러 가기')
+          .setStyle(ButtonStyle.Link)
+          .setURL(postUrl),
+      );
+
+    await user.send({
+      content: message,
+      components: [row],
+    });
+
+    logger.info({ discordId, pollQuestion }, '💬 [DM] 투표 리마인더 발송 완료');
+    return true;
+  } catch (error) {
+    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 투표 리마인더 발송 실패');
+    return false;
+  }
+}
+
+/**
  * Setup DM handler for the bot client
  * MessageContent Intent 없이 버튼 인터랙션으로 동작
  * P0 #9 해결: 인메모리 Map → DB 영속화로 변경

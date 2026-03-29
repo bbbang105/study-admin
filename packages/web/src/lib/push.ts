@@ -1,10 +1,13 @@
-import { eq, inArray, and } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getAdminMessaging } from '@/lib/firebase/admin';
 import type { MulticastMessage } from 'firebase-admin/messaging';
 
 const { fcmTokens, notificationPreferences } = sharedDb;
+
+/** preference 무시하고 항상 전송하는 알림 타입 */
+const FORCE_SEND_TYPES = new Set(['board_notice']);
 
 export interface PushPayload {
   title: string;
@@ -24,10 +27,7 @@ async function isNotificationEnabled(memberId: string, type: string): Promise<bo
       .select({ enabled: notificationPreferences.enabled })
       .from(notificationPreferences)
       .where(
-        and(
-          eq(notificationPreferences.memberId, memberId),
-          eq(notificationPreferences.type, type)
-        )
+        and(eq(notificationPreferences.memberId, memberId), eq(notificationPreferences.type, type))
       )
       .limit(1);
 
@@ -45,10 +45,10 @@ export async function sendPushToMember(
   payload: PushPayload
 ): Promise<{ success: number; failed: number }> {
   const notificationType = payload.data?.type;
-  if (notificationType) {
+  if (notificationType && !FORCE_SEND_TYPES.has(notificationType)) {
     const enabled = await isNotificationEnabled(memberId, notificationType);
     if (!enabled) {
-      return { success: 0, failed: 0 }; // 알림 끄면 전송 안 함
+      return { success: 0, failed: 0 };
     }
   }
 
@@ -106,10 +106,7 @@ export async function sendPushToMember(
     if (failedTokens.length > 0) {
       await database
         .delete(fcmTokens)
-        .where(and(
-          eq(fcmTokens.memberId, memberId),
-          inArray(fcmTokens.token, failedTokens)
-        ));
+        .where(and(eq(fcmTokens.memberId, memberId), inArray(fcmTokens.token, failedTokens)));
     }
 
     // 성공한 토큰만 마지막 사용 시간 업데이트
@@ -117,10 +114,7 @@ export async function sendPushToMember(
       await database
         .update(fcmTokens)
         .set({ lastUsedAt: new Date() })
-        .where(and(
-          eq(fcmTokens.memberId, memberId),
-          inArray(fcmTokens.token, succeededTokens)
-        ));
+        .where(and(eq(fcmTokens.memberId, memberId), inArray(fcmTokens.token, succeededTokens)));
     }
 
     return {
@@ -142,10 +136,10 @@ export async function sendPushToMembers(
 ): Promise<{ success: number; failed: number }> {
   const database = getDb();
 
-  // 알림 설정으로 수신 거부한 멤버 필터링
+  // 알림 설정으로 수신 거부한 멤버 필터링 (강제 전송 타입은 스킵)
   const notificationType = payload.data?.type;
   let filteredMemberIds = memberIds;
-  if (notificationType) {
+  if (notificationType && !FORCE_SEND_TYPES.has(notificationType)) {
     const disabledPrefs = await database
       .select({ memberId: notificationPreferences.memberId })
       .from(notificationPreferences)
@@ -232,10 +226,7 @@ export async function sendPushToMembers(
       if (failedTokens.length > 0) {
         await database
           .delete(fcmTokens)
-          .where(and(
-            eq(fcmTokens.memberId, memberId),
-            inArray(fcmTokens.token, failedTokens)
-          ));
+          .where(and(eq(fcmTokens.memberId, memberId), inArray(fcmTokens.token, failedTokens)));
       }
 
       // 성공한 토큰만 마지막 사용 시간 업데이트
@@ -243,10 +234,7 @@ export async function sendPushToMembers(
         await database
           .update(fcmTokens)
           .set({ lastUsedAt: new Date() })
-          .where(and(
-            eq(fcmTokens.memberId, memberId),
-            inArray(fcmTokens.token, succeededTokens)
-          ));
+          .where(and(eq(fcmTokens.memberId, memberId), inArray(fcmTokens.token, succeededTokens)));
       }
     } catch (error) {
       console.error(`[push] Failed to send to ${memberId}:`, error);

@@ -17,12 +17,17 @@ const OPERATION_ENDPOINT_MAP: Record<string, string> = {
   'curation-crawl': '/api/trigger/curation-crawl',
   'curation-share': '/api/trigger/curation-share',
   'weekly-ranking': '/api/trigger/weekly-ranking',
+  'deadline-reminder-d2': '/api/trigger/deadline-reminder',
+  'deadline-reminder-d1': '/api/trigger/deadline-reminder',
+  'deadline-reminder-d0': '/api/trigger/deadline-reminder',
 };
 
 /**
  * Validate operation ID
  */
-function isValidOperationId(operationId: string): operationId is keyof typeof OPERATION_ENDPOINT_MAP {
+function isValidOperationId(
+  operationId: string
+): operationId is keyof typeof OPERATION_ENDPOINT_MAP {
   return operationId in OPERATION_ENDPOINT_MAP;
 }
 
@@ -30,10 +35,7 @@ function isValidOperationId(operationId: string): operationId is keyof typeof OP
  * POST /api/admin/bot-operations/[operationId]
  * Trigger a bot operation via HTTP request to bot server
  */
-export const POST = withAdminAuth(async (
-  request: NextRequest,
-  _adminAuth
-) => {
+export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   const { pathname } = new URL(request.url);
   const operationId = pathname.split('/').pop();
 
@@ -51,12 +53,31 @@ export const POST = withAdminAuth(async (
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
+    // Forward request body (for operations that accept parameters like pollId, dDay)
+    let body: string | undefined;
+
+    // deadline-reminder-d* → dDay 파라미터 자동 주입
+    const deadlineMatch = operationId.match(/^deadline-reminder-d(\d)$/);
+    if (deadlineMatch) {
+      body = JSON.stringify({ dDay: Number(deadlineMatch[1]) });
+    } else {
+      try {
+        const json = await request.json();
+        if (json && Object.keys(json).length > 0) {
+          body = JSON.stringify(json);
+        }
+      } catch {
+        // No body or invalid JSON — fine, send without body
+      }
+    }
+
     const response = await fetch(botUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(BOT_API_SECRET && { 'Authorization': `Bearer ${BOT_API_SECRET}` }),
+        ...(BOT_API_SECRET && { Authorization: `Bearer ${BOT_API_SECRET}` }),
       },
+      ...(body && { body }),
       signal: controller.signal,
     });
 
@@ -71,9 +92,7 @@ export const POST = withAdminAuth(async (
         return Errors.conflict('작업이 이미 실행 중입니다').toResponse();
       }
 
-      return Errors.externalServiceError(
-        '봇 서버에서 오류가 발생했습니다.'
-      ).toResponse();
+      return Errors.externalServiceError('봇 서버에서 오류가 발생했습니다.').toResponse();
     }
 
     const result = await response.json();
@@ -88,9 +107,7 @@ export const POST = withAdminAuth(async (
 
     // Check if it's a timeout error
     if (error instanceof Error && error.name === 'AbortError') {
-      return Errors.externalServiceError(
-        '봇 서버 응답 시간 초과 (30초)'
-      ).toResponse();
+      return Errors.externalServiceError('봇 서버 응답 시간 초과 (30초)').toResponse();
     }
 
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';

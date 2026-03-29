@@ -1,14 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Bell,
-  FileText,
-  Megaphone,
-  MessageCircle,
-  MessageSquare,
-  SendHorizonal,
-} from 'lucide-react';
+import { Bell, FileText, MessageCircle, MessageSquare, SendHorizonal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -45,7 +38,6 @@ const NOTIFICATION_LABELS: Record<
     icon: MessageCircle,
     description: '내 댓글에 답글이 달릴 때',
   },
-  board_notice: { label: '공지사항', icon: Megaphone, description: '새 공지사항이 게시될 때' },
   new_post: { label: '새 글 알림', icon: FileText, description: '스터디원이 새 글을 등록할 때' },
 };
 

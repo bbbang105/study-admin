@@ -214,8 +214,8 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // 출석 상태 업데이트 (현재 회차가 있을 때만)
-    if (currentRound) {
+    // 출석 상태 업데이트 (현재 회차 + active 유저만)
+    if (currentRound && member.status === 'active') {
       const now = new Date();
       // 정상 마감: graceEndDate(월요일) 00:00 KST, 이후 지각
       const submissionDeadline = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);

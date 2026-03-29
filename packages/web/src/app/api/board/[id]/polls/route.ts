@@ -1,21 +1,13 @@
 import { NextRequest } from 'next/server';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
-import {
-  errorResponse,
-  Errors,
-  successResponse,
-  withCache,
-} from '@/lib/api-error';
+import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 
-const { boardPolls, boardPollOptions, boardPollVotes, members } = sharedDb;
+const { boardPolls, boardPollOptions, boardPollVotes, members, MemberStatus } = sharedDb;
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -40,12 +32,7 @@ export async function GET(
       })
       .from(boardPolls)
       .innerJoin(boardPollOptions, eq(boardPolls.id, boardPollOptions.pollId))
-      .where(
-        and(
-          eq(boardPolls.postId, postId),
-          isNull(boardPolls.deletedAt)
-        )
-      )
+      .where(and(eq(boardPolls.postId, postId), isNull(boardPolls.deletedAt)))
       .orderBy(desc(boardPolls.createdAt), boardPollOptions.optionOrder);
 
     if (!polls.length) {
@@ -53,12 +40,10 @@ export async function GET(
     }
 
     // Group by poll
-    type PollRow = typeof polls[0];
+    type PollRow = (typeof polls)[0];
     type GroupedPoll = Omit<PollRow, 'options'> & {
       options: Array<PollRow['options']>;
     };
-
-    console.log('Raw polls data:', JSON.stringify(polls, null, 2));
 
     const groupedPolls: Record<string, GroupedPoll> = {};
 
@@ -73,6 +58,20 @@ export async function GET(
       groupedPolls[row.id]!.options.push(row.options);
     }
 
+    // Fetch all eligible members (active + ob + dormant) for non-voter calculation
+    const eligibleMembers = await database
+      .select({
+        id: members.id,
+        name: members.name,
+        nickname: members.nickname,
+        profileImageUrl: members.profileImageUrl,
+        discordId: members.discordId,
+      })
+      .from(members)
+      .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]));
+
+    const totalEligibleMembers = eligibleMembers.length;
+
     // For each poll, fetch vote counts and user votes
     const pollData = await Promise.all(
       Object.values(groupedPolls).map(async (poll) => {
@@ -82,8 +81,6 @@ export async function GET(
           return null;
         }
 
-        // Debug log
-        console.log('Poll object:', JSON.stringify(poll, null, 2));
         // Get all votes for this poll with voter info (unless anonymous)
         const votes = await database
           .select({
@@ -100,8 +97,8 @@ export async function GET(
           .leftJoin(members, eq(boardPollVotes.memberId, members.id))
           .where(eq(boardPollVotes.pollId, poll.id));
 
-        // Count total votes (unique members)
-        const uniqueVoters = new Set(votes.map(v => v.memberId));
+        // Count total votes (unique members, exclude null)
+        const uniqueVoters = new Set(votes.map((v) => v.memberId).filter(Boolean));
         const totalVotes = uniqueVoters.size;
 
         // Group votes by option
@@ -126,8 +123,7 @@ export async function GET(
         const optionsWithVotes = poll.options.map((opt) => {
           const optionVotes = votesByOption[opt.id] || [];
           const voteCount = optionVotes.length;
-          const percentage =
-            totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+          const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
           const voted = userVotedOptionIds.includes(opt.id);
 
           return {
@@ -152,6 +148,21 @@ export async function GET(
         // Check if expired
         const isExpired = new Date(poll.expiresAt) < new Date();
 
+        // Calculate non-voters (only for non-anonymous polls)
+        const voterMemberIds = new Set(votes.map((v) => v.memberId).filter(Boolean));
+        const nonVoters =
+          (poll.isAnonymous ?? false)
+            ? []
+            : eligibleMembers
+                .filter((m) => !voterMemberIds.has(m.id))
+                .map((m) => ({
+                  memberId: m.id,
+                  name: m.name,
+                  nickname: m.nickname || m.name,
+                  profileImage: m.profileImageUrl,
+                  discordId: m.discordId || '',
+                }));
+
         return {
           id: poll.id,
           question: poll.question,
@@ -162,6 +173,8 @@ export async function GET(
           isExpired,
           hasVoted,
           totalVotes,
+          totalEligibleMembers,
+          nonVoters,
           options: optionsWithVotes,
         };
       })
@@ -174,11 +187,6 @@ export async function GET(
     // 5초 캐시로 투표 후 빠른 반영 + 성능 확보
     return withCache(response, 5, 'private');
   } catch (error) {
-    console.error('Error in polls route:', error);
-    if (error instanceof Error) {
-      console.error('Error stack:', error.stack);
-      console.error('Error message:', error.message);
-    }
     return errorResponse(error);
   }
 }
