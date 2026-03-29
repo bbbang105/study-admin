@@ -1,26 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { BotOperationCard } from '@/components/bot-operation-card';
+import { useEffect, useMemo, useState } from 'react';
+import type { BotOperation } from '@/components/bot-operation-card';
+import { BotOperationRow, categoryConfig } from '@/components/bot-operation-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
-interface BotOperation {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  schedule: string;
-  running: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-}
+// 카테고리 표시 순서
+const CATEGORY_ORDER = ['polling', 'attendance', 'fine', 'round', 'ranking', 'poll', 'curation'];
 
 export default function BotOperationsPage() {
   const [operations, setOperations] = useState<BotOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [triggeringOperationId, setTriggeringOperationId] = useState<string | null>(null);
 
   const fetchOperations = async () => {
@@ -37,13 +30,7 @@ export default function BotOperationsPage() {
       toast.error('작업 목록을 불러오는데 실패했습니다');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchOperations();
   };
 
   const handleTrigger = async (operationId: string) => {
@@ -58,12 +45,10 @@ export default function BotOperationsPage() {
         throw new Error(error.error?.message || '작업 실행에 실패했습니다');
       }
 
-      // Update the operation status to running
       setOperations((prev) =>
         prev.map((op) => (op.id === operationId ? { ...op, running: true } : op))
       );
 
-      // Refresh after a delay to get updated status
       setTimeout(() => fetchOperations(), 2000);
     } catch (error) {
       console.error('Failed to trigger operation:', error);
@@ -73,11 +58,28 @@ export default function BotOperationsPage() {
     }
   };
 
+  // 카테고리별 그룹핑
+  const grouped = useMemo(() => {
+    const map = new Map<string, BotOperation[]>();
+    for (const op of operations) {
+      const list = map.get(op.category) || [];
+      list.push(op);
+      map.set(op.category, list);
+    }
+    // 정의된 순서대로 정렬, 나머지는 뒤에
+    const sorted: [string, BotOperation[]][] = [];
+    for (const cat of CATEGORY_ORDER) {
+      const ops = map.get(cat);
+      if (ops) sorted.push([cat, ops]);
+    }
+    for (const [cat, ops] of map) {
+      if (!CATEGORY_ORDER.includes(cat)) sorted.push([cat, ops]);
+    }
+    return sorted;
+  }, [operations]);
+
   useEffect(() => {
     fetchOperations();
-    // Refresh every 30 seconds to update running status
-    const interval = setInterval(fetchOperations, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   if (isLoading) {
@@ -92,35 +94,40 @@ export default function BotOperationsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">봇 동작 제어</h1>
-          <p className="text-muted-foreground mt-2">
-            스케줄된 작업을 수동으로 실행하고 상태를 모니터링합니다
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          새로고침
-        </Button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">봇 동작 제어</h1>
+        <p className="text-muted-foreground mt-1 text-sm">스케줄된 작업을 수동으로 실행합니다</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
-        {operations.map((operation) => (
-          <BotOperationCard
-            key={operation.id}
-            operation={operation}
-            onTrigger={handleTrigger}
-            isLoading={triggeringOperationId === operation.id}
-          />
-        ))}
+      <div className="grid gap-4 md:grid-cols-2">
+        {grouped.map(([category, ops]) => {
+          const config = categoryConfig[category] || { label: category, color: '' };
+          return (
+            <Card key={category}>
+              <CardHeader className="pb-3 pt-4 px-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={config.color}>
+                    {config.label}
+                  </Badge>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {ops.length}개
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 pt-0 space-y-1.5">
+                {ops.map((op) => (
+                  <BotOperationRow
+                    key={op.id}
+                    operation={op}
+                    onTrigger={handleTrigger}
+                    isLoading={triggeringOperationId === op.id}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {operations.length === 0 && (

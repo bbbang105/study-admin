@@ -13,6 +13,7 @@ import { getFineReminder } from './schedulers/fine-reminder';
 import { getRoundReporter } from './schedulers/round-reporter';
 import { getCurationCrawler } from './schedulers/curation-crawler';
 import { getWeeklyRanking } from './schedulers/weekly-ranking';
+import { getDeadlineReminder } from './schedulers/deadline-reminder';
 import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
@@ -39,6 +40,7 @@ const JOB_DEFINITIONS = [
   { name: 'curation-crawl', cron: '0 23 * * *' },      // 4기 미사용
   { name: 'curation-share', cron: '5 10 * * *' },      // 4기 미사용
   { name: 'weekly-ranking', cron: '0 1 * * 0' },       // KST 일 10:00 (UTC 일 01:00)
+  { name: 'deadline-reminder', cron: '0 23 * * *' },   // KST 매일 08:00 (UTC 23:00)
 ] as const;
 
 /**
@@ -54,11 +56,13 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   const roundReporter = getRoundReporter();
   const curationCrawler = getCurationCrawler();
   const weeklyRanking = getWeeklyRanking();
+  const deadlineReminder = getDeadlineReminder();
 
   fineReminder.setClient(client);
   roundReporter.setClient(client);
   curationCrawler.setClient(client);
   weeklyRanking.setClient(client);
+  deadlineReminder.setClient(client);
 
   // Set up RSS poller callback: new post → save to DB + send notification + grant score + update attendance
   const postService = getPostService();
@@ -92,8 +96,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       if (result.isNew) {
         logger.info({ member: member.name, title: item.title.slice(0, 80) }, '📡 [RSS] 새 글 DB 저장 완료');
 
-        // P0 #3: 출석 상태 업데이트 (제출 또는 지각)
-        if (currentRound) {
+        // P0 #3: 출석 상태 업데이트 (제출 또는 지각) — active 유저만
+        if (currentRound && member.status === 'active') {
           // 회차 기간 내 제출 여부 판단
           // 마감: graceEndDate(월요일) 00:00 KST까지 정상 출석, 이후 지각
           const roundEndDate = new Date(`${currentRound.graceEndDate}T00:00:00.000+09:00`);
@@ -299,6 +303,13 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
 
   await boss.work('weekly-ranking', { batchSize: 1 }, async () => {
     await weeklyRanking.sendWeeklyRanking();
+  });
+
+
+  await boss.createQueue('deadline-reminder');
+
+  await boss.work('deadline-reminder', { batchSize: 1 }, async () => {
+    await deadlineReminder.sendReminders();
   });
 
   // Wait for queues to be created in the database

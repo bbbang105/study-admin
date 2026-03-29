@@ -11,6 +11,7 @@ import { registerAllJobs } from './scheduler-registry';
 
 import { setupDMHandler } from './handlers/dm-handler';
 import { initNotificationService } from './services/notification.service';
+import { getPollReminder } from './schedulers/poll-reminder';
 import { startBotApiServer } from './api-server';
 import logger, { serializeError } from './lib/logger';
 import { Sentry } from './lib/sentry';
@@ -34,6 +35,9 @@ async function main(): Promise<void> {
   // Initialize notification service
   initNotificationService(client);
   logger.debug('📢 [알림] 알림 서비스 초기화 완료');
+
+  // Initialize poll reminder with client (manual trigger only)
+  getPollReminder().setClient(client);
 
   // Start pg-boss job queue and register all scheduled jobs
   const boss = await startJobQueue(env.DATABASE_URL_DIRECT);

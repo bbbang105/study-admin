@@ -1,20 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart3, Clock, Users, Lock, Check } from 'lucide-react';
+import { BarChart3, Check, Clock, Lock, Send, Users, UserX } from 'lucide-react';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
 import { PollVoteModal } from './poll-vote-modal';
 import { CancelVoteDialog } from './cancel-vote-dialog';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { formatPollDate, formatExpiresAt } from '@/lib/date-utils';
+import { formatExpiresAt, formatPollDate } from '@/lib/date-utils';
 
 // ─────────────────────────────────────────────
 // Types
@@ -36,6 +31,14 @@ export interface PollOption {
   }>;
 }
 
+export interface NonVoter {
+  memberId: string;
+  name: string;
+  nickname: string;
+  profileImage: string | null;
+  discordId: string;
+}
+
 export interface Poll {
   id: string;
   question: string;
@@ -46,6 +49,8 @@ export interface Poll {
   isExpired: boolean;
   hasVoted: boolean;
   totalVotes: number;
+  totalEligibleMembers: number;
+  nonVoters: NonVoter[];
   options: PollOption[];
 }
 
@@ -53,6 +58,7 @@ interface PollDisplayProps {
   postId: string;
   poll: Poll;
   onRefresh: () => void;
+  isAdmin?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -78,12 +84,16 @@ function getPollTypeLabel(poll: Poll): string {
 // Component
 // ─────────────────────────────────────────────
 
-export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
+export function PollDisplay({ postId, poll, onRefresh, isAdmin }: PollDisplayProps) {
   const [voteModalOpen, setVoteModalOpen] = useState(false);
   const [voting, setVoting] = useState(false);
   const [votersModalOpen, setVotersModalOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<PollOption | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
+  const [participantsTab, setParticipantsTab] = useState<'voted' | 'notVoted'>('voted');
+  const [sendingDM, setSendingDM] = useState(false);
+  const [sendingIndividual, setSendingIndividual] = useState<string | null>(null);
 
   const handleVote = async (optionIds: string[]) => {
     if (voting) return; // Prevent double submission
@@ -95,14 +105,11 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     onRefresh();
 
     try {
-      const res = await fetch(
-        `/api/board/${postId}/polls/${poll.id}/vote`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ optionIds }),
-        }
-      );
+      const res = await fetch(`/api/board/${postId}/polls/${poll.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionIds }),
+      });
 
       const result = await res.json();
 
@@ -133,12 +140,9 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
     onRefresh();
 
     try {
-      const res = await fetch(
-        `/api/board/${postId}/polls/${poll.id}/vote`,
-        {
-          method: 'DELETE',
-        }
-      );
+      const res = await fetch(`/api/board/${postId}/polls/${poll.id}/vote`, {
+        method: 'DELETE',
+      });
 
       const result = await res.json();
 
@@ -161,6 +165,55 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
   const canVote = !poll.isExpired;
   const showResults = poll.hasVoted || poll.isExpired;
 
+  // Unique voters across all options (for participants modal)
+  const allVoters = (() => {
+    const seen = new Set<string>();
+    const voters: PollOption['voters'] = [];
+    for (const opt of poll.options) {
+      for (const v of opt.voters) {
+        if (!seen.has(v.memberId)) {
+          seen.add(v.memberId);
+          voters.push(v);
+        }
+      }
+    }
+    return voters;
+  })();
+
+  const handleSendReminderDM = async (discordId?: string) => {
+    if (sendingDM || sendingIndividual) return;
+
+    if (discordId) {
+      setSendingIndividual(discordId);
+    } else {
+      setSendingDM(true);
+    }
+
+    try {
+      const res = await fetch('/api/admin/poll-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pollId: poll.id, ...(discordId && { discordId }) }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error?.message || 'DM 발송에 실패했습니다.');
+        return;
+      }
+      const data = result.data?.result;
+      if (discordId) {
+        toast.success('DM을 발송했습니다.');
+      } else {
+        toast.success(`미참여자 ${data?.dmsSent ?? 0}명에게 DM을 발송했습니다.`);
+      }
+    } catch {
+      toast.error('서버 오류가 발생했습니다.');
+    } finally {
+      setSendingDM(false);
+      setSendingIndividual(null);
+    }
+  };
+
   const handleShowVoters = (option: PollOption) => {
     setSelectedOption(option);
     setVotersModalOpen(true);
@@ -175,16 +228,38 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
             <BarChart3 className="h-5 w-5 text-sky-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h3 className="font-semibold leading-tight">{poll.question}</h3>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {formatExpiresAt(poll.expiresAt)}
                 </span>
                 {showResults && (
-                  <span className="inline-flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {poll.totalVotes}명 참여
-                  </span>
+                  <>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-sky-500 transition-colors"
+                      onClick={() => {
+                        setParticipantsTab('voted');
+                        setParticipantsModalOpen(true);
+                      }}
+                    >
+                      <Users className="h-3 w-3" />
+                      {poll.totalVotes}명 참여
+                    </button>
+                    {!poll.isAnonymous && isAdmin && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-orange-500 transition-colors"
+                        onClick={() => {
+                          setParticipantsTab('notVoted');
+                          setParticipantsModalOpen(true);
+                        }}
+                      >
+                        <UserX className="h-3 w-3" />
+                        {poll.totalEligibleMembers - poll.totalVotes}명 미참여
+                      </button>
+                    )}
+                  </>
                 )}
                 {poll.isAnonymous && (
                   <span className="inline-flex items-center gap-1">
@@ -208,9 +283,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
             <div
               key={option.id}
               className={`relative overflow-hidden rounded-lg border p-3 transition-colors ${
-                option.voted
-                  ? 'border-primary/50 bg-primary/5'
-                  : 'border-border/60 bg-muted/20'
+                option.voted ? 'border-primary/50 bg-primary/5' : 'border-border/60 bg-muted/20'
               }`}
             >
               {/* Progress bar background */}
@@ -225,11 +298,11 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
               <div className="relative">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {option.voted && (
-                      <Check className="h-4 w-4 text-primary shrink-0" />
-                    )}
+                    {option.voted && <Check className="h-4 w-4 text-primary shrink-0" />}
                     <span className="font-medium text-sm">
-                      {poll.pollType === 'date' ? formatPollDate(option.optionText) : option.optionText}
+                      {poll.pollType === 'date'
+                        ? formatPollDate(option.optionText)
+                        : option.optionText}
                     </span>
                   </div>
                   {showResults && (
@@ -266,9 +339,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
                             imageUrl={voter.profileImage}
                             size="sm"
                           />
-                          <span className="text-xs text-muted-foreground">
-                            {voter.name}
-                          </span>
+                          <span className="text-xs text-muted-foreground">{voter.name}</span>
                         </div>
                       ))}
                     </div>
@@ -317,9 +388,7 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
         )}
 
         {poll.isExpired && !poll.hasVoted && (
-          <div className="text-center text-sm text-muted-foreground py-2">
-            마감된 투표입니다
-          </div>
+          <div className="text-center text-sm text-muted-foreground py-2">마감된 투표입니다</div>
         )}
       </div>
 
@@ -331,65 +400,189 @@ export function PollDisplay({ postId, poll, onRefresh }: PollDisplayProps) {
         onVote={handleVote}
       />
 
-      {/* Voters modal */}
+      {/* Voters modal (per-option) */}
       <Dialog open={votersModalOpen} onOpenChange={setVotersModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg flex items-center justify-between">
+        <DialogContent className="max-w-sm">
+          <DialogHeader className="pt-2">
+            <DialogTitle className="text-base flex items-center justify-between pr-2">
               <span>투표자 목록</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                {selectedOption?.optionText}
+              <span className="text-xs font-normal text-muted-foreground truncate max-w-[160px]">
+                {selectedOption &&
+                  (poll.pollType === 'date'
+                    ? formatPollDate(selectedOption.optionText)
+                    : selectedOption.optionText)}
               </span>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3 py-4">
+          <div className="max-h-[50vh] overflow-y-auto -mx-2">
             {selectedOption?.voters.map((voter) => (
               <Link
                 key={voter.memberId}
                 href={`/members/${voter.memberId}`}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
                 onClick={() => setVotersModalOpen(false)}
               >
-                <div className="shrink-0">
-                  <MemberAvatar
-                    memberId={voter.memberId}
-                    name={voter.name}
-                    seed={voter.discordId || voter.name}
-                    imageUrl={voter.profileImage}
-                    size="md"
-                    noLink
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{voter.name}</div>
-                  {voter.nickname && voter.nickname !== voter.name && (
-                    <div className="text-xs text-muted-foreground">@{voter.nickname}</div>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(voter.votedAt).toLocaleString('ko-KR', {
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                </div>
+                <MemberAvatar
+                  memberId={voter.memberId}
+                  name={voter.name}
+                  seed={voter.discordId || voter.name}
+                  imageUrl={voter.profileImage}
+                  size="sm"
+                  noLink
+                />
+                <span className="text-sm font-medium flex-1 truncate">{voter.name}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                  {new Date(voter.votedAt).toLocaleString('ko-KR', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
               </Link>
             ))}
           </div>
-
-          <div className="flex justify-end pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVotersModalOpen(false)}
-            >
-              닫기
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
+
+      {/* Participants modal (참여/미참여 탭) */}
+      {!poll.isAnonymous && (
+        <Dialog open={participantsModalOpen} onOpenChange={setParticipantsModalOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader className="pt-2">
+              <DialogTitle className="text-base">투표 현황</DialogTitle>
+            </DialogHeader>
+
+            {/* Tabs */}
+            {isAdmin ? (
+              <div className="flex border-b border-border">
+                <button
+                  type="button"
+                  className={`flex-1 pb-2 text-sm font-medium text-center transition-colors ${
+                    participantsTab === 'voted'
+                      ? 'text-sky-600 border-b-2 border-sky-500'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setParticipantsTab('voted')}
+                >
+                  <Users className="h-3.5 w-3.5 inline mr-1" />
+                  참여 {poll.totalVotes}명
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 pb-2 text-sm font-medium text-center transition-colors ${
+                    participantsTab === 'notVoted'
+                      ? 'text-orange-600 border-b-2 border-orange-500'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setParticipantsTab('notVoted')}
+                >
+                  <UserX className="h-3.5 w-3.5 inline mr-1" />
+                  미참여 {poll.totalEligibleMembers - poll.totalVotes}명
+                </button>
+              </div>
+            ) : null}
+
+            {/* List */}
+            <div className="max-h-[50vh] overflow-y-auto -mx-2">
+              {participantsTab === 'voted' ? (
+                allVoters.length > 0 ? (
+                  allVoters.map((voter) => (
+                    <Link
+                      key={voter.memberId}
+                      href={`/members/${voter.memberId}`}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                      onClick={() => setParticipantsModalOpen(false)}
+                    >
+                      <MemberAvatar
+                        memberId={voter.memberId}
+                        name={voter.name}
+                        seed={voter.discordId || voter.name}
+                        imageUrl={voter.profileImage}
+                        size="sm"
+                        noLink
+                      />
+                      <span className="text-sm font-medium flex-1 truncate">{voter.name}</span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                        {new Date(voter.votedAt).toLocaleString('ko-KR', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    아직 참여자가 없습니다
+                  </p>
+                )
+              ) : (
+                <>
+                  {poll.nonVoters.length > 0 ? (
+                    poll.nonVoters.map((member) => (
+                      <div
+                        key={member.memberId}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                      >
+                        <Link
+                          href={`/members/${member.memberId}`}
+                          className="flex items-center gap-2.5 flex-1 min-w-0"
+                          onClick={() => setParticipantsModalOpen(false)}
+                        >
+                          <MemberAvatar
+                            memberId={member.memberId}
+                            name={member.name}
+                            seed={member.discordId || member.name}
+                            imageUrl={member.profileImage}
+                            size="sm"
+                            noLink
+                          />
+                          <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
+                        </Link>
+                        {isAdmin && !poll.isExpired && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 shrink-0 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/30"
+                            onClick={() => handleSendReminderDM(member.discordId)}
+                            disabled={sendingDM || sendingIndividual === member.discordId}
+                          >
+                            <Send className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      전원 참여했습니다
+                    </p>
+                  )}
+
+                  {/* 관리자 전용: 전체 DM 발송 (마감 전만) */}
+                  {isAdmin && !poll.isExpired && poll.nonVoters.length > 0 && (
+                    <div className="px-2 pt-3 mt-2 border-t border-border">
+                      <Button
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => handleSendReminderDM()}
+                        disabled={sendingDM || !!sendingIndividual}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        {sendingDM
+                          ? 'DM 발송 중...'
+                          : `전체 ${poll.nonVoters.length}명에게 DM 발송`}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Cancel vote dialog */}
       <CancelVoteDialog

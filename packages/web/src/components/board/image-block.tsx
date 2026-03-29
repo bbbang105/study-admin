@@ -3,7 +3,8 @@
 import type { RawCommands, ReactNodeViewProps } from '@tiptap/react';
 import { mergeAttributes, Node, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /* -- Type augmentation for setImage command -- */
 declare module '@tiptap/react' {
@@ -16,7 +17,13 @@ declare module '@tiptap/react' {
 
 /* -- React NodeView Component -- */
 
-function ImageBlockView({ node, updateAttributes, deleteNode, selected }: ReactNodeViewProps) {
+function ImageBlockView({
+  node,
+  updateAttributes,
+  deleteNode,
+  selected,
+  editor,
+}: ReactNodeViewProps) {
   const { src, alt, width, caption } = node.attrs as {
     src: string;
     alt: string;
@@ -24,13 +31,16 @@ function ImageBlockView({ node, updateAttributes, deleteNode, selected }: ReactN
     width: number | null;
     caption: string;
   };
+  const isEditable = editor?.isEditable ?? false;
   const [isHovered, setIsHovered] = useState(false);
   const [resizing, setResizing] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const imgRef = useRef<HTMLImageElement>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
-  const showControls = selected || isHovered;
+  const showControls = isEditable && (selected || isHovered);
 
   // Mouse resize
   const onResizeStart = useCallback((e: React.MouseEvent) => {
@@ -111,7 +121,8 @@ function ImageBlockView({ node, updateAttributes, deleteNode, selected }: ReactN
           src={src}
           alt={alt || ''}
           draggable={false}
-          style={{ width: '100%', height: 'auto' }}
+          style={{ width: '100%', height: 'auto', cursor: isEditable ? undefined : 'pointer' }}
+          onClick={isEditable ? undefined : () => setLightboxOpen(true)}
         />
 
         {/* Resize handle (bottom-right corner) */}
@@ -124,30 +135,80 @@ function ImageBlockView({ node, updateAttributes, deleteNode, selected }: ReactN
         )}
 
         {/* Caption */}
-        <figcaption
-          className="image-block-caption"
-          contentEditable
-          suppressContentEditableWarning
-          data-placeholder="캡션 추가..."
-          ref={(el) => {
-            if (el && el.textContent !== (caption || '')) {
-              el.textContent = caption || '';
-            }
-          }}
-          onInput={(e) => {
-            try {
-              updateAttributes({ caption: e.currentTarget.textContent ?? '' });
-            } catch {
-              // Node already deleted
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Backspace' || e.key === 'Delete') {
-              e.stopPropagation();
-            }
-          }}
-        />
+        {isEditable ? (
+          <figcaption
+            className="image-block-caption"
+            contentEditable
+            suppressContentEditableWarning
+            data-placeholder="캡션 추가..."
+            ref={(el) => {
+              if (el && el.textContent !== (caption || '')) {
+                el.textContent = caption || '';
+              }
+            }}
+            onInput={(e) => {
+              try {
+                updateAttributes({ caption: e.currentTarget.textContent ?? '' });
+              } catch {
+                // Node already deleted
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.stopPropagation();
+              }
+            }}
+          />
+        ) : caption ? (
+          <figcaption className="image-block-caption">{caption}</figcaption>
+        ) : null}
       </figure>
+
+      {/* Lightbox modal (read-only) */}
+      {!isEditable && (
+        <Dialog
+          open={lightboxOpen}
+          onOpenChange={(open) => {
+            setLightboxOpen(open);
+            if (!open) setZoom(1);
+          }}
+        >
+          <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 border-none bg-transparent shadow-none [&>button]:text-white [&>button]:bg-black/50 [&>button]:rounded-full [&>button]:p-1.5">
+            <DialogTitle className="sr-only">이미지 확대 보기</DialogTitle>
+            <div className="relative flex items-center justify-center overflow-auto max-h-[85vh]">
+              <img
+                src={src}
+                alt={alt || ''}
+                draggable={false}
+                className="rounded-lg object-contain transition-transform duration-200"
+                style={{ transform: `scale(${zoom})`, maxHeight: '85vh', maxWidth: '90vw' }}
+              />
+              {/* Zoom controls */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 rounded-full px-3 py-1.5">
+                <button
+                  type="button"
+                  className="text-white hover:text-white/80 disabled:text-white/30"
+                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+                  disabled={zoom <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </button>
+                <span className="text-white text-xs tabular-nums min-w-[3ch] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  className="text-white hover:text-white/80 disabled:text-white/30"
+                  onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+                  disabled={zoom >= 3}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </NodeViewWrapper>
   );
 }
