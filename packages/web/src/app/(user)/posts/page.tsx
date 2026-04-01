@@ -1131,7 +1131,7 @@ function PostCard({
           })()}
 
         {/* Footer: viewers + comments toggle */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3 pt-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-3 pt-1">
           <div className="flex items-center gap-1.5">
             {post.viewers.length > 0 ? (
               <div className="flex -space-x-1.5">
