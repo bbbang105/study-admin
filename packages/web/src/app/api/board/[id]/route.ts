@@ -8,7 +8,7 @@ import { getAdminDiscordIds } from '@/lib/admin';
 import { isValidCategory } from '@/lib/board-config';
 import { sanitizeTiptapContent } from '@/lib/sanitize';
 
-const { boardPosts, boardComments, members } = sharedDb;
+const { boardPosts, boardComments, members, boardPostReactions } = sharedDb;
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -111,12 +111,39 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       };
     });
 
+    // Reactions
+    const reactionsRaw = await database
+      .select({
+        emoji: boardPostReactions.emoji,
+        memberId: boardPostReactions.memberId,
+        memberName: members.nickname,
+      })
+      .from(boardPostReactions)
+      .innerJoin(members, eq(boardPostReactions.memberId, members.id))
+      .where(eq(boardPostReactions.postId, id));
+
+    // Group by emoji
+    const reactions: Record<
+      string,
+      { count: number; members: { id: string; nickname: string }[]; reacted: boolean }
+    > = {};
+    for (const row of reactionsRaw) {
+      if (!reactions[row.emoji]) {
+        reactions[row.emoji] = { count: 0, members: [], reacted: false };
+      }
+      reactions[row.emoji].count++;
+      reactions[row.emoji].members.push({ id: row.memberId, nickname: row.memberName });
+      if (row.memberId === auth.memberId) {
+        reactions[row.emoji].reacted = true;
+      }
+    }
+
     const postWithAdmin = {
       ...post,
       memberIsAdmin: adminDiscordIds.includes(post.memberDiscordId),
     };
 
-    return successResponse({ post: postWithAdmin, comments: maskedComments });
+    return successResponse({ post: postWithAdmin, comments: maskedComments, reactions });
   } catch (error) {
     return errorResponse(error);
   }
