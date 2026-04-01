@@ -649,6 +649,17 @@ export default function PostDetailPage() {
     }
   }, [postId]);
 
+  const fetchReactions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/reactions`);
+      if (!res.ok) return;
+      const result = await res.json();
+      setReactions(result.data.reactions || {});
+    } catch {
+      // Non-critical
+    }
+  }, [postId]);
+
   useEffect(() => {
     async function fetchPostInfo() {
       try {
@@ -677,18 +688,7 @@ export default function PostDetailPage() {
     fetchPostInfo();
     fetchComments();
     fetchReactions();
-  }, [postId, fetchComments]);
-
-  const fetchReactions = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/posts/${postId}/reactions`);
-      if (!res.ok) return;
-      const result = await res.json();
-      setReactions(result.data.reactions || {});
-    } catch {
-      // Non-critical
-    }
-  }, [postId]);
+  }, [postId, fetchComments, fetchReactions]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -793,6 +793,7 @@ export default function PostDetailPage() {
       <div className="px-1">
         <ReactionBar
           postId={postId}
+          apiPath="posts"
           reactions={reactions}
           onUpdate={fetchReactions}
         />

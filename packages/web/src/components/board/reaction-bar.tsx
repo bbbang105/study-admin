@@ -27,6 +27,7 @@ interface ReactionData {
 
 interface ReactionBarProps {
   postId: string;
+  apiPath?: 'board' | 'posts';
   reactions: Record<string, ReactionData>;
   onUpdate: () => void;
 }
@@ -125,7 +126,7 @@ function MemberPopover({
 // ReactionBar — Slim toolbar style
 // ─────────────────────────────────────────────
 
-export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
+export function ReactionBar({ postId, apiPath = 'board', reactions, onUpdate }: ReactionBarProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
   const toggle = useCallback(
@@ -133,7 +134,7 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
       if (loading) return;
       setLoading(emoji);
       try {
-        const res = await fetch(`/api/board/${postId}/reactions`, {
+        const res = await fetch(`/api/${apiPath}/${postId}/reactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ emoji }),
@@ -150,7 +151,7 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
         setLoading(null);
       }
     },
-    [postId, loading, onUpdate],
+    [apiPath, postId, loading, onUpdate],
   );
 
   const [pickerOpen, setPickerOpen] = useState(false);

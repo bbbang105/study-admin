@@ -58,6 +58,9 @@ import {
 import { cn, getDefaultAvatar } from '@/lib/utils';
 import { getPartStyle, PART_OPTIONS } from '@/lib/part-config';
 
+// Synced with REACTION_EMOJIS in packages/shared/src/db/schema.ts (server validates)
+const REACTION_EMOJIS = ['👍', '👀', '🔥', '💡', '😂', '✅'] as const;
+
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
@@ -916,8 +919,6 @@ function PostCard({
   >({});
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [reactionLoading, setReactionLoading] = useState<string | null>(null);
-
-  const REACTION_EMOJIS = ['👍', '👀', '🔥', '💡', '😂', '✅'] as const;
 
   const fetchReactions = useCallback(async () => {
     try {
