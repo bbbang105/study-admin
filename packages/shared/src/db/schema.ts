@@ -528,6 +528,32 @@ export const boardPostReactions = pgTable(
   })
 );
 
+// ── Post Reactions ────────────────────────────────────────────────────────
+
+export const postReactions = pgTable(
+  'post_reactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    emoji: varchar('emoji', { length: 10 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    postIdIdx: index('idx_post_reactions_post_id').on(table.postId),
+    memberIdIdx: index('idx_post_reactions_member_id').on(table.memberId),
+    uniqueReaction: unique('unique_post_reaction').on(
+      table.postId,
+      table.memberId,
+      table.emoji
+    ),
+  })
+);
+
 // ── FCM Tokens ─────────────────────────────────────────────────────────────
 
 export const fcmTokens = pgTable(
@@ -595,6 +621,7 @@ export const membersRelations = relations(members, ({ many }) => ({
   fcmTokens: many(fcmTokens),
   notificationPreferences: many(notificationPreferences),
   boardPostReactions: many(boardPostReactions),
+  postReactions: many(postReactions),
 }));
 
 export const fcmTokensRelations = relations(fcmTokens, ({ one }) => ({
@@ -628,6 +655,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   views: many(postViews),
   comments: many(postComments),
+  reactions: many(postReactions),
 }));
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
@@ -758,6 +786,17 @@ export const boardPostReactionsRelations = relations(boardPostReactions, ({ one 
   }),
   member: one(members, {
     fields: [boardPostReactions.memberId],
+    references: [members.id],
+  }),
+}));
+
+export const postReactionsRelations = relations(postReactions, ({ one }) => ({
+  post: one(posts, {
+    fields: [postReactions.postId],
+    references: [posts.id],
+  }),
+  member: one(members, {
+    fields: [postReactions.memberId],
     references: [members.id],
   }),
 }));

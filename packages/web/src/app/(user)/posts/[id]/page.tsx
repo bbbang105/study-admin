@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ReactionBar } from '@/components/board/reaction-bar';
 import { cn, getDefaultAvatar } from '@/lib/utils';
 
 // ─────────────────────────────────────────────
@@ -613,6 +614,9 @@ export default function PostDetailPage() {
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentCount, setCommentCount] = useState(0);
+  const [reactions, setReactions] = useState<
+    Record<string, { count: number; members: { id: string; nickname: string }[]; reacted: boolean }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
@@ -672,7 +676,19 @@ export default function PostDetailPage() {
     }
     fetchPostInfo();
     fetchComments();
+    fetchReactions();
   }, [postId, fetchComments]);
+
+  const fetchReactions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/reactions`);
+      if (!res.ok) return;
+      const result = await res.json();
+      setReactions(result.data.reactions || {});
+    } catch {
+      // Non-critical
+    }
+  }, [postId]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -772,6 +788,15 @@ export default function PostDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Reactions */}
+      <div className="px-1">
+        <ReactionBar
+          postId={postId}
+          reactions={reactions}
+          onUpdate={fetchReactions}
+        />
+      </div>
 
       {/* Comments section */}
       <Card className="border-border/60 shadow-none">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { SmilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,7 +69,6 @@ function MemberPopover({
     clearTimer();
   }, [clearTimer]);
 
-  // Prevent click after long-press on mobile
   const handleClick = useCallback((e: React.MouseEvent) => {
     if (didLongPress.current) {
       e.preventDefault();
@@ -78,7 +77,6 @@ function MemberPopover({
     }
   }, []);
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (longPressTimer.current) clearTimeout(longPressTimer.current);
@@ -92,10 +90,8 @@ function MemberPopover({
       <PopoverTrigger asChild>
         <div
           className="inline-flex"
-          // Desktop hover
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          // Mobile long-press
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
@@ -110,7 +106,6 @@ function MemberPopover({
         sideOffset={6}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onPointerDownOutside={() => setOpen(false)}
-        // Keep open on hover (desktop)
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
       >
@@ -127,12 +122,11 @@ function MemberPopover({
 }
 
 // ─────────────────────────────────────────────
-// ReactionBar
+// ReactionBar — Slim toolbar style
 // ─────────────────────────────────────────────
 
 export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const toggle = useCallback(
     async (emoji: string) => {
@@ -159,19 +153,12 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
     [postId, loading, onUpdate],
   );
 
-  const handlePickerSelect = useCallback(
-    (emoji: string) => {
-      setPickerOpen(false);
-      toggle(emoji);
-    },
-    [toggle],
-  );
-
-  // Active reactions (count > 0)
+  const [pickerOpen, setPickerOpen] = useState(false);
   const activeEmojis = EMOJIS.filter((e) => (reactions[e]?.count ?? 0) > 0);
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {/* 활성 이모지 칩 — 호버/클릭 시 닉네임 팝오버 */}
       {activeEmojis.map((emoji) => {
         const r = reactions[emoji]!;
         return (
@@ -197,7 +184,7 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
         );
       })}
 
-      {/* Add reaction picker */}
+      {/* 리액션 추가 피커 */}
       <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
         <PopoverTrigger asChild>
           <button
@@ -205,12 +192,12 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
             className="inline-flex items-center justify-center h-7 w-7 rounded-full border border-dashed border-border/60 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
             aria-label="리액션 추가"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <SmilePlus className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-1.5"
           side="top"
+          className="w-auto p-1.5"
           sideOffset={6}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -219,10 +206,15 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
               <button
                 key={emoji}
                 type="button"
-                onClick={() => handlePickerSelect(emoji)}
+                onClick={() => {
+                  setPickerOpen(false);
+                  toggle(emoji);
+                }}
+                disabled={loading === emoji}
                 className={cn(
                   'h-8 w-8 rounded-md text-base flex items-center justify-center hover:bg-muted/80 transition-colors',
                   reactions[emoji]?.reacted && 'bg-sky-50 dark:bg-sky-950/40',
+                  loading === emoji && 'opacity-50',
                 )}
               >
                 {emoji}

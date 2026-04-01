@@ -12,7 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { isAdminDiscordId } from '@/lib/admin';
 
-const { posts, members, rounds, postViews } = sharedDb;
+const { posts, members, rounds, postViews, postReactions } = sharedDb;
 
 /**
  * GET /api/posts
@@ -94,7 +94,8 @@ export async function GET(request: NextRequest) {
     const totalCount = totalCountResult[0]?.count ?? 0;
 
     // 정렬 기준: 인기순은 score desc → 동점 시 댓글 많은 순 → 최신순
-    const popularScore = sql`COALESCE(${posts.commentCount}, 0) * 3 + (SELECT COUNT(*) FROM post_views pv WHERE pv.post_id = ${posts.id})`;
+    // 가중치: 댓글 3, 조회수 2, 리액션 1
+    const popularScore = sql`COALESCE(${posts.commentCount}, 0) * 3 + (SELECT COUNT(*) FROM post_views pv WHERE pv.post_id = ${posts.id}) * 2 + (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = ${posts.id})`;
 
     // Get paginated posts with member and round info
     const postsQuery = database
@@ -140,6 +141,7 @@ export async function GET(request: NextRequest) {
       }[]
     >();
     let viewCountMap = new Map<string, number>();
+    let reactionCountMap = new Map<string, number>();
 
     if (postIds.length > 0) {
       // Get view counts per post
@@ -153,6 +155,18 @@ export async function GET(request: NextRequest) {
         .groupBy(postViews.postId);
 
       viewCountMap = new Map(viewCounts.map((v) => [v.postId, v.count]));
+
+      // Get reaction counts per post
+      const reactionCounts = await database
+        .select({
+          postId: postReactions.postId,
+          count: count(),
+        })
+        .from(postReactions)
+        .where(inArray(postReactions.postId, postIds))
+        .groupBy(postReactions.postId);
+
+      reactionCountMap = new Map(reactionCounts.map((r) => [r.postId, r.count]));
 
       // Get recent viewers per post with member info (Drizzle query)
       const allViewers = await database
@@ -216,6 +230,7 @@ export async function GET(request: NextRequest) {
         viewCount: viewCountMap.get(post.id) ?? 0,
         viewers: (viewersMap.get(post.id) ?? []).slice(0, 3),
         totalViewers: viewCountMap.get(post.id) ?? 0,
+        reactionCount: reactionCountMap.get(post.id) ?? 0,
       })),
       currentMemberId,
       isAdmin,
