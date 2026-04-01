@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { getBoardAuth } from '@/lib/board-auth';
+import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 
 const { REACTION_EMOJIS } = sharedDb;
 type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
-import { getBoardAuth } from '@/lib/board-auth';
-import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 
 const { boardPostReactions, boardPosts } = sharedDb;
 
@@ -33,37 +33,43 @@ export async function POST(
     const [post] = await database
       .select({ id: boardPosts.id })
       .from(boardPosts)
-      .where(eq(boardPosts.id, postId))
+      .where(and(eq(boardPosts.id, postId), isNull(boardPosts.deletedAt)))
       .limit(1);
 
     if (!post) return Errors.notFound('게시글을 찾을 수 없습니다.').toResponse();
 
-    // Toggle: check if already reacted
-    const [existing] = await database
-      .select({ id: boardPostReactions.id })
-      .from(boardPostReactions)
-      .where(
-        and(
-          eq(boardPostReactions.postId, postId),
-          eq(boardPostReactions.memberId, auth.memberId),
-          eq(boardPostReactions.emoji, emoji)
+    // Toggle in transaction to avoid race condition
+    const action = await database.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: boardPostReactions.id })
+        .from(boardPostReactions)
+        .where(
+          and(
+            eq(boardPostReactions.postId, postId),
+            eq(boardPostReactions.memberId, auth.memberId),
+            eq(boardPostReactions.emoji, emoji)
+          )
         )
-      )
-      .limit(1);
+        .limit(1);
 
-    if (existing) {
-      // Remove reaction
-      await database
-        .delete(boardPostReactions)
-        .where(eq(boardPostReactions.id, existing.id));
-      return successResponse({ action: 'removed', emoji });
-    } else {
-      // Add reaction
-      await database
-        .insert(boardPostReactions)
-        .values({ postId, memberId: auth.memberId, emoji });
-      return successResponse({ action: 'added', emoji }, undefined, 201);
-    }
+      if (existing) {
+        await tx
+          .delete(boardPostReactions)
+          .where(eq(boardPostReactions.id, existing.id));
+        return 'removed' as const;
+      } else {
+        await tx
+          .insert(boardPostReactions)
+          .values({ postId, memberId: auth.memberId, emoji });
+        return 'added' as const;
+      }
+    });
+
+    return successResponse(
+      { action, emoji },
+      undefined,
+      action === 'added' ? 201 : 200
+    );
   } catch (error) {
     return errorResponse(error);
   }

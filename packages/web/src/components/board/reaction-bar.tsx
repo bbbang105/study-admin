@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 // Constants
 // ─────────────────────────────────────────────
 
-const EMOJIS = ['\u{1F44D}', '\u{1F440}', '\u{1F525}', '\u{1F4A1}', '\u{1F602}', '\u2705'] as const;
+// Synced with REACTION_EMOJIS in packages/shared/src/db/schema.ts (server validates)
+const EMOJIS = ['👍', '👀', '🔥', '💡', '😂', '✅'] as const;
 
 const LONG_PRESS_MS = 500;
 
@@ -75,6 +76,13 @@ function MemberPopover({
       e.stopPropagation();
       didLongPress.current = false;
     }
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
   }, []);
 
   if (members.length === 0) return <>{children}</>;
@@ -172,6 +180,8 @@ export function ReactionBar({ postId, reactions, onUpdate }: ReactionBarProps) {
               type="button"
               disabled={loading === emoji}
               onClick={() => toggle(emoji)}
+              aria-label={`${emoji} 리액션, ${r.count}명`}
+              aria-pressed={r.reacted}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors select-none',
                 r.reacted
