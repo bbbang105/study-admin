@@ -20,6 +20,7 @@ import {
   Plus,
   Reply,
   Search,
+  SmilePlus,
   Trash2,
   TrendingUp,
   X,
@@ -32,6 +33,7 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { PartBadge } from '@/components/ui/part-badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { PageError, PostsListSkeleton } from '@/components/ui/page-state';
 import {
@@ -55,6 +57,9 @@ import {
 } from '@/components/ui/dialog';
 import { cn, getDefaultAvatar } from '@/lib/utils';
 import { getPartStyle, PART_OPTIONS } from '@/lib/part-config';
+
+// Synced with REACTION_EMOJIS in packages/shared/src/db/schema.ts (server validates)
+const REACTION_EMOJIS = ['👍', '👀', '🔥', '💡', '😂', '✅'] as const;
 
 // ─────────────────────────────────────────────
 // Types
@@ -113,6 +118,7 @@ interface Post {
   viewCount: number;
   viewers: Viewer[];
   totalViewers: number;
+  reactionCount: number;
 }
 
 interface PostsData {
@@ -800,6 +806,79 @@ function PostThumbnail({
   );
 }
 
+// ─────────────────────────────────────────────
+// ReactionChip (이모지 카운트 + 호버/클릭 시 닉네임)
+// ─────────────────────────────────────────────
+
+function ReactionChip({
+  emoji,
+  count,
+  reacted,
+  members,
+  loading,
+  onToggle,
+}: {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+  members: { id: string; nickname: string }[];
+  loading: boolean;
+  onToggle: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          className="inline-flex"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            disabled={loading}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors select-none',
+              reacted
+                ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+                : 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/70',
+              loading && 'opacity-50',
+            )}
+          >
+            <span className="text-sm leading-none">{emoji}</span>
+            <span className="tabular-nums">{count}</span>
+          </button>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        className="w-auto max-w-48 p-2"
+        sideOffset={6}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={() => setOpen(false)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        <div className="space-y-0.5">
+          {members.map((m) => (
+            <p key={m.id} className="text-xs text-popover-foreground truncate">
+              {m.nickname}
+            </p>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PostCard with inline comments
+// ─────────────────────────────────────────────
+
 function PostCard({
   post,
   onView,
@@ -835,6 +914,48 @@ function PostCard({
   const [editTitle, setEditTitle] = useState(post.title);
   const [editDescription, setEditDescription] = useState(post.description || '');
   const [editing, setEditing] = useState(false);
+  const [reactions, setReactions] = useState<
+    Record<string, { count: number; members: { id: string; nickname: string }[]; reacted: boolean }>
+  >({});
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [reactionLoading, setReactionLoading] = useState<string | null>(null);
+
+  const fetchReactions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/posts/${post.id}/reactions`);
+      if (!res.ok) return;
+      const result = await res.json();
+      setReactions(result.data.reactions || {});
+    } catch { /* non-critical */ }
+  }, [post.id]);
+
+  useEffect(() => {
+    fetchReactions();
+  }, [fetchReactions]);
+
+  const toggleReaction = useCallback(async (emoji: string) => {
+    if (reactionLoading) return;
+    setReactionLoading(emoji);
+    setReactionPickerOpen(false);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) {
+        toast.error('리액션 처리에 실패했습니다.');
+        return;
+      }
+      fetchReactions();
+    } catch {
+      toast.error('리액션 처리에 실패했습니다.');
+    } finally {
+      setReactionLoading(null);
+    }
+  }, [post.id, reactionLoading, fetchReactions]);
+
+  const activeEmojis = REACTION_EMOJIS.filter((e) => (reactions[e]?.count ?? 0) > 0);
 
   const handleEditSubmit = async () => {
     if (!editTitle.trim()) return;
@@ -1010,7 +1131,7 @@ function PostCard({
           })()}
 
         {/* Footer: viewers + comments toggle */}
-        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3 pt-1">
           <div className="flex items-center gap-1.5">
             {post.viewers.length > 0 ? (
               <div className="flex -space-x-1.5">
@@ -1050,6 +1171,58 @@ function PostCard({
             <MessageCircle className="h-3.5 w-3.5" />
             <span className="tabular-nums">{post.commentCount}</span>
           </button>
+
+
+          {/* Reactions — 이모지별 카운트, 호버/클릭 시 닉네임 */}
+          {activeEmojis.map((emoji) => {
+            const r = reactions[emoji]!;
+            return (
+              <ReactionChip
+                key={emoji}
+                emoji={emoji}
+                count={r.count}
+                reacted={r.reacted}
+                members={r.members}
+                loading={reactionLoading === emoji}
+                onToggle={() => toggleReaction(emoji)}
+              />
+            );
+          })}
+          {/* 리액션 추가 버튼 */}
+          <Popover open={reactionPickerOpen} onOpenChange={setReactionPickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                aria-label="리액션 추가"
+              >
+                <SmilePlus className="h-3.5 w-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              className="w-auto p-1.5"
+              sideOffset={6}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <div className="flex items-center gap-0.5">
+                {REACTION_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => toggleReaction(emoji)}
+                    disabled={reactionLoading === emoji}
+                    className={cn(
+                      'h-8 w-8 rounded-md text-base flex items-center justify-center hover:bg-muted/80 transition-colors',
+                      reactions[emoji]?.reacted && 'bg-sky-50 dark:bg-sky-950/40',
+                      reactionLoading === emoji && 'opacity-50',
+                    )}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <div className="ml-auto flex items-center gap-0.5">
             {canEdit && (

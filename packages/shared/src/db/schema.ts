@@ -499,6 +499,61 @@ export const boardPollVotes = pgTable(
   })
 );
 
+// ── Board Post Reactions ──────────────────────────────────────────────────
+
+export const REACTION_EMOJIS = ['👍', '👀', '🔥', '💡', '😂', '✅'] as const;
+export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
+
+export const boardPostReactions = pgTable(
+  'board_post_reactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => boardPosts.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    emoji: varchar('emoji', { length: 10 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    postIdIdx: index('idx_board_post_reactions_post_id').on(table.postId),
+    memberIdIdx: index('idx_board_post_reactions_member_id').on(table.memberId),
+    uniqueReaction: unique('unique_post_member_emoji').on(
+      table.postId,
+      table.memberId,
+      table.emoji
+    ),
+  })
+);
+
+// ── Post Reactions ────────────────────────────────────────────────────────
+
+export const postReactions = pgTable(
+  'post_reactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    emoji: varchar('emoji', { length: 10 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    postIdIdx: index('idx_post_reactions_post_id').on(table.postId),
+    memberIdIdx: index('idx_post_reactions_member_id').on(table.memberId),
+    uniqueReaction: unique('unique_post_reaction').on(
+      table.postId,
+      table.memberId,
+      table.emoji
+    ),
+  })
+);
+
 // ── FCM Tokens ─────────────────────────────────────────────────────────────
 
 export const fcmTokens = pgTable(
@@ -565,6 +620,8 @@ export const membersRelations = relations(members, ({ many }) => ({
   boardComments: many(boardComments),
   fcmTokens: many(fcmTokens),
   notificationPreferences: many(notificationPreferences),
+  boardPostReactions: many(boardPostReactions),
+  postReactions: many(postReactions),
 }));
 
 export const fcmTokensRelations = relations(fcmTokens, ({ one }) => ({
@@ -598,6 +655,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   views: many(postViews),
   comments: many(postComments),
+  reactions: many(postReactions),
 }));
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
@@ -669,6 +727,7 @@ export const boardPostsRelations = relations(boardPosts, ({ one, many }) => ({
   }),
   comments: many(boardComments),
   polls: many(boardPolls),
+  reactions: many(boardPostReactions),
 }));
 
 export const boardCommentsRelations = relations(boardComments, ({ one, many }) => ({
@@ -716,6 +775,28 @@ export const boardPollVotesRelations = relations(boardPollVotes, ({ one }) => ({
   }),
   member: one(members, {
     fields: [boardPollVotes.memberId],
+    references: [members.id],
+  }),
+}));
+
+export const boardPostReactionsRelations = relations(boardPostReactions, ({ one }) => ({
+  post: one(boardPosts, {
+    fields: [boardPostReactions.postId],
+    references: [boardPosts.id],
+  }),
+  member: one(members, {
+    fields: [boardPostReactions.memberId],
+    references: [members.id],
+  }),
+}));
+
+export const postReactionsRelations = relations(postReactions, ({ one }) => ({
+  post: one(posts, {
+    fields: [postReactions.postId],
+    references: [posts.id],
+  }),
+  member: one(members, {
+    fields: [postReactions.memberId],
     references: [members.id],
   }),
 }));
@@ -774,6 +855,9 @@ export type NewBoardPollOption = typeof boardPollOptions.$inferInsert;
 
 export type BoardPollVote = typeof boardPollVotes.$inferSelect;
 export type NewBoardPollVote = typeof boardPollVotes.$inferInsert;
+
+export type BoardPostReaction = typeof boardPostReactions.$inferSelect;
+export type NewBoardPostReaction = typeof boardPostReactions.$inferInsert;
 
 export type FcmToken = typeof fcmTokens.$inferSelect;
 export type NewFcmToken = typeof fcmTokens.$inferInsert;

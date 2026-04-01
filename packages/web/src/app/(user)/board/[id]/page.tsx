@@ -9,6 +9,7 @@ import { type Poll, PollDisplay } from '@/components/board/poll-display';
 import { type Comment, CommentTree } from '@/components/board/comment-tree';
 import { CommentForm } from '@/components/board/comment-form';
 import { DeletePostDialog } from '@/components/board/delete-post-dialog';
+import { ReactionBar } from '@/components/board/reaction-bar';
 import { categoryBadgeConfig } from '@/lib/board-config';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,9 @@ export default function BoardDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [polls, setPolls] = useState<Poll[]>([]);
+  const [reactions, setReactions] = useState<
+    Record<string, { count: number; members: { id: string; nickname: string }[]; reacted: boolean }>
+  >({});
   const [currentUser, setCurrentUser] = useState<CurrentUser>({
     memberId: null,
     isAdmin: false,
@@ -145,6 +149,7 @@ export default function BoardDetailPage() {
 
       setPost(postResult.data.post);
       setComments(postResult.data.comments);
+      setReactions(postResult.data.reactions || {});
 
       // Fetch polls (non-critical)
       if (pollsRes.ok) {
@@ -169,9 +174,22 @@ export default function BoardDetailPage() {
       if (!res.ok) return;
       const result = await res.json();
       setComments(result.data.comments);
+      setReactions(result.data.reactions || {});
       setPost((prev) => (prev ? { ...prev, commentCount: result.data.post.commentCount } : prev));
     } catch {
       // Fail silently — user can manually refresh
+    }
+  }, [postId]);
+
+  // Refresh reactions
+  const refreshReactions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/board/${postId}`);
+      if (!res.ok) return;
+      const result = await res.json();
+      setReactions(result.data.reactions || {});
+    } catch {
+      // Fail silently
     }
   }, [postId]);
 
@@ -319,6 +337,15 @@ export default function BoardDetailPage() {
         {/* Post content */}
         <div className="px-6 py-6">
           <TiptapRenderer content={post.content} />
+        </div>
+
+        {/* Reactions */}
+        <div className="px-6 pb-5">
+          <ReactionBar
+            postId={postId}
+            reactions={reactions}
+            onUpdate={refreshReactions}
+          />
         </div>
       </div>
 
