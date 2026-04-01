@@ -131,10 +131,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       if (!reactions[row.emoji]) {
         reactions[row.emoji] = { count: 0, members: [], reacted: false };
       }
-      reactions[row.emoji].count++;
-      reactions[row.emoji].members.push({ id: row.memberId, nickname: row.memberName });
+      const entry = reactions[row.emoji]!;
+      entry.count++;
+      entry.members.push({ id: row.memberId, nickname: row.memberName });
       if (row.memberId === auth.memberId) {
-        reactions[row.emoji].reacted = true;
+        entry.reacted = true;
       }
     }
 

@@ -1,7 +1,10 @@
 import { NextRequest } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { db as sharedDb, REACTION_EMOJIS, type ReactionEmoji } from '@blog-study/shared';
+import { db as sharedDb } from '@blog-study/shared';
+
+const { REACTION_EMOJIS } = sharedDb;
+type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 
