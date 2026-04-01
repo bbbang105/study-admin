@@ -78,6 +78,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
 - **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
 - **포스트 삭제**: 본인 또는 관리자만 가능, 트랜잭션으로 댓글/조회기록/활동점수(blog_post) 일괄 삭제
+- **이모지 리액션**: 게시판 글 + 포스트에 고정 6종 이모지 (👍👀🔥💡😂✅) 토글, `ReactionBar` 공용 컴포넌트 (`apiPath` prop으로 board/posts 구분), 호버(PC)/클릭(모바일) 시 닉네임 팝오버, 복수 선택 가능, 활동 점수/알림 없음
+- **인기글 점수**: `댓글×3 + 조회수×2 + 리액션×1`
 - **스터디원 목록**: active + dormant + ob 모두 표시, 상태 칩으로 구분 (OB: 황금 파스텔, 휴면: secondary)
 
 ## 핵심 파일 위치
@@ -104,6 +106,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/score.ts` | 웹 활동 점수 부여 (board_post, post_comment, board_comment, post_view) |
 | `packages/web/src/lib/score-config.ts` | 활동 점수 타입별 메타데이터 (Single Source of Truth: 라벨, 이모지, 배점, 뱃지 컬러) |
 | `packages/web/src/app/(user)/profile/activity/page.tsx` | 활동 내역 페이지 (타입별 필터, 무한 로드) |
+| `packages/web/src/components/board/reaction-bar.tsx` | 이모지 리액션 바 공용 컴포넌트 (`apiPath` prop) |
 | `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`, `withCache`) |
