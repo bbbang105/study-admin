@@ -28,16 +28,17 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
 
     if (currentRoundData) {
       const now = new Date();
-      const endDate = new Date(currentRoundData.endDate);
-      const endOfDeadline = new Date(endDate);
-      endOfDeadline.setHours(23, 59, 59, 999);
-      const graceEndDate = new Date(currentRoundData.graceEndDate);
-      const endOfGrace = new Date(graceEndDate);
-      endOfGrace.setHours(23, 59, 59, 999);
+      const endOfDeadline = new Date(`${currentRoundData.endDate}T23:59:59.999+09:00`);
+      const endOfGrace = new Date(`${currentRoundData.graceEndDate}T23:59:59.999+09:00`);
 
-      // Calculate days remaining (마감일 당일 23:59:59 기준)
-      const timeDiff = endOfDeadline.getTime() - now.getTime();
-      const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      // KST 캘린더 날짜 기준 D-Day 계산 (당일 = D-Day = 0)
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const todayStr = kstNow.toISOString().split('T')[0]!;
+      const todayMidnight = new Date(`${todayStr}T00:00:00+09:00`);
+      const endMidnight = new Date(`${currentRoundData.endDate}T00:00:00+09:00`);
+      const daysRemaining = Math.round(
+        (endMidnight.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       // 지각: 마감일 다음 날부터 ~ 지각 마감일 23:59:59까지
       const isGracePeriod = now > endOfDeadline && now <= endOfGrace;

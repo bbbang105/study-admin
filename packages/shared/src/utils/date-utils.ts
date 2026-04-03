@@ -190,11 +190,14 @@ export function determineAttendanceStatus(
  * 마감까지 남은 일수 계산
  */
 export function getDaysUntilDeadline(roundDates: RoundDates, currentDate: Date = new Date()): number {
-  const diffMs = roundDates.endDate.getTime() - currentDate.getTime();
-  if (diffMs <= 0) {
-    return 0;
-  }
-  return Math.ceil(diffMs / MS_PER_DAY);
+  // KST 캘린더 날짜 기준 (당일 = 0)
+  const kstNow = new Date(currentDate.getTime() + 9 * 60 * 60 * 1000);
+  const todayStr = kstNow.toISOString().split('T')[0]!;
+  const todayMs = new Date(`${todayStr}T00:00:00+09:00`).getTime();
+  const endStr = roundDates.endDate.toISOString().split('T')[0]!;
+  const endMs = new Date(`${endStr}T00:00:00+09:00`).getTime();
+  const diff = Math.round((endMs - todayMs) / MS_PER_DAY);
+  return Math.max(0, diff);
 }
 
 /**
