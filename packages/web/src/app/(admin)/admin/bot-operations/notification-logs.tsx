@@ -93,8 +93,10 @@ export default function NotificationLogs() {
     }
   }, [fetchLogs]);
 
+  const isLoadingMoreRef = useRef(false);
   const loadMore = useCallback(async () => {
-    if (!hasMore || !nextCursor || isLoadingMore) return;
+    if (!hasMore || !nextCursor || isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
     try {
       const data = await fetchLogs(nextCursor);
@@ -105,9 +107,10 @@ export default function NotificationLogs() {
       console.error(err);
       toast.error('추가 로그를 불러오는데 실패했습니다');
     } finally {
+      isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [fetchLogs, hasMore, nextCursor, isLoadingMore]);
+  }, [fetchLogs, hasMore, nextCursor]);
 
   // Reset when filters change
   useEffect(() => {
@@ -119,7 +122,7 @@ export default function NotificationLogs() {
     if (observerRef.current) observerRef.current.disconnect();
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
+        if (entries[0]?.isIntersecting) {
           loadMore();
         }
       },
@@ -129,14 +132,14 @@ export default function NotificationLogs() {
       observerRef.current.observe(bottomRef.current);
     }
     return () => observerRef.current?.disconnect();
-  }, [hasMore, isLoadingMore, loadMore]);
+  }, [loadMore]);
 
   return (
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <Select value={filterType || '_all'} onValueChange={(v) => setFilterType(v === '_all' ? '' : v)}>
-          <SelectTrigger className="w-36 h-8 text-xs">
+          <SelectTrigger className="w-[90px] sm:w-36 h-8 text-xs">
             <SelectValue placeholder="전체 타입" />
           </SelectTrigger>
           <SelectContent>
@@ -150,7 +153,7 @@ export default function NotificationLogs() {
         </Select>
 
         <Select value={filterSource || '_all'} onValueChange={(v) => setFilterSource(v === '_all' ? '' : v)}>
-          <SelectTrigger className="w-28 h-8 text-xs">
+          <SelectTrigger className="w-20 sm:w-28 h-8 text-xs">
             <SelectValue placeholder="전체 출처" />
           </SelectTrigger>
           <SelectContent>
@@ -161,7 +164,7 @@ export default function NotificationLogs() {
         </Select>
 
         <Select value={filterTarget || '_all'} onValueChange={(v) => setFilterTarget(v === '_all' ? '' : v)}>
-          <SelectTrigger className="w-28 h-8 text-xs">
+          <SelectTrigger className="w-20 sm:w-28 h-8 text-xs">
             <SelectValue placeholder="전체 대상" />
           </SelectTrigger>
           <SelectContent>
@@ -172,7 +175,7 @@ export default function NotificationLogs() {
         </Select>
 
         <Select value={filterStatus || '_all'} onValueChange={(v) => setFilterStatus(v === '_all' ? '' : v)}>
-          <SelectTrigger className="w-28 h-8 text-xs">
+          <SelectTrigger className="w-20 sm:w-28 h-8 text-xs">
             <SelectValue placeholder="전체 상태" />
           </SelectTrigger>
           <SelectContent>
@@ -205,9 +208,13 @@ export default function NotificationLogs() {
                   <div className="flex items-start gap-3">
                     {/* Status dot */}
                     <span
+                      role="img"
+                      aria-label={isSent ? '성공' : '실패'}
                       className={cn(
-                        'mt-1.5 h-2 w-2 shrink-0 rounded-full',
-                        isSent ? 'bg-green-500' : 'bg-red-500'
+                        'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-2',
+                        isSent
+                          ? 'bg-green-500 ring-green-500/20'
+                          : 'bg-red-500 ring-red-500/20'
                       )}
                     />
                     <div className="flex-1 min-w-0 space-y-1">

@@ -3,7 +3,7 @@ import { desc, eq, and, lt, isNull, isNotNull, type SQL } from 'drizzle-orm';
 import { db as sharedDb } from '@blog-study/shared';
 import { db } from '@/lib/db';
 import { withAdminAuth } from '@/lib/admin';
-import { successResponse, Errors, withCache } from '@/lib/api-error';
+import { successResponse, Errors } from '@/lib/api-error';
 
 const { discordNotificationLogs } = sharedDb;
 
@@ -28,7 +28,9 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     if (source) conditions.push(eq(discordNotificationLogs.source, source));
     if (status) conditions.push(eq(discordNotificationLogs.status, status));
     if (cursor) {
-      conditions.push(lt(discordNotificationLogs.createdAt, new Date(cursor)));
+      const cursorDate = new Date(cursor);
+      if (isNaN(cursorDate.getTime())) return Errors.badRequest('유효하지 않은 cursor').toResponse();
+      conditions.push(lt(discordNotificationLogs.createdAt, cursorDate));
     }
     if (target === 'channel') {
       conditions.push(isNull(discordNotificationLogs.targetDiscordId));
@@ -50,7 +52,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         ? items[items.length - 1]!.createdAt.toISOString()
         : null;
 
-    return withCache(successResponse({ logs: items, nextCursor, hasMore }), 10);
+    return successResponse({ logs: items, nextCursor, hasMore });
   } catch (error) {
     console.error('Bot logs API error:', error);
     return Errors.internalError().toResponse();
