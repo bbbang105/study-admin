@@ -20,6 +20,7 @@ import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shar
 import { eq } from 'drizzle-orm';
 import { ConfigKeys, getConfigValue } from './round.service';
 import logger from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 
 /**
  * Error codes for notification operations
@@ -419,10 +420,24 @@ export class NotificationService {
 
     try {
       const message = buildPostNotificationMessage(input);
-      await channel.send(message);
+      const sent = await channel.send(message);
+      await logNotification({
+        source: 'bot', type: 'new_post',
+        channelId: channel.id, channelName: channel.name ?? undefined,
+        messageId: sent.id,
+        summary: `새 글: ${input.post.title}`.slice(0, 200),
+        metadata: { memberDiscordId: input.member.discordId },
+        status: 'sent',
+      });
       logger.info({ postTitle: input.post.title }, '📢 [알림] 디스코드 알림 발송 완료');
       return true;
     } catch (error) {
+      await logNotification({
+        source: 'bot', type: 'new_post',
+        channelId: channel?.id, channelName: channel?.name ?? undefined,
+        summary: `새 글: ${input.post.title}`.slice(0, 200),
+        status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+      });
       logger.error({ error }, '📢 [알림] 디스코드 알림 발송 실패');
       return false;
     }
@@ -442,10 +457,23 @@ export class NotificationService {
 
     try {
       const message = buildRoundReportMessage(data);
-      await channel.send(message);
+      const sent = await channel.send(message);
+      await logNotification({
+        source: 'bot', type: 'round_report',
+        channelId: channel.id, channelName: channel.name ?? undefined,
+        messageId: sent.id,
+        summary: `${data.round.roundNumber}회차 리포트`,
+        status: 'sent',
+      });
       logger.info({ roundNumber: data.round.roundNumber }, '📢 [알림] 회차 리포트 발송 완료');
       return true;
     } catch (error) {
+      await logNotification({
+        source: 'bot', type: 'round_report',
+        channelId: channel?.id, channelName: channel?.name ?? undefined,
+        summary: `${data.round.roundNumber}회차 리포트`,
+        status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+      });
       logger.error({ error }, '📢 [알림] 회차 리포트 발송 실패');
       return false;
     }
@@ -472,13 +500,27 @@ export class NotificationService {
         .where(eq(members.status, MemberStatus.ACTIVE));
 
       const message = buildRoundStartMessage(round, activeMembers);
-      await channel.send(message);
+      const sent = await channel.send(message);
+      await logNotification({
+        source: 'bot', type: 'round_start',
+        channelId: channel.id, channelName: channel.name ?? undefined,
+        messageId: sent.id,
+        summary: `${round.roundNumber}회차 시작 공지`,
+        metadata: { activeMemberCount: activeMembers.length },
+        status: 'sent',
+      });
       logger.info({
         roundNumber: round.roundNumber,
         activeMemberCount: activeMembers.length
       }, '📢 [알림] 회차 시작 공지 발송 완료');
       return true;
     } catch (error) {
+      await logNotification({
+        source: 'bot', type: 'round_start',
+        channelId: channel?.id, channelName: channel?.name ?? undefined,
+        summary: `${round.roundNumber}회차 시작 공지`,
+        status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+      });
       logger.error({ error }, '📢 [알림] 회차 시작 공지 발송 실패');
       return false;
     }

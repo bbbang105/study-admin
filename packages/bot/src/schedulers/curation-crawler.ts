@@ -10,6 +10,7 @@ import { ConfigKeys, getConfigValue } from '../services/round.service';
 import { getKeywordService, type KeywordStat } from '../services/keyword.service';
 import type { CurationItem, CurationSource } from '@blog-study/shared/db';
 import logger from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 
 /**
  * Result of a curation cycle
@@ -297,7 +298,15 @@ export class CurationCrawler {
 
       // Build and send message
       const message = buildCurationMessage(item, source, keywordStrings);
-      await channel.send(message);
+      const sent = await channel.send(message);
+      await logNotification({
+        source: 'bot', type: 'curation',
+        channelId: channel.id,
+        channelName: 'name' in channel ? String((channel as any).name) : undefined,
+        messageId: sent.id,
+        summary: `큐레이션: ${item.title}`.slice(0, 200),
+        status: 'sent',
+      });
 
       // Mark as shared
       await curationService.markAsShared(item.id);
@@ -310,6 +319,11 @@ export class CurationCrawler {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      await logNotification({
+        source: 'bot', type: 'curation',
+        summary: '큐레이션 공유',
+        status: 'failed', errorMessage,
+      });
       logger.error(`📰 [큐레이션] 공유 에러: ${errorMessage}`);
 
       return {

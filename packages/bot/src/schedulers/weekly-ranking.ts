@@ -6,6 +6,7 @@
 import { bold, Client, EmbedBuilder } from 'discord.js';
 import { count, eq, inArray, sql } from 'drizzle-orm';
 import logger from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 import { activityScores, ActivityScoreType, getDb, members, MemberStatus, posts } from '@blog-study/shared/db';
 import { ConfigKeys, getConfigValue } from '../services/round.service';
 
@@ -251,7 +252,15 @@ export class WeeklyRanking {
         throw new Error(`유효하지 않은 채널: ${channelId}`);
       }
 
-      await channel.send({ embeds: [embed] });
+      const sent = await channel.send({ embeds: [embed] });
+      await logNotification({
+        source: 'bot', type: 'weekly_ranking',
+        channelId: channel.id,
+        channelName: 'name' in channel ? String((channel as any).name) : undefined,
+        messageId: sent.id,
+        summary: `주간 랭킹 발표 (${rankings.length}명)`,
+        status: 'sent',
+      });
 
       logger.info(`🏆 [주간 랭킹] 발송 완료 ✅ (${rankings.length}명)`);
 
@@ -264,6 +273,11 @@ export class WeeklyRanking {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      await logNotification({
+        source: 'bot', type: 'weekly_ranking',
+        summary: '주간 랭킹 발표',
+        status: 'failed', errorMessage: errorMsg,
+      });
       logger.error(`🏆 [주간 랭킹] 에러: ${errorMsg}`);
       errors.push(errorMsg);
 

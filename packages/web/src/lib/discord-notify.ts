@@ -60,16 +60,18 @@ function escapeDiscordMarkdown(text: string): string {
  */
 export async function sendDiscordChannelMessage(
   options: SendChannelMessageOptions
-): Promise<boolean> {
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const token = process.env.DISCORD_TOKEN;
   if (!token) {
-    console.error('[discord-notify] DISCORD_TOKEN이 설정되지 않았습니다.');
-    return false;
+    const error = 'DISCORD_TOKEN이 설정되지 않았습니다.';
+    console.error('[discord-notify]', error);
+    return { success: false, error };
   }
 
   if (!SNOWFLAKE_RE.test(options.channelId)) {
-    console.error('[discord-notify] 유효하지 않은 channelId:', options.channelId);
-    return false;
+    const error = `유효하지 않은 channelId: ${options.channelId}`;
+    console.error('[discord-notify]', error);
+    return { success: false, error };
   }
 
   try {
@@ -91,14 +93,17 @@ export async function sendDiscordChannelMessage(
     );
 
     if (!response.ok) {
-      console.error(`[discord-notify] 메시지 전송 실패 (${response.status})`);
-      return false;
+      const error = `메시지 전송 실패 (${response.status})`;
+      console.error('[discord-notify]', error);
+      return { success: false, error };
     }
 
-    return true;
+    const data = await response.json() as { id?: string };
+    return { success: true, messageId: data.id };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[discord-notify] 메시지 전송 중 오류:', error);
-    return false;
+    return { success: false, error: message };
   }
 }
 
@@ -143,7 +148,7 @@ export async function notifyNewMemberPendingApproval(opts: {
     });
   }
 
-  return sendDiscordChannelMessage({
+  const result = await sendDiscordChannelMessage({
     channelId,
     embeds: [
       {
@@ -156,4 +161,5 @@ export async function notifyNewMemberPendingApproval(opts: {
       },
     ],
   });
+  return result.success;
 }

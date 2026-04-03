@@ -8,6 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { attendance, AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { getCurrentRound } from '../services/round.service';
 import logger, { serializeError } from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 
 export interface DeadlineReminderResult {
   timestamp: Date;
@@ -248,8 +249,23 @@ export class DeadlineReminder {
         ].join('\n');
 
         await user.send(dmContent);
+        await logNotification({
+          source: 'bot', type: 'deadline_reminder',
+          targetDiscordId: member.discordId,
+          summary: `D-${dDay} 마감 리마인더`,
+          metadata: { dDay },
+          status: 'sent',
+        });
         sentCount++;
       } catch (err) {
+        await logNotification({
+          source: 'bot', type: 'deadline_reminder',
+          targetDiscordId: member.discordId,
+          summary: `D-${dDay} 마감 리마인더`,
+          metadata: { dDay },
+          status: 'failed',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
         logger.error(
           { discordId: member.discordId, err: serializeError(err) },
           '📅 [마감 리마인더] DM 발송 실패'

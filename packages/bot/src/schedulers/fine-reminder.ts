@@ -11,6 +11,7 @@ import { getFineService } from '../services/fine.service';
 import { sendFineReminder } from '../handlers/dm-handler';
 import { getCurrentRound } from '../services/round.service';
 import logger from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 
 /**
  * Result of a fine reminder cycle
@@ -92,7 +93,19 @@ export class FineReminder {
             `${currentRound.roundNumber}회차 마감은 지났지만, 오늘 안에 제출하면 결석은 피할 수 있어요.`,
             `짧은 글이라도 괜찮아요. 지금 시작해보는 건 어때요?`,
           ].join('\n'));
+          await logNotification({
+            source: 'bot', type: 'grace_nudge',
+            targetDiscordId: member.discordId,
+            summary: `${currentRound.roundNumber}회차 지각 독촉`,
+            status: 'sent',
+          });
         } catch (err) {
+          await logNotification({
+            source: 'bot', type: 'grace_nudge',
+            targetDiscordId: member.discordId,
+            summary: `${currentRound.roundNumber}회차 지각 독촉`,
+            status: 'failed', errorMessage: err instanceof Error ? err.message : String(err),
+          });
           logger.error({ discordId: member.discordId, err }, '✍️ [지각 독촉] DM 발송 실패');
         }
       }

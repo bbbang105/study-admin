@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm';
 import { formatFineReason, getFineService, } from '../services';
 import { ConfigKeys, getConfigValue } from '../services/round.service';
 import logger, { serializeError } from '../lib/logger';
+import { logNotification } from '../lib/notification-logger';
 
 /**
  * Add a pending fine confirmation for a user
@@ -172,6 +173,12 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
             await (channel as TextChannel).send(
               `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${paidFine.amount.toLocaleString()}원 납부를 완료했습니다.`
             );
+            await logNotification({
+              source: 'bot', type: 'fine_payment',
+              channelId: logChannelId,
+              summary: `${displayName}님 ${roundText} ${reason} 벌금 납부 확인`,
+              status: 'sent',
+            });
           }
         }
       }
@@ -237,6 +244,12 @@ export async function sendFineNotification(
       content: message,
       components: [row],
     });
+    await logNotification({
+      source: 'bot', type: 'fine_notification',
+      targetDiscordId: discordId,
+      summary: `${roundNumber}회차 벌금 알림 (${amount.toLocaleString()}원)`,
+      status: 'sent',
+    });
 
     // Track pending confirmation in DB
     await addPendingConfirmation(discordId, fineId);
@@ -244,6 +257,12 @@ export async function sendFineNotification(
     logger.info({ discordId, fineId }, '💬 [DM] 벌금 알림 발송 완료');
     return true;
   } catch (error) {
+    await logNotification({
+      source: 'bot', type: 'fine_notification',
+      targetDiscordId: discordId,
+      summary: `${roundNumber}회차 벌금 알림 (${amount.toLocaleString()}원)`,
+      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+    });
     logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 알림 발송 실패');
     return false;
   }
@@ -296,6 +315,12 @@ export async function sendFineReminder(
       content: message,
       components: [row],
     });
+    await logNotification({
+      source: 'bot', type: 'fine_reminder',
+      targetDiscordId: discordId,
+      summary: `${roundNumber}회차 벌금 리마인더 (${daysSinceCreation}일 경과)`,
+      status: 'sent',
+    });
 
     // Ensure pending confirmation is tracked in DB
     await addPendingConfirmation(discordId, fineId);
@@ -303,6 +328,12 @@ export async function sendFineReminder(
     logger.info({ discordId, fineId }, '💬 [DM] 벌금 리마인더 발송 완료');
     return true;
   } catch (error) {
+    await logNotification({
+      source: 'bot', type: 'fine_reminder',
+      targetDiscordId: discordId,
+      summary: `${roundNumber}회차 벌금 리마인더 (${daysSinceCreation}일 경과)`,
+      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+    });
     logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 리마인더 발송 실패');
     return false;
   }
@@ -340,7 +371,7 @@ export async function sendPollReminderDM(
     const message = [
       `📊 **투표 참여 요청**`,
       ``,
-      `"${pollQuestion}" 투표가 내일 ${expiresHour}에 마감됩니다!`,
+      `"${pollQuestion}" 투표가 ${expiresHour}에 마감됩니다!`,
       `아직 참여하지 않으셨으니 투표해주세요 🙏`,
     ].join('\n');
 
@@ -356,10 +387,22 @@ export async function sendPollReminderDM(
       content: message,
       components: [row],
     });
+    await logNotification({
+      source: 'bot', type: 'poll_reminder',
+      targetDiscordId: discordId,
+      summary: `투표 리마인더: ${pollQuestion}`.slice(0, 200),
+      status: 'sent',
+    });
 
     logger.info({ discordId, pollQuestion }, '💬 [DM] 투표 리마인더 발송 완료');
     return true;
   } catch (error) {
+    await logNotification({
+      source: 'bot', type: 'poll_reminder',
+      targetDiscordId: discordId,
+      summary: `투표 리마인더: ${pollQuestion}`.slice(0, 200),
+      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
+    });
     logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 투표 리마인더 발송 실패');
     return false;
   }

@@ -605,6 +605,32 @@ export const notificationPreferences = pgTable(
   })
 );
 
+// ── Discord Notification Logs ─────────────────────────────────────────────────
+
+export const discordNotificationLogs = pgTable(
+  'discord_notification_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source: varchar('source', { length: 10 }).notNull(),
+    type: varchar('type', { length: 50 }).notNull(),
+    channelId: varchar('channel_id', { length: 20 }),
+    channelName: varchar('channel_name', { length: 100 }),
+    targetDiscordId: varchar('target_discord_id', { length: 20 }),
+    messageId: varchar('message_id', { length: 20 }),
+    summary: varchar('summary', { length: 500 }),
+    metadata: jsonb('metadata').default({}),
+    status: varchar('status', { length: 10 }).default('sent').notNull(),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    createdAtIdx: index('idx_dnl_created_at').on(table.createdAt),
+    typeIdx: index('idx_dnl_type').on(table.type),
+    statusIdx: index('idx_dnl_status').on(table.status),
+    targetIdx: index('idx_dnl_target').on(table.targetDiscordId),
+  })
+);
+
 // ============================================
 // Relations
 // ============================================
@@ -864,3 +890,6 @@ export type NewFcmToken = typeof fcmTokens.$inferInsert;
 
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type NewNotificationPreference = typeof notificationPreferences.$inferInsert;
+
+export type DiscordNotificationLog = typeof discordNotificationLogs.$inferSelect;
+export type NewDiscordNotificationLog = typeof discordNotificationLogs.$inferInsert;
