@@ -86,10 +86,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           memberIsAdmin: false,
         };
       }
+      // 부모 댓글 작성자도 비밀 답글을 볼 수 있도록
+      const parentComment = comment.parentId
+        ? comments.find((c) => c.id === comment.parentId)
+        : null;
       if (
         comment.isSecret &&
         comment.memberId !== auth.memberId &&
         post.memberId !== auth.memberId &&
+        parentComment?.memberId !== auth.memberId &&
         !auth.isAdmin
       ) {
         return {

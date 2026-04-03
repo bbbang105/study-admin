@@ -5,8 +5,10 @@ import type { BotOperation } from '@/components/bot-operation-card';
 import { BotOperationRow, categoryConfig } from '@/components/bot-operation-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import NotificationLogs from './notification-logs';
 
 // 카테고리 표시 순서
 const CATEGORY_ORDER = ['polling', 'attendance', 'fine', 'round', 'ranking', 'poll', 'curation'];
@@ -96,45 +98,58 @@ export default function BotOperationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">봇 동작 제어</h1>
-        <p className="text-muted-foreground mt-1 text-sm">스케줄된 작업을 수동으로 실행합니다</p>
+        <h1 className="text-3xl font-bold tracking-tight">봇 관리</h1>
+        <p className="text-muted-foreground mt-1 text-sm">봇 작업 실행 및 알림 로그 확인</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {grouped.map(([category, ops]) => {
-          const config = categoryConfig[category] || { label: category, color: '' };
-          return (
-            <Card key={category}>
-              <CardHeader className="pb-3 pt-4 px-4">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={config.color}>
-                    {config.label}
-                  </Badge>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {ops.length}개
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 pt-0 space-y-1.5">
-                {ops.map((op) => (
-                  <BotOperationRow
-                    key={op.id}
-                    operation={op}
-                    onTrigger={handleTrigger}
-                    isLoading={triggeringOperationId === op.id}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Tabs defaultValue="operations">
+        <TabsList>
+          <TabsTrigger value="operations">수동 실행</TabsTrigger>
+          <TabsTrigger value="logs">알림 로그</TabsTrigger>
+        </TabsList>
 
-      {operations.length === 0 && (
-        <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
-          <p className="text-muted-foreground">사용 가능한 작업이 없습니다</p>
-        </div>
-      )}
+        <TabsContent value="operations" className="mt-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {grouped.map(([category, ops]) => {
+              const config = categoryConfig[category] || { label: category, color: '' };
+              return (
+                <Card key={category}>
+                  <CardHeader className="pb-3 pt-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={config.color}>
+                        {config.label}
+                      </Badge>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {ops.length}개
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0 space-y-1.5">
+                    {ops.map((op) => (
+                      <BotOperationRow
+                        key={op.id}
+                        operation={op}
+                        onTrigger={handleTrigger}
+                        isLoading={triggeringOperationId === op.id}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {operations.length === 0 && (
+            <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+              <p className="text-muted-foreground">사용 가능한 작업이 없습니다</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-4">
+          <NotificationLogs />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

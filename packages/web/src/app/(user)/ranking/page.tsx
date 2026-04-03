@@ -181,7 +181,7 @@ function PodiumCard({ member, rank, isCurrentUser }: PodiumCardProps) {
               {displayName}
             </p>
             {member.resolution && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground italic leading-snug mt-0.5 max-w-[90px] truncate sm:max-w-[160px] sm:whitespace-normal sm:line-clamp-2">
+              <p className="text-[10px] sm:text-xs text-muted-foreground italic leading-snug mt-0.5 max-w-[90px] line-clamp-2 sm:max-w-[160px]">
                 &ldquo;{member.resolution}&rdquo;
               </p>
             )}

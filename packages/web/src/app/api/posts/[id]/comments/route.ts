@@ -84,12 +84,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         };
       }
 
-      // 비밀댓글 마스킹: 작성자/포스트작성자/관리자가 아니면 내용 숨김
+      // 비밀댓글 마스킹: 작성자/포스트작성자/부모댓글작성자/관리자가 아니면 내용 숨김
       const isSecretComment = row.isSecret ?? false;
+      const parentComment = row.parentId ? rows.find((r) => r.id === row.parentId) : null;
       const shouldMask =
         isSecretComment &&
         row.memberId !== auth.memberId &&
         post?.memberId !== auth.memberId &&
+        parentComment?.memberId !== auth.memberId &&
         !auth.isAdmin;
 
       if (shouldMask) {

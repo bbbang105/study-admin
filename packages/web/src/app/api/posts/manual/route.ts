@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isSafeUrl } from '@/lib/rss-detect';
 import { sendDiscordChannelMessage } from '@/lib/discord-notify';
+import { logNotification } from '@/lib/notification-log';
 import { sendPushToMembers } from '@/lib/push';
 import { decodeHtmlEntities } from '@/lib/sanitize';
 
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
 
           const postUrl = `https://kusting-web.vercel.app/posts/${newPost!.id}`;
 
-          await sendDiscordChannelMessage({
+          const discordResult = await sendDiscordChannelMessage({
             channelId,
             content: `<@${member.discordId}>님이 새 글을 발행했습니다! 🎉`,
             embeds: [
@@ -348,6 +349,15 @@ export async function POST(request: NextRequest) {
                 ],
               },
             ],
+          });
+          await logNotification({
+            source: 'web',
+            type: 'post_register',
+            channelId,
+            summary: `수동등록: ${title!.slice(0, 100)}`,
+            messageId: discordResult.messageId,
+            status: discordResult.success ? 'sent' : 'failed',
+            errorMessage: discordResult.error,
           });
         } catch (e) {
           console.error('[manual-post] Discord 알림 전송 실패:', e);
