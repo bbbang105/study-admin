@@ -70,7 +70,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
 - **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + 웹 딥링크 버튼
 - **벌금 DM**: 계좌 정보 포함 (3333333114501 카카오뱅크), 납부완료 시 관리자 채널 알림
-- **D-Day 계산**: KST 기준 (`+09:00` 명시), 제출률은 active 유저만 카운트
+- **D-Day 계산**: KST 캘린더 날짜 기준 (midnight 비교, 당일=D-Day=0), 제출률은 active 유저만 카운트
+- **Discord 알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM 알림 성공/실패 기록, `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤)
+- **비밀답글 가시성**: 비밀 답글은 작성자/포스트작성자/부모댓글작성자/관리자가 열람 가능
 - **랭킹**: active + OB + dormant 전원 표시, 웹 페이지 4위부터 (포디움과 분리), 주간랭킹 전원 나열
 - **RSS 수집**: active + OB (rssConsent=true만), 포스트 점수는 active만 부여
 - **Discord 버튼**: `discord-notify.ts`에 `components` (Link Button) + `allowEveryone` 옵션 지원
@@ -107,6 +109,11 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/lib/score-config.ts` | 활동 점수 타입별 메타데이터 (Single Source of Truth: 라벨, 이모지, 배점, 뱃지 컬러) |
 | `packages/web/src/app/(user)/profile/activity/page.tsx` | 활동 내역 페이지 (타입별 필터, 무한 로드) |
 | `packages/web/src/components/board/reaction-bar.tsx` | 이모지 리액션 바 공용 컴포넌트 (`apiPath` prop) |
+| `packages/bot/src/lib/notification-logger.ts` | 봇 알림 로그 DB 헬퍼 (`logNotification`) |
+| `packages/web/src/lib/notification-log.ts` | 웹 알림 로그 DB 헬퍼 (`logNotification`) |
+| `packages/web/src/lib/notification-log-config.ts` | 알림 로그 타입별 메타데이터 (라벨, 색상, DM 여부) |
+| `packages/web/src/app/api/admin/bot-logs/route.ts` | 관리자 알림 로그 조회 API |
+| `packages/web/src/app/(admin)/admin/bot-operations/notification-logs.tsx` | 관리자 알림 로그 UI 컴포넌트 |
 | `packages/web/src/lib/board-auth.ts` | 게시판 인증 헬퍼 (`getBoardAuth`) |
 | `packages/web/src/lib/board-config.ts` | 게시판 카테고리/뱃지 설정 |
 | `packages/web/src/lib/api-error.ts` | API 표준 응답/에러 헬퍼 (`successResponse`, `Errors`, `withCache`) |
