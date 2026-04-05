@@ -62,7 +62,7 @@ async function getMemberRankings(): Promise<MemberRanking[]> {
     .select({
       memberId: activityScores.memberId,
       totalScore: sql<number>`COALESCE(SUM(${activityScores.points}), 0)`,
-      webActivityScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.BOARD_POST}, ${ActivityScoreType.POST_COMMENT}, ${ActivityScoreType.BOARD_COMMENT}, ${ActivityScoreType.POST_VIEW}) THEN ${activityScores.points} ELSE 0 END), 0)`,
+      webActivityScore: sql<number>`COALESCE(SUM(CASE WHEN ${activityScores.type} IN (${ActivityScoreType.BOARD_POST}, ${ActivityScoreType.POST_COMMENT}, ${ActivityScoreType.BOARD_COMMENT}, ${ActivityScoreType.POST_VIEW}, ${ActivityScoreType.ADMIN_MANUAL}) THEN ${activityScores.points} ELSE 0 END), 0)`,
     })
     .from(activityScores)
     .groupBy(activityScores.memberId);
