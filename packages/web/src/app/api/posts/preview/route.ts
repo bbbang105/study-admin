@@ -68,6 +68,24 @@ export async function POST(request: Request) {
     if (thumbnailUrl) thumbnailUrl = decodeHtmlEntities(thumbnailUrl);
     if (thumbnailUrl && !isSafeUrl(thumbnailUrl)) thumbnailUrl = null;
 
+    // og:image 없으면 JSON-LD → 본문 첫 이미지 순서로 fallback
+    if (!thumbnailUrl) {
+      // JSON-LD Schema.org image (Medium 등 JS 렌더링 플랫폼)
+      const jsonLdMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch?.[1] && jsonLdMatch[1].length < 100_000) {
+        try {
+          const ld = JSON.parse(jsonLdMatch[1]);
+          const ldImage = ld.image?.url || ld.image?.contentUrl || (typeof ld.image === 'string' ? ld.image : null);
+          if (ldImage && isSafeUrl(ldImage)) thumbnailUrl = ldImage;
+        } catch { /* invalid JSON-LD */ }
+      }
+    }
+    if (!thumbnailUrl) {
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const fallback = imgMatch?.[1] || null;
+      if (fallback && isSafeUrl(fallback)) thumbnailUrl = fallback;
+    }
+
     // og:description > meta description
     const ogDescMatch =
       html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||

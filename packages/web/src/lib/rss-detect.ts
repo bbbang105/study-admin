@@ -28,8 +28,13 @@ function constructRssUrl(blogUrl: string, platform: string): string | null {
       case 'tistory':
         return `${url.protocol}//${url.hostname}/rss`;
       case 'medium': {
-        const match = url.pathname.match(/^\/@([\w-]+)\/?$/);
-        return match ? `https://medium.com/feed/@${match[1]}` : null;
+        // medium.com/@username 형식
+        const pathMatch = url.pathname.match(/^\/@([\w-]+)\/?$/);
+        if (pathMatch) return `https://medium.com/feed/@${pathMatch[1]}`;
+        // username.medium.com 서브도메인 형식
+        const subdomainMatch = url.hostname.match(/^([\w-]+)\.medium\.com$/);
+        if (subdomainMatch) return `https://${subdomainMatch[1]}.medium.com/feed`;
+        return null;
       }
       default:
         return null;

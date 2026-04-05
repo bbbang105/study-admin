@@ -61,7 +61,7 @@ export interface UrlValidationResult {
 const PLATFORM_PATTERNS: Record<BlogPlatform, RegExp> = {
   velog: /^https?:\/\/velog\.io\/@[\w-]+(\/posts)?\/?$/,
   tistory: /^https?:\/\/[\w-]+\.tistory\.com\/?$/,
-  medium: /^https?:\/\/medium\.com\/@[\w-]+\/?$/,
+  medium: /^https?:\/\/(medium\.com\/@[\w-]+|(?!www\.)[\w-]+\.medium\.com)\/?$/,
   unknown: /^https?:\/\/.+/,
 };
 
