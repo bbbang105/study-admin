@@ -126,7 +126,7 @@ function getMotivation(round: RoundInfo | null): {
 
 function getDdayLabel(days: number, isGrace: boolean): string {
   if (isGrace) return '지각 마감';
-  if (days <= 1) return 'D-Day';
+  if (days <= 0) return 'D-Day';
   return `D-${days}`;
 }
 
