@@ -21,7 +21,7 @@ import { getScoreService } from './services/score.service';
 import { getAttendanceService, getFineService } from './services';
 
 import { ActivityScoreType, curationSources, getDb, members } from '@blog-study/shared/db';
-import { extractOgImage } from '@blog-study/shared/utils';
+import { extractFirstImage, extractOgImage } from '@blog-study/shared/utils';
 import { getCurrentRound } from './services/round.service';
 import { eq } from 'drizzle-orm';
 import logger from './lib/logger';
@@ -80,8 +80,9 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     for (const item of items) {
       if (item.pubDate < POST_CUTOFF_DATE) continue;
 
-      // OG 이미지 추출 (실패해도 글 등록은 진행)
-      const thumbnailUrl = await extractOgImage(item.link).catch(() => null);
+      // OG 이미지 추출 (실패 시 RSS content 첫 이미지 fallback)
+      const thumbnailUrl = await extractOgImage(item.link).catch(() => null)
+        ?? extractFirstImage(item.description);
 
       const result = await postService.create({
         memberId: member.id,
@@ -262,7 +263,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         category: '',
         tags: item.categories ?? [],
         description: item.description,
-        thumbnailUrl: result?.status === 'fulfilled' ? result.value : null,
+        thumbnailUrl: (result?.status === 'fulfilled' ? result.value : null)
+          ?? extractFirstImage(item.description),
       };
     });
 

@@ -25,9 +25,13 @@ export interface NormalizedFeedItem {
 export function extractFeedItems(result: ReturnType<typeof parseFeed>): NormalizedFeedItem[] {
   const { format, feed } = result;
 
+  // HTML 엔티티 디코딩 (&quot; &lsquo; 등)
+  const decodeField = (val: string | undefined): string | undefined =>
+    val ? decode(val) : undefined;
+
   if (format === 'atom') {
     return (feed.entries ?? []).map((entry) => ({
-      title: entry.title,
+      title: decodeField(entry.title),
       link: entry.links?.[0]?.href,
       pubDate: entry.published ?? entry.updated,
       description: entry.summary ?? entry.content,
@@ -37,7 +41,7 @@ export function extractFeedItems(result: ReturnType<typeof parseFeed>): Normaliz
 
   if (format === 'rss') {
     return (feed.items ?? []).map((item) => ({
-      title: item.title,
+      title: decodeField(item.title),
       link: item.link,
       pubDate: item.pubDate ? String(item.pubDate) : undefined,
       description: item.description,
@@ -49,7 +53,7 @@ export function extractFeedItems(result: ReturnType<typeof parseFeed>): Normaliz
 
   if (format === 'json') {
     return (feed.items ?? []).map((item) => ({
-      title: item.title,
+      title: decodeField(item.title),
       link: item.url ?? item.external_url,
       pubDate: item.date_published ?? item.date_modified,
       description: item.summary ?? item.content_text,
@@ -59,7 +63,7 @@ export function extractFeedItems(result: ReturnType<typeof parseFeed>): Normaliz
 
   // RDF
   return (feed.items ?? []).map((item) => ({
-    title: item.title,
+    title: decodeField(item.title),
     link: item.link,
     pubDate: item.dc?.date,
     description: item.description,
@@ -101,6 +105,17 @@ export function sanitizeDescription(html: string | undefined): string | null {
 }
 
 /**
+ * HTML content에서 첫 번째 이미지 URL 추출 (RSS content:encoded fallback용)
+ */
+export function extractFirstImage(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  const imgUrl = match?.[1] ?? null;
+  if (imgUrl && !isSafeUrl(imgUrl)) return null;
+  return imgUrl;
+}
+
+/**
  * URL에서 og:image 메타태그 추출 (5초 타임아웃)
  * SSRF 보호: 내부 URL 차단 + OG 이미지 URL 검증
  */
@@ -124,7 +139,19 @@ export async function extractOgImage(url: string): Promise<string | null> {
       html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
 
-    const ogImageUrl = match?.[1] ?? null;
+    let ogImageUrl = match?.[1] ?? null;
+
+    // og:image 없으면 JSON-LD Schema.org image fallback (Medium 등)
+    if (!ogImageUrl) {
+      const jsonLdMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch?.[1] && jsonLdMatch[1].length < 100_000) {
+        try {
+          const ld = JSON.parse(jsonLdMatch[1]);
+          const ldImage = ld.image?.url || ld.image?.contentUrl || (typeof ld.image === 'string' ? ld.image : null);
+          if (ldImage && isSafeUrl(ldImage)) ogImageUrl = ldImage;
+        } catch { /* invalid JSON-LD */ }
+      }
+    }
 
     // SSRF 방지: OG 이미지 URL 자체도 안전한지 검증
     if (ogImageUrl && !isSafeUrl(ogImageUrl)) {
