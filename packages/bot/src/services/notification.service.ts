@@ -13,14 +13,14 @@ import {
   type MessageCreateOptions,
   TextChannel,
 } from 'discord.js';
-
-const KUSTING_WEB_URL = 'https://kusting-web.vercel.app';
 import type { AttendanceStatusType, Member, Post, Round } from '@blog-study/shared/db';
 import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 import { ConfigKeys, getConfigValue } from './round.service';
 import logger from '../lib/logger';
 import { logNotification } from '../lib/notification-logger';
+
+const KUSTING_WEB_URL = 'https://kusting-web.vercel.app';
 
 /**
  * Error codes for notification operations
@@ -170,8 +170,6 @@ export interface AttendanceSummary {
 export interface RoundReportData {
   round: Round;
   submitted: AttendanceSummary[];
-  late: AttendanceSummary[];
-  absent: AttendanceSummary[];
   mvps: AttendanceSummary[];
   totalMembers: number;
   submissionRate: number;
@@ -321,8 +319,6 @@ export function calculateRoundReportData(
   return {
     round,
     submitted,
-    late,
-    absent,
     mvps,
     totalMembers,
     submissionRate,
