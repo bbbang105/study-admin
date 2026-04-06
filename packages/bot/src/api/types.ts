@@ -5,7 +5,6 @@
 
 import type {
   PollingCycleResult,
-  AttendanceCheckResult,
   FineReminderResult,
   RoundReportResult,
   CurationCycleResult,
@@ -44,7 +43,6 @@ export interface OperationInfo {
  */
 export type OperationResult =
   | PollingCycleResult
-  | AttendanceCheckResult
   | FineReminderResult
   | RoundReportResult
   | CurationCycleResult

@@ -8,7 +8,6 @@ import rateLimit from 'express-rate-limit';
 import logger from './lib/logger';
 import { Sentry } from './lib/sentry';
 import {
-  getAttendanceChecker,
   getCurationCrawler,
   getDeadlineReminder,
   getFineReminder,
@@ -17,6 +16,10 @@ import {
   getRssPoller,
   getWeeklyRanking,
 } from './schedulers';
+import { getAttendanceService } from './services/attendance.service';
+import { getFineService } from './services';
+import { getCurrentRound } from './services/round.service';
+import { AttendanceStatus } from '@blog-study/shared/db';
 
 const BOT_API_SECRET = process.env.BOT_API_SECRET;
 
@@ -79,14 +82,24 @@ export function createBotApiServer(): Express {
 
   app.post('/api/trigger/attendance-check', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
-      const attendanceChecker = getAttendanceChecker();
+      const currentRound = await getCurrentRound();
+      const attendanceService = getAttendanceService();
+      const fineService = getFineService();
 
-      if (attendanceChecker.isChecking()) {
-        return res.status(409).json({ error: '출석 체크가 이미 실행 중입니다' });
+      // PENDING → ABSENT 처리
+      const processedRecords = await attendanceService.processGracePeriodEnd(currentRound.id);
+      const absentRecords = processedRecords.filter(r => r.status === AttendanceStatus.ABSENT);
+
+      // 결석 벌금 부과
+      for (const record of absentRecords) {
+        try {
+          await fineService.create(record.memberId, currentRound.id, 'absent');
+        } catch (fineError) {
+          logger.error({ memberId: record.memberId, error: fineError }, '🌐 [API] 결석 벌금 부과 실패');
+        }
       }
 
-      const result = await attendanceChecker.check();
-      res.json({ success: true, result });
+      res.json({ success: true, result: { processedCount: absentRecords.length } });
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '🌐 [API] 출석 체크 에러');

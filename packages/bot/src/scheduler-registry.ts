@@ -8,7 +8,6 @@ import type { Client } from 'discord.js';
 import axios from 'axios';
 import { parseFeed } from 'feedsmith';
 import { getRssPoller } from './schedulers/rss-poller';
-import { getAttendanceChecker } from './schedulers/attendance-checker';
 import { getFineReminder } from './schedulers/fine-reminder';
 import { getRoundReporter } from './schedulers/round-reporter';
 import { getCurationCrawler } from './schedulers/curation-crawler';
@@ -20,12 +19,12 @@ import { getNotificationService } from './services/notification.service';
 import { getScoreService } from './services/score.service';
 import { getAttendanceService, getFineService } from './services';
 
-import { ActivityScoreType, curationSources, getDb, members } from '@blog-study/shared/db';
-import { extractFirstImage, extractOgImage } from '@blog-study/shared/utils';
-import { getCurrentRound } from './services/round.service';
+import { ActivityScoreType, AttendanceStatus, curationSources, getDb } from '@blog-study/shared/db';
+import { extractFirstImage, extractOgImage, formatKSTDate } from '@blog-study/shared/utils';
+import { getCurrentRound, getRoundByNumber, isGracePeriodEnded, setCurrentRound } from './services/round.service';
+import { Sentry } from './lib/sentry';
 import { eq } from 'drizzle-orm';
 import logger from './lib/logger';
-import { Sentry } from './lib/sentry';
 
 /**
  * Job definitions with cron schedules
@@ -33,7 +32,8 @@ import { Sentry } from './lib/sentry';
 // pg-boss cron은 UTC 기준. KST = UTC+9
 const JOB_DEFINITIONS = [
   { name: 'rss-poll', cron: '*/5 * * * *' },           // 5분마다
-  { name: 'attendance-check', cron: '0 0 * * 2' },     // KST 화 09:00 (UTC 화 00:00)
+  { name: 'attendance-init', cron: '2 15 * * 0' },     // KST 월 00:02 (UTC 일 15:02) — 회차 시작일 출석 PENDING 생성
+  { name: 'attendance-absent', cron: '2 15 * * 1' },   // KST 화 00:02 (UTC 월 15:02) — PENDING → ABSENT + 벌금
   { name: 'fine-reminder', cron: '0 0 * * *' },        // KST 매일 09:00 (UTC 00:00)
   { name: 'round-report', cron: '0 23 * * 1' },        // KST 화 08:00 (UTC 월 23:00)
   { name: 'round-start', cron: '0 23 * * 0' },         // KST 월 08:00 (UTC 일 23:00)
@@ -51,7 +51,6 @@ const JOB_DEFINITIONS = [
 export async function registerAllJobs(boss: PgBoss, client: Client): Promise<void> {
   // Initialize scheduler instances with Discord client
   const rssPoller = getRssPoller();
-  const attendanceChecker = getAttendanceChecker();
   const fineReminder = getFineReminder();
   const roundReporter = getRoundReporter();
   const curationCrawler = getCurationCrawler();
@@ -181,40 +180,6 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     }
   });
 
-  // P0 #4: 결석/지각 벌금 콜백 설정
-  // 결석 콜백: 화요일 00:00에 결석자 판정 시 자동 벌금 부과
-  attendanceChecker.setOnAbsentCallback(async (attendance, round) => {
-    try {
-      const db = getDb();
-      const [member] = await db
-        .select()
-        .from(members)
-        .where(eq(members.id, attendance.memberId))
-        .limit(1);
-
-      if (!member) {
-        logger.error({ memberId: attendance.memberId }, '✅ [출석] 멤버를 찾을 수 없음');
-        return;
-      }
-
-      // 결석 벌금 생성
-      // DM 알림은 보내지 않음 — fine-reminder에서 화요일부터 리마인더로 발송
-      const fine = await fineService.create(attendance.memberId, round.id, 'absent');
-
-      logger.info({
-        member: member.name,
-        round: round.roundNumber,
-        amount: fine.amount,
-      }, '✅ [출석] 결석 벌금 부과 완료');
-    } catch (error) {
-      Sentry.captureException(error);
-      logger.error({
-        memberId: attendance.memberId,
-        error
-      }, '✅ [출석] 결석 콜백 처리 실패');
-    }
-  });
-
   // Set up curation crawl function: fetch RSS → parse → extract content → return CrawledContent[]
   // P1 #8: 큐레이션 데이터 품질 개선 - description, thumbnailUrl 추출
   curationCrawler.setCrawlFunction(async (url: string): Promise<CrawledContent[]> => {
@@ -276,8 +241,67 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     await rssPoller.poll();
   });
 
-  await boss.work('attendance-check', { batchSize: 1 }, async () => {
-    await attendanceChecker.check();
+  // 새 큐 생성 (기존에 없는 큐는 명시적으로 생성 필요)
+  await boss.createQueue('attendance-init');
+  await boss.createQueue('attendance-absent');
+
+  // 회차 시작일 00:02 KST — 다음 회차 전환 + active 멤버 출석 PENDING 레코드 생성
+  await boss.work('attendance-init', { batchSize: 1 }, async () => {
+    try {
+      const currentRound = await getCurrentRound();
+      const todayStr = formatKSTDate(new Date());
+      const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
+
+      if (!nextRound || todayStr !== nextRound.startDate) {
+        logger.info(`✅ [출석 초기화] 오늘(${todayStr})은 다음 회차 시작일이 아님, 스킵`);
+        return;
+      }
+
+      // 회차 전환
+      await setCurrentRound(nextRound.roundNumber);
+      logger.info(`✅ [출석 초기화] ${nextRound.roundNumber}회차로 전환 완료`);
+
+      // 출석 PENDING 레코드 생성
+      const created = await attendanceService.createForRound(nextRound.id);
+      logger.info(`✅ [출석 초기화] ${nextRound.roundNumber}회차 ${created.length}명 PENDING 레코드 생성`);
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '✅ [출석 초기화] 에러');
+    }
+  });
+
+  // 화요일 00:02 KST — 이전 회차 PENDING → ABSENT + 결석 벌금 부과
+  await boss.work('attendance-absent', { batchSize: 1 }, async () => {
+    try {
+      const currentRound = await getCurrentRound();
+      const prevRound = await getRoundByNumber(currentRound.roundNumber - 1);
+
+      if (!prevRound) {
+        logger.info('✅ [결석 처리] 이전 회차 없음, 스킵');
+        return;
+      }
+
+      if (!isGracePeriodEnded(prevRound)) {
+        logger.info(`✅ [결석 처리] ${prevRound.roundNumber}회차 유예 기간 미종료, 스킵`);
+        return;
+      }
+
+      const processedRecords = await attendanceService.processGracePeriodEnd(prevRound.id);
+      const absentRecords = processedRecords.filter(r => r.status === AttendanceStatus.ABSENT);
+      logger.info(`✅ [결석 처리] ${prevRound.roundNumber}회차 ${absentRecords.length}명 결석 처리`);
+
+      for (const record of absentRecords) {
+        try {
+          await fineService.create(record.memberId, prevRound.id, 'absent');
+        } catch (fineError) {
+          Sentry.captureException(fineError);
+          logger.error({ memberId: record.memberId, error: fineError }, '✅ [결석 처리] 벌금 부과 실패');
+        }
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '✅ [결석 처리] 에러');
+    }
   });
 
   await boss.work('fine-reminder', { batchSize: 1 }, async () => {

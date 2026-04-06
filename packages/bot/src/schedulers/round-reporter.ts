@@ -6,8 +6,8 @@
 import { Client } from 'discord.js';
 import { and, count, eq } from 'drizzle-orm';
 import logger from '../lib/logger';
-import { attendance, getDb, members, posts, type Round, rounds, } from '@blog-study/shared/db';
-import { getCurrentRound, getRoundByNumber, isGracePeriodEnded, setCurrentRound, } from '../services/round.service';
+import { attendance, getDb, members, posts, type Round } from '@blog-study/shared/db';
+import { getCurrentRound, getRoundByNumber, isGracePeriodEnded } from '../services/round.service';
 import {
   type AttendanceSummary,
   calculateRoundReportData,
@@ -112,12 +112,27 @@ export class RoundReporter {
     try {
       const currentRound = await getCurrentRound();
 
-      // grace period 체크 (수동 트리거 시 건너뜀)
-      if (!force && !isGracePeriodEnded(currentRound)) {
-        logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 지각 기간 미종료, 건너뜀`);
+      // 현재 회차의 이전 회차(종료된 회차)를 가져와서 리포트 발송
+      const prevRound = await getRoundByNumber(currentRound.roundNumber - 1);
+
+      if (!prevRound) {
+        logger.info('📊 [회차 리포트] 이전 회차 없음, 건너뜀');
         return {
           timestamp: startTime,
-          roundNumber: currentRound.roundNumber,
+          roundNumber: 0,
+          reportSent: false,
+          newRoundStarted: false,
+          newRoundNumber: null,
+          errors: ['이전 회차 없음'],
+        };
+      }
+
+      // grace period 체크 (수동 트리거 시 건너뜀)
+      if (!force && !isGracePeriodEnded(prevRound)) {
+        logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 지각 기간 미종료, 건너뜀`);
+        return {
+          timestamp: startTime,
+          roundNumber: prevRound.roundNumber,
           reportSent: false,
           newRoundStarted: false,
           newRoundNumber: null,
@@ -125,9 +140,9 @@ export class RoundReporter {
         };
       }
 
-      logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 리포트 생성 중...`);
+      logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 리포트 생성 중...`);
 
-      const reportData = await buildRoundReportDataForRound(currentRound);
+      const reportData = await buildRoundReportDataForRound(prevRound);
       const notificationService = getNotificationService();
       const sent = await notificationService.sendRoundReport(reportData);
 
@@ -135,28 +150,14 @@ export class RoundReporter {
         errors.push('리포트 발송 실패');
       }
 
-      logger.info(`📊 [회차 리포트] ${currentRound.roundNumber}회차 리포트 ${sent ? '발송 완료 ✅' : '발송 실패 ❌'}`);
-
-      // 다음 회차로 전환
-      const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
-      if (nextRound) {
-        await setCurrentRound(nextRound.roundNumber);
-        logger.info(`📊 [회차 리포트] 현재 회차 → ${nextRound.roundNumber}회차로 전환`);
-      } else {
-        const db = getDb();
-        await db
-          .update(rounds)
-          .set({ isCurrent: false })
-          .where(eq(rounds.id, currentRound.id));
-        logger.info(`📊 [회차 리포트] 다음 회차 없음, ${currentRound.roundNumber}회차 종료`);
-      }
+      logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 리포트 ${sent ? '발송 완료 ✅' : '발송 실패 ❌'}`);
 
       return {
         timestamp: startTime,
-        roundNumber: currentRound.roundNumber,
+        roundNumber: prevRound.roundNumber,
         reportSent: sent,
-        newRoundStarted: nextRound !== null,
-        newRoundNumber: nextRound?.roundNumber ?? null,
+        newRoundStarted: false,
+        newRoundNumber: null,
         errors,
       };
     } catch (error) {
@@ -203,6 +204,7 @@ export class RoundReporter {
       const todayStr = formatKSTDate(new Date());
       const isTodayRoundStart = todayStr === currentRound.startDate;
 
+      // attendance-init(00:02)에서 이미 회차 전환 완료 — 현재 회차 기준으로 알림만 발송
       if (force || isTodayRoundStart) {
         logger.info(`🚀 [회차 시작] ${currentRound.roundNumber}회차 시작 알림 발송 중...`);
 
@@ -221,30 +223,6 @@ export class RoundReporter {
           reportSent: false,
           newRoundStarted: sent,
           newRoundNumber: currentRound.roundNumber,
-          errors,
-        };
-      }
-
-      // 다음 회차 시작일인지 확인
-      const nextRound = await getRoundByNumber(currentRound.roundNumber + 1);
-
-      if (nextRound && (force || todayStr === nextRound.startDate)) {
-        await setCurrentRound(nextRound.roundNumber);
-        logger.info(`🚀 [회차 시작] ${nextRound.roundNumber}회차 시작, 회차 전환 완료`);
-
-        const notificationService = getNotificationService();
-        const sent = await notificationService.sendRoundStartAnnouncement(nextRound);
-
-        if (!sent) {
-          errors.push('회차 시작 알림 발송 실패');
-        }
-
-        return {
-          timestamp: startTime,
-          roundNumber: nextRound.roundNumber,
-          reportSent: false,
-          newRoundStarted: sent,
-          newRoundNumber: nextRound.roundNumber,
           errors,
         };
       }
