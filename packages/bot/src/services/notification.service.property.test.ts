@@ -344,8 +344,8 @@ describe('NotificationService Property Tests', () => {
             const expectedAbsent = summaries.filter(s => s.status === AttendanceStatus.ABSENT).length;
             
             expect(reportData.submitted.length).toBe(expectedSubmitted);
-            expect(reportData.late.length).toBe(expectedLate);
-            expect(reportData.absent.length).toBe(expectedAbsent);
+            expect(reportData.lateRate).toBeCloseTo(expectedLate / summaries.length, 5);
+            expect(reportData.absentRate).toBeCloseTo(expectedAbsent / summaries.length, 5);
           }
         ),
         { numRuns: 100 }
@@ -476,8 +476,6 @@ describe('NotificationService Property Tests', () => {
           const reportData = calculateRoundReportData(round, []);
           
           expect(reportData.submitted).toHaveLength(0);
-          expect(reportData.late).toHaveLength(0);
-          expect(reportData.absent).toHaveLength(0);
           expect(reportData.mvps).toHaveLength(0);
           expect(reportData.totalMembers).toBe(0);
           expect(reportData.submissionRate).toBe(0);
