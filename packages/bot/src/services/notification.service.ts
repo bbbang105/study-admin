@@ -13,14 +13,14 @@ import {
   type MessageCreateOptions,
   TextChannel,
 } from 'discord.js';
-
-const KUSTING_WEB_URL = 'https://kusting-web.vercel.app';
 import type { AttendanceStatusType, Member, Post, Round } from '@blog-study/shared/db';
 import { AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 import { ConfigKeys, getConfigValue } from './round.service';
 import logger from '../lib/logger';
 import { logNotification } from '../lib/notification-logger';
+
+const KUSTING_WEB_URL = 'https://kusting-web.vercel.app';
 
 /**
  * Error codes for notification operations
@@ -170,8 +170,6 @@ export interface AttendanceSummary {
 export interface RoundReportData {
   round: Round;
   submitted: AttendanceSummary[];
-  late: AttendanceSummary[];
-  absent: AttendanceSummary[];
   mvps: AttendanceSummary[];
   totalMembers: number;
   submissionRate: number;
@@ -185,7 +183,7 @@ export interface RoundReportData {
  * Requirements: 10.3 - Highlight MVP
  */
 export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
-  const { round, submitted, late, absent, mvps, submissionRate, lateRate, absentRate } = data;
+  const { round, submitted, mvps, submissionRate, lateRate, absentRate } = data;
   
   const embed = new EmbedBuilder()
     .setColor(0x57F287) // Green
@@ -222,30 +220,6 @@ export function buildRoundReportEmbed(data: RoundReportData): EmbedBuilder {
     embed.addFields({
       name: `✅ 제출 (${submitted.length}명)`,
       value: submittedList.length > 1024 ? submittedList.substring(0, 1021) + '...' : submittedList,
-      inline: true,
-    });
-  }
-
-  // Late list
-  if (late.length > 0) {
-    const lateList = late
-      .map((l) => `• <@${l.discordId}> (${l.name})`)
-      .join('\n');
-    embed.addFields({
-      name: `⏰ 지각 (${late.length}명)`,
-      value: lateList.length > 1024 ? lateList.substring(0, 1021) + '...' : lateList,
-      inline: true,
-    });
-  }
-
-  // Absent list
-  if (absent.length > 0) {
-    const absentList = absent
-      .map((a) => `• <@${a.discordId}> (${a.name})`)
-      .join('\n');
-    embed.addFields({
-      name: `❌ 결석 (${absent.length}명)`,
-      value: absentList.length > 1024 ? absentList.substring(0, 1021) + '...' : absentList,
       inline: true,
     });
   }
@@ -345,8 +319,6 @@ export function calculateRoundReportData(
   return {
     round,
     submitted,
-    late,
-    absent,
     mvps,
     totalMembers,
     submissionRate,

@@ -76,23 +76,31 @@ function getGreeting(): { emoji: string; text: string } {
   return { emoji: '🌆', text: '오늘 하루도 수고했어요.' };
 }
 
-function getMotivation(round: RoundInfo | null): {
+function getMotivation(
+  round: RoundInfo | null,
+  myStatus: string | null,
+): {
   emoji: string;
   message: string;
   tone: 'chill' | 'warn' | 'urgent' | 'celebrate';
 } {
   if (!round) return { emoji: '📝', message: '새 회차를 기다리는 중이에요', tone: 'chill' };
 
+  // 활성 + 미제출(PENDING/null) 유저만 마감 압박 메시지 표시
+  const isActiveAndPending =
+    myStatus === 'active' &&
+    (!round.myAttendanceStatus || round.myAttendanceStatus === 'PENDING');
+
   if (round.submissionRate >= 100) {
     return { emoji: '🎉', message: '이번 회차 전원 제출 완료! 다들 멋져요', tone: 'celebrate' };
   }
-  if (round.isGracePeriod) {
+  if (isActiveAndPending && round.isGracePeriod) {
     return { emoji: '😱', message: '지각 기간이에요! 서둘러 제출해주세요', tone: 'urgent' };
   }
-  if (round.daysRemaining <= 1) {
+  if (isActiveAndPending && round.daysRemaining <= 1) {
     return { emoji: '⏰', message: '마감이 코앞이에요! 오늘 안에 제출하세요', tone: 'urgent' };
   }
-  if (round.daysRemaining <= 3) {
+  if (isActiveAndPending && round.daysRemaining <= 3) {
     return { emoji: '🔥', message: '마감이 다가오고 있어요, 슬슬 준비해볼까요?', tone: 'warn' };
   }
   if (round.submissionRate >= 80) {
@@ -215,7 +223,7 @@ export default function DashboardPage() {
   }
 
   const greeting = getGreeting();
-  const motivation = getMotivation(data?.currentRound ?? null);
+  const motivation = getMotivation(data?.currentRound ?? null, data?.myStatus ?? null);
   const round = data?.currentRound;
 
   const ddayColor = round
