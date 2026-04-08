@@ -81,7 +81,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
 - **포스트 삭제**: 본인 또는 관리자만 가능, 트랜잭션으로 댓글/조회기록/활동점수(blog_post) 일괄 삭제
 - **이모지 리액션**: 게시판 글 + 포스트에 고정 6종 이모지 (👍👀🔥💡😂✅) 토글, `ReactionBar` 공용 컴포넌트 (`apiPath` prop으로 board/posts 구분), 호버(PC)/클릭(모바일) 시 닉네임 팝오버, 복수 선택 가능, 활동 점수/알림 없음
-- **인기글 점수**: `댓글×3 + 조회수×2 + 리액션×1`
+- **인기글 점수**: `댓글×3 + 조회수×2 + 리액션×1`, 인기순 상위 5개 메달 테두리 (금/은/동/스카이블루/라벤더)
+- **인기 포스트 알림**: 화 08:05 KST 자동 + 수동 트리거, 이전 회차 TOP 5 Discord Embed (이모지별 카운트, 썸네일, 링크 버튼), `popular_posts_channel_id` 설정 필요
+- **포스트 회차 필터**: 전체/회차별 셀렉트 드롭다운, `/api/rounds`에서 동적 조회, 인기순도 선택 회차 기준
 - **스터디원 목록**: active + dormant + ob 모두 표시, 상태 칩으로 구분 (OB: 황금 파스텔, 휴면: secondary)
 
 ## 핵심 파일 위치
@@ -104,6 +106,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/bot.ts` | Discord 클라이언트 초기화 (이벤트 핸들러만) |
 | `packages/bot/src/job-queue.ts` | pg-boss 싱글톤 (시작/종료/조회) |
 | `packages/bot/src/scheduler-registry.ts` | 잡 등록 + RSS→Post→Notification→Push 파이프라인 |
+| `packages/bot/src/schedulers/popular-posts.ts` | 인기 포스트 TOP 5 Discord 알림 (화 08:01 KST + 수동) |
 | `packages/bot/src/services/score.service.ts` | 활동 점수 계산/부여 (봇: blog_post만) |
 | `packages/web/src/lib/score.ts` | 웹 활동 점수 부여 (board_post, post_comment, board_comment, post_view) |
 | `packages/web/src/lib/score-config.ts` | 활동 점수 타입별 메타데이터 (Single Source of Truth: 라벨, 이모지, 배점, 뱃지 컬러) |

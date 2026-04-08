@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import {
+  CalendarDays,
   Check,
   Clock,
   Eye,
@@ -55,6 +56,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn, getDefaultAvatar } from '@/lib/utils';
 import { getPartStyle, PART_OPTIONS } from '@/lib/part-config';
 
@@ -135,6 +143,11 @@ interface PostsData {
 
 type TabType = 'latest' | 'popular';
 
+interface RoundOption {
+  id: number;
+  roundNumber: number;
+}
+
 const MEDAL_STYLES = [
   // 1위: 금
   'ring-2 ring-amber-400/80 shadow-[0_0_12px_rgba(251,191,36,0.3)]',
@@ -142,12 +155,20 @@ const MEDAL_STYLES = [
   'ring-2 ring-slate-300/80 shadow-[0_0_10px_rgba(148,163,184,0.3)]',
   // 3위: 동
   'ring-2 ring-orange-400/70 shadow-[0_0_10px_rgba(251,146,60,0.25)]',
+  // 4위: 스카이블루
+  'ring-2 ring-sky-300/60 shadow-[0_0_8px_rgba(125,211,252,0.2)]',
+  // 5위: 라벤더
+  'ring-2 ring-violet-300/50 shadow-[0_0_8px_rgba(196,181,253,0.2)]',
 ] as const;
+
+const PAGE_SIZE = 12;
 
 const MEDAL_BADGE_STYLES = [
   'bg-gradient-to-r from-amber-400 to-yellow-500 text-white',
   'bg-gradient-to-r from-slate-300 to-slate-400 text-slate-700',
   'bg-gradient-to-r from-orange-400 to-amber-500 text-white',
+  'bg-gradient-to-r from-sky-300 to-sky-400 text-sky-950',
+  'bg-gradient-to-r from-violet-300 to-violet-400 text-violet-950',
 ] as const;
 
 // ─────────────────────────────────────────────
@@ -846,7 +867,7 @@ function ReactionChip({
               reacted
                 ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
                 : 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/70',
-              loading && 'opacity-50',
+              loading && 'opacity-50'
             )}
           >
             <span className="text-sm leading-none">{emoji}</span>
@@ -926,34 +947,39 @@ function PostCard({
       if (!res.ok) return;
       const result = await res.json();
       setReactions(result.data.reactions || {});
-    } catch { /* non-critical */ }
+    } catch {
+      /* non-critical */
+    }
   }, [post.id]);
 
   useEffect(() => {
     fetchReactions();
   }, [fetchReactions]);
 
-  const toggleReaction = useCallback(async (emoji: string) => {
-    if (reactionLoading) return;
-    setReactionLoading(emoji);
-    setReactionPickerOpen(false);
-    try {
-      const res = await fetch(`/api/posts/${post.id}/reactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emoji }),
-      });
-      if (!res.ok) {
+  const toggleReaction = useCallback(
+    async (emoji: string) => {
+      if (reactionLoading) return;
+      setReactionLoading(emoji);
+      setReactionPickerOpen(false);
+      try {
+        const res = await fetch(`/api/posts/${post.id}/reactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji }),
+        });
+        if (!res.ok) {
+          toast.error('리액션 처리에 실패했습니다.');
+          return;
+        }
+        fetchReactions();
+      } catch {
         toast.error('리액션 처리에 실패했습니다.');
-        return;
+      } finally {
+        setReactionLoading(null);
       }
-      fetchReactions();
-    } catch {
-      toast.error('리액션 처리에 실패했습니다.');
-    } finally {
-      setReactionLoading(null);
-    }
-  }, [post.id, reactionLoading, fetchReactions]);
+    },
+    [post.id, reactionLoading, fetchReactions]
+  );
 
   const activeEmojis = REACTION_EMOJIS.filter((e) => (reactions[e]?.count ?? 0) > 0);
 
@@ -1052,12 +1078,12 @@ function PostCard({
     <Card
       className={cn(
         'border-border shadow-sm hover:border-border/80 transition-all duration-200 overflow-hidden',
-        rank && rank <= 3 && MEDAL_STYLES[rank - 1]
+        rank && rank <= 5 && MEDAL_STYLES[rank - 1]
       )}
     >
       <CardContent className="p-0 relative">
         {/* 메달 뱃지 */}
-        {rank && rank <= 3 && (
+        {rank && rank <= 5 && (
           <div
             className={cn(
               'absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold shadow-md',
@@ -1172,7 +1198,6 @@ function PostCard({
             <span className="tabular-nums">{post.commentCount}</span>
           </button>
 
-
           {/* Reactions — 이모지별 카운트, 호버/클릭 시 닉네임 */}
           {activeEmojis.map((emoji) => {
             const r = reactions[emoji]!;
@@ -1214,7 +1239,7 @@ function PostCard({
                     className={cn(
                       'h-8 w-8 rounded-md text-base flex items-center justify-center hover:bg-muted/80 transition-colors',
                       reactions[emoji]?.reacted && 'bg-sky-50 dark:bg-sky-950/40',
-                      reactionLoading === emoji && 'opacity-50',
+                      reactionLoading === emoji && 'opacity-50'
                     )}
                   >
                     {emoji}
@@ -1455,6 +1480,8 @@ function PostsContent() {
   const [selectedParts, setSelectedParts] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const [rounds, setRounds] = useState<RoundOption[]>([]);
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('all');
 
   // Refs for IntersectionObserver (avoid stale closures)
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -1477,7 +1504,22 @@ function PostsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const PAGE_SIZE = 12;
+  // 회차 목록 로드 (한 번만)
+  useEffect(() => {
+    fetch('/api/rounds?sort=asc')
+      .then((res) => res.json())
+      .then((result) => {
+        if (result.data?.rounds) {
+          setRounds(
+            result.data.rounds.map((r: { id: number; roundNumber: number }) => ({
+              id: r.id,
+              roundNumber: r.roundNumber,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchPosts = useCallback(
     async (pageNum: number, append: boolean) => {
@@ -1491,6 +1533,7 @@ function PostsContent() {
         if (tab === 'popular') params.set('sort', 'popular');
         if (searchQuery) params.set('search', searchQuery);
         if (selectedParts.length > 0) params.set('parts', selectedParts.join(','));
+        if (selectedRoundId !== 'all') params.set('roundId', selectedRoundId);
 
         const response = await fetch(`/api/posts?${params}`);
         if (!response.ok) throw new Error('Failed to fetch posts');
@@ -1520,7 +1563,7 @@ function PostsContent() {
         setLoadingMore(false);
       }
     },
-    [tab, searchQuery, selectedParts]
+    [tab, searchQuery, selectedParts, selectedRoundId]
   );
 
   // Initial load + tab change
@@ -1660,31 +1703,53 @@ function PostsContent() {
       {/* Tabs + Header */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-0.5">
-            <button
-              onClick={() => handleTabChange('latest')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                tab === 'latest'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Clock className="h-3 w-3" />
-              최신순
-            </button>
-            <button
-              onClick={() => handleTabChange('popular')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                tab === 'popular'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <TrendingUp className="h-3 w-3" />
-              인기순
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-0.5">
+              <button
+                onClick={() => handleTabChange('latest')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  tab === 'latest'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Clock className="h-3 w-3" />
+                최신순
+              </button>
+              <button
+                onClick={() => handleTabChange('popular')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  tab === 'popular'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <TrendingUp className="h-3 w-3" />
+                인기순
+              </button>
+            </div>
+
+            {rounds.length > 0 && (
+              <Select
+                value={selectedRoundId}
+                onValueChange={setSelectedRoundId}
+              >
+                <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs gap-1 ml-1 border-l border-border pl-2">
+                  <CalendarDays className="h-3 w-3 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {rounds.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.roundNumber}회차
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -1942,7 +2007,7 @@ function PostsContent() {
           {tab === 'popular' && (
             <span className="flex items-center gap-1 text-amber-500">
               <Flame className="h-3 w-3" />
-              조회수 + 댓글 기반
+              댓글 × 3 + 조회 × 2 + 리액션 × 1
             </span>
           )}
         </div>

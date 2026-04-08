@@ -5,6 +5,7 @@ export const NotificationLogType = {
   WEEKLY_RANKING: 'weekly_ranking',
   CURATION: 'curation',
   NEW_POST: 'new_post',
+  POPULAR_POSTS: 'popular_posts',
   FINE_PAYMENT: 'fine_payment',
   // Bot DM
   DEADLINE_REMINDER: 'deadline_reminder',
@@ -51,6 +52,11 @@ export const notificationLogTypeConfig: Record<NotificationLogTypeValue, Notific
   new_post: {
     label: '새 글 알림',
     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    isDM: false,
+  },
+  popular_posts: {
+    label: '인기 포스트',
+    color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
     isDM: false,
   },
   fine_payment: {

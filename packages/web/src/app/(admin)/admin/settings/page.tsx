@@ -25,6 +25,7 @@ interface StudySettings {
   announcementChannelId: string | null;
   noticeChannelId: string | null;
   rankingChannelId: string | null;
+  popularPostsChannelId: string | null;
   botLogChannelId: string | null;
   adminNotificationChannelId: string | null;
   adminDiscordIds: string;
@@ -72,6 +73,7 @@ export default function AdminSettingsPage() {
     announcementChannelId: null,
     noticeChannelId: null,
     rankingChannelId: null,
+    popularPostsChannelId: null,
     botLogChannelId: null,
     adminNotificationChannelId: null,
     adminDiscordIds: '',
@@ -332,6 +334,18 @@ export default function AdminSettingsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 주간 랭킹이 발송되는 채널 (#주간-랭킹)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="popularPostsChannelId">인기 포스트 채널 ID</Label>
+              <Input
+                id="popularPostsChannelId"
+                value={formData.popularPostsChannelId || ''}
+                onChange={(e) => handleInputChange('popularPostsChannelId', e.target.value)}
+                placeholder="예: 1234567890123456789"
+              />
+              <p className="text-xs text-muted-foreground">
+                인기 포스트 TOP 5가 발송되는 채널 (#인기-포스트)
               </p>
             </div>
             <div className="space-y-2">

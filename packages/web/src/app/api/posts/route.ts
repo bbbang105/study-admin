@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // WHERE 조건 조합
     const conditions = [];
-    if (roundIdNum) conditions.push(eq(posts.roundId, roundIdNum));
+    if (roundIdNum !== null) conditions.push(eq(posts.roundId, roundIdNum));
     if (search) {
       conditions.push(
         or(

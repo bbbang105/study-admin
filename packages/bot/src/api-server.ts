@@ -12,6 +12,7 @@ import {
   getDeadlineReminder,
   getFineReminder,
   getPollReminder,
+  getPopularPosts,
   getRoundReporter,
   getRssPoller,
   getWeeklyRanking,
@@ -255,6 +256,36 @@ export function createBotApiServer(): Express {
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '🌐 [API] 투표 리마인더 에러');
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
+    }
+  });
+
+  app.post('/api/trigger/popular-posts', authMiddleware, triggerLimiter, async (req, res) => {
+    try {
+      const popularPosts = getPopularPosts();
+
+      if (popularPosts.isSending()) {
+        return res.status(409).json({ error: '인기 포스트 알림이 이미 실행 중입니다' });
+      }
+
+      const { roundNumber } = req.body || {};
+
+      const result = await popularPosts.sendPopularPosts(
+        true,
+        typeof roundNumber === 'number' ? roundNumber : undefined
+      );
+
+      const serializedResult = {
+        ...result,
+        timestamp: result.timestamp instanceof Date
+          ? result.timestamp.toISOString()
+          : result.timestamp,
+      };
+
+      res.json({ success: true, result: serializedResult });
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '🌐 [API] 인기 포스트 에러');
       res.status(500).json({ error: '내부 오류가 발생했습니다' });
     }
   });
