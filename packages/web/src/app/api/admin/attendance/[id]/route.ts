@@ -153,8 +153,8 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
           amount: fineAmount,
           status: FineStatus.UNPAID,
         });
-      } else if (existingFine.status === FineStatus.UNPAID) {
-        // Update existing fine type and amount if unpaid
+      } else if (existingFine.status === FineStatus.UNPAID || existingFine.status === FineStatus.WAIVED) {
+        // Update existing fine type/amount + WAIVED면 UNPAID로 복원
         const fineAmount = status === AttendanceStatus.LATE ? 3000 : 5000;
         const fineType = status === AttendanceStatus.LATE ? FineType.LATE : FineType.ABSENT;
 
@@ -163,6 +163,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, _adminAuth) => {
           .set({
             type: fineType,
             amount: fineAmount,
+            status: FineStatus.UNPAID,
           })
           .where(eq(fines.id, existingFine.id));
       }

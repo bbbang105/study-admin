@@ -130,6 +130,16 @@ export class FineService {
     // Check if fine already exists for this member and round
     const existing = await this.getByMemberAndRound(memberId, roundId);
     if (existing) {
+      if (existing.status === FineStatus.WAIVED) {
+        // WAIVED 벌금은 UNPAID로 복원 (타입/금액도 갱신)
+        const amount = getFineAmount(type);
+        const [restored] = await this.db
+          .update(fines)
+          .set({ type, amount, status: FineStatus.UNPAID })
+          .where(eq(fines.id, existing.id))
+          .returning();
+        return restored!;
+      }
       // Return existing fine instead of creating duplicate
       return existing;
     }

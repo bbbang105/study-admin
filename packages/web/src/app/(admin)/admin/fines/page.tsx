@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { AlertCircle, Ban, CheckCircle, CreditCard, Search, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowRightLeft, Ban, CheckCircle, CreditCard, Search, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,7 @@ export default function AdminFinesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [waiveTarget, setWaiveTarget] = useState<string | null>(null);
+  const [revertTarget, setRevertTarget] = useState<string | null>(null);
 
   const fetchFines = useCallback(async () => {
     try {
@@ -151,6 +152,55 @@ export default function AdminFinesPage() {
     } catch (err) {
       console.error('Error marking fine as paid:', err);
       toast.error('납부 처리에 실패했습니다.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleRevertToUnpaid = async (fineId: string) => {
+    try {
+      setUpdatingId(fineId);
+      setRevertTarget(null);
+      const response = await fetch(`/api/admin/fines/${fineId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: STATUS_FILTERS.pending }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to revert fine');
+      }
+
+      await fetchFines();
+      toast.success('미납으로 되돌렸습니다.');
+    } catch (err) {
+      console.error('Error reverting fine:', err);
+      toast.error('미납 되돌리기에 실패했습니다.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleType = async (fine: Fine) => {
+    const newType = fine.type === 'late' ? 'absent' : 'late';
+    const label = newType === 'late' ? '지각' : '결석';
+    try {
+      setUpdatingId(fine.id);
+      const response = await fetch(`/api/admin/fines/${fine.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: newType }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle fine type');
+      }
+
+      await fetchFines();
+      toast.success(`${label}으로 변경되었습니다.`);
+    } catch (err) {
+      console.error('Error toggling fine type:', err);
+      toast.error('유형 변경에 실패했습니다.');
     } finally {
       setUpdatingId(null);
     }
@@ -391,15 +441,34 @@ export default function AdminFinesPage() {
                         <XCircle className="h-3 w-3 mr-1" />
                         면제
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleType(fine)}
+                        disabled={updatingId === fine.id}
+                      >
+                        <ArrowRightLeft className="h-3 w-3 mr-1" />
+                        {fine.type === 'late' ? '결석으로' : '지각으로'}
+                      </Button>
                     </div>
                   )}
-                  {fine.status === 'paid' && fine.paidAt && (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      {new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부
-                    </p>
-                  )}
-                  {fine.status === 'waived' && (
-                    <p className="text-xs text-muted-foreground pt-1">면제됨</p>
+                  {(fine.status === 'PAID' || fine.status === 'WAIVED') && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-xs text-muted-foreground">
+                        {fine.status === 'PAID' && fine.paidAt
+                          ? `${new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부`
+                          : '면제됨'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setRevertTarget(fine.id)}
+                        disabled={updatingId === fine.id}
+                      >
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        미납 되돌리기
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))
@@ -472,15 +541,34 @@ export default function AdminFinesPage() {
                               <XCircle className="h-3 w-3 mr-1" />
                               면제
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleType(fine)}
+                              disabled={updatingId === fine.id}
+                            >
+                              <ArrowRightLeft className="h-3 w-3 mr-1" />
+                              {fine.type === 'late' ? '결석으로' : '지각으로'}
+                            </Button>
                           </div>
                         )}
-                        {fine.status === 'paid' && fine.paidAt && (
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부
-                          </span>
-                        )}
-                        {fine.status === 'waived' && (
-                          <span className="text-xs text-muted-foreground">면제됨</span>
+                        {(fine.status === 'PAID' || fine.status === 'WAIVED') && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {fine.status === 'PAID' && fine.paidAt
+                                ? `${new Date(fine.paidAt).toLocaleDateString('ko-KR')} 납부`
+                                : '면제됨'}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRevertTarget(fine.id)}
+                              disabled={updatingId === fine.id}
+                            >
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              미납 되돌리기
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -513,6 +601,26 @@ export default function AdminFinesPage() {
               className="h-9 text-sm"
             >
               면제하기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Revert to Unpaid Confirmation Dialog */}
+      <AlertDialog open={!!revertTarget} onOpenChange={(open) => !open && setRevertTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">미납으로 되돌리시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              벌금이 다시 미납 상태로 전환됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-9 text-sm">취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => revertTarget && handleRevertToUnpaid(revertTarget)}
+              className="h-9 text-sm"
+            >
+              되돌리기
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
