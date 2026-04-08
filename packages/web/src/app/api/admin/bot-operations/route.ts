@@ -56,6 +56,14 @@ export const GET = withAdminAuth(async () => {
       running: false,
     },
     {
+      id: 'popular-posts',
+      name: '인기 포스트',
+      description: '이전 회차의 인기 포스트 TOP 5를 디스코드 채널에 발송합니다',
+      category: 'ranking',
+      schedule: '화요일 08:01',
+      running: false,
+    },
+    {
       id: 'deadline-reminder-d2',
       name: '마감 리마인더 (D-2)',
       description: '미제출 활성 멤버에게 D-2 리마인더 DM을 발송합니다',

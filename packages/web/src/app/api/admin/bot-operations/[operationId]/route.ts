@@ -17,6 +17,7 @@ const OPERATION_ENDPOINT_MAP: Record<string, string> = {
   'curation-crawl': '/api/trigger/curation-crawl',
   'curation-share': '/api/trigger/curation-share',
   'weekly-ranking': '/api/trigger/weekly-ranking',
+  'popular-posts': '/api/trigger/popular-posts',
   'deadline-reminder-d2': '/api/trigger/deadline-reminder',
   'deadline-reminder-d1': '/api/trigger/deadline-reminder',
   'deadline-reminder-d0': '/api/trigger/deadline-reminder',

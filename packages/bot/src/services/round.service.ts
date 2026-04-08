@@ -52,6 +52,7 @@ export const ConfigKeys = {
   CURATION_CHANNEL_ID: 'curation_channel_id',
   RANKING_CHANNEL_ID: 'ranking_channel_id',
   BOT_LOG_CHANNEL_ID: 'bot_log_channel_id',
+  POPULAR_POSTS_CHANNEL_ID: 'popular_posts_channel_id',
 } as const;
 
 /**

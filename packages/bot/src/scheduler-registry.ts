@@ -13,6 +13,7 @@ import { getRoundReporter } from './schedulers/round-reporter';
 import { getCurationCrawler } from './schedulers/curation-crawler';
 import { getWeeklyRanking } from './schedulers/weekly-ranking';
 import { getDeadlineReminder } from './schedulers/deadline-reminder';
+import { getPopularPosts } from './schedulers/popular-posts';
 import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
 import { getNotificationService } from './services/notification.service';
@@ -41,6 +42,7 @@ const JOB_DEFINITIONS = [
   { name: 'curation-share', cron: '5 10 * * *' },      // 4기 미사용
   { name: 'weekly-ranking', cron: '0 1 * * 0' },       // KST 일 10:00 (UTC 일 01:00)
   { name: 'deadline-reminder', cron: '0 23 * * *' },   // KST 매일 08:00 (UTC 23:00)
+  { name: 'popular-posts', cron: '5 23 * * 1' },      // KST 화 08:05 (UTC 월 23:05)
 ] as const;
 
 /**
@@ -56,12 +58,14 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   const curationCrawler = getCurationCrawler();
   const weeklyRanking = getWeeklyRanking();
   const deadlineReminder = getDeadlineReminder();
+  const popularPosts = getPopularPosts();
 
   fineReminder.setClient(client);
   roundReporter.setClient(client);
   curationCrawler.setClient(client);
   weeklyRanking.setClient(client);
   deadlineReminder.setClient(client);
+  popularPosts.setClient(client);
 
   // Set up RSS poller callback: new post → save to DB + send notification + grant score + update attendance
   const postService = getPostService();
@@ -336,6 +340,12 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
 
   await boss.work('deadline-reminder', { batchSize: 1 }, async () => {
     await deadlineReminder.sendReminders();
+  });
+
+  await boss.createQueue('popular-posts');
+
+  await boss.work('popular-posts', { batchSize: 1 }, async () => {
+    await popularPosts.sendPopularPosts();
   });
 
   // Wait for queues to be created in the database

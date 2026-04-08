@@ -8,3 +8,4 @@ export * from './curation-crawler';
 export * from './weekly-ranking';
 export * from './poll-reminder';
 export * from './deadline-reminder';
+export * from './popular-posts';
