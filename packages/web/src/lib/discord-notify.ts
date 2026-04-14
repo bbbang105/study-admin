@@ -50,7 +50,7 @@ interface SendChannelMessageOptions {
  * Discord Markdown 특수문자 이스케이프
  * 사용자 입력을 embed에 넣기 전에 적용하여 마크다운 인젝션 방지
  */
-function escapeDiscordMarkdown(text: string): string {
+export function escapeDiscordMarkdown(text: string): string {
   return text.replace(/([*_~|`>[\]()@\\])/g, '\\$1');
 }
 

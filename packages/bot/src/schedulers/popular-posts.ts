@@ -195,15 +195,33 @@ export class PopularPosts {
       }
 
       // grace period 체크 (수동/특정 회차 지정 시 건너뜀)
-      if (!force && !forceRoundNumber && !isGracePeriodEnded(targetRound)) {
-        logger.info(`🏆 [인기 포스트] ${targetRound.roundNumber}회차 유예 기간 미종료, 건너뜀`);
-        return {
-          timestamp: startTime,
-          sent: false,
-          roundNumber: targetRound.roundNumber,
-          postCount: 0,
-          errors: ['유예 기간 미종료'],
-        };
+      if (!force && !forceRoundNumber) {
+        if (!isGracePeriodEnded(targetRound)) {
+          logger.info(`🏆 [인기 포스트] ${targetRound.roundNumber}회차 유예 기간 미종료, 건너뜀`);
+          return {
+            timestamp: startTime,
+            sent: false,
+            roundNumber: targetRound.roundNumber,
+            postCount: 0,
+            errors: ['유예 기간 미종료'],
+          };
+        }
+
+        // 이미 보고된 회차 중복 발송 방지: grace period 종료 후 4일 이내만 발송
+        const graceEndMs = new Date(targetRound.graceEndDate + 'T23:59:59+09:00').getTime();
+        const daysSinceGraceEnd = (Date.now() - graceEndMs) / (1000 * 60 * 60 * 24);
+        if (daysSinceGraceEnd > 4) {
+          logger.info(
+            `🏆 [인기 포스트] ${targetRound.roundNumber}회차 유예 기간이 ${Math.floor(daysSinceGraceEnd)}일 전 종료됨, 이미 발송된 것으로 간주하여 건너뜀`
+          );
+          return {
+            timestamp: startTime,
+            sent: false,
+            roundNumber: targetRound.roundNumber,
+            postCount: 0,
+            errors: ['이미 발송된 회차 (유예 기간 종료 후 4일 초과)'],
+          };
+        }
       }
 
       logger.info(`🏆 [인기 포스트] ${targetRound.roundNumber}회차 인기 포스트 조회 중...`);

@@ -128,16 +128,35 @@ export class RoundReporter {
       }
 
       // grace period 체크 (수동 트리거 시 건너뜀)
-      if (!force && !isGracePeriodEnded(prevRound)) {
-        logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 지각 기간 미종료, 건너뜀`);
-        return {
-          timestamp: startTime,
-          roundNumber: prevRound.roundNumber,
-          reportSent: false,
-          newRoundStarted: false,
-          newRoundNumber: null,
-          errors: ['지각 기간 미종료'],
-        };
+      if (!force) {
+        if (!isGracePeriodEnded(prevRound)) {
+          logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 지각 기간 미종료, 건너뜀`);
+          return {
+            timestamp: startTime,
+            roundNumber: prevRound.roundNumber,
+            reportSent: false,
+            newRoundStarted: false,
+            newRoundNumber: null,
+            errors: ['지각 기간 미종료'],
+          };
+        }
+
+        // 이미 보고된 회차 중복 발송 방지: grace period 종료 후 4일 이내만 발송
+        const graceEndMs = new Date(prevRound.graceEndDate + 'T23:59:59+09:00').getTime();
+        const daysSinceGraceEnd = (Date.now() - graceEndMs) / (1000 * 60 * 60 * 24);
+        if (daysSinceGraceEnd > 4) {
+          logger.info(
+            `📊 [회차 리포트] ${prevRound.roundNumber}회차 유예 기간이 ${Math.floor(daysSinceGraceEnd)}일 전 종료됨, 이미 발송된 것으로 간주하여 건너뜀`
+          );
+          return {
+            timestamp: startTime,
+            roundNumber: prevRound.roundNumber,
+            reportSent: false,
+            newRoundStarted: false,
+            newRoundNumber: null,
+            errors: ['이미 발송된 회차 (유예 기간 종료 후 4일 초과)'],
+          };
+        }
       }
 
       logger.info(`📊 [회차 리포트] ${prevRound.roundNumber}회차 리포트 생성 중...`);

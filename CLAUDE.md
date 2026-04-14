@@ -68,7 +68,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **포스트 수동등록**: 2단계 UX (URL→미리보기→편집→등록), OG HTML 엔티티 자동 디코딩, Discord 알림 토글, 푸시 알림은 Discord 토글과 무관하게 항상 발송
 - **새 글 푸시 알림**: 수동 등록 + RSS 수집 모두 지원. 대상: active/OB/dormant (작성자 본인 제외), 알림 타입 `new_post`. 봇→웹 내부 API(`/api/internal/new-post-push`, Bearer 인증) 경유
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
-- **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + 웹 딥링크 버튼
+- **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + embed(제목+본문 미리보기 500자) + 웹 딥링크 버튼
 - **벌금 DM**: 계좌 정보 포함 (3333333114501 카카오뱅크), 납부완료 시 관리자 채널 알림
 - **D-Day 계산**: KST 캘린더 날짜 기준 (midnight 비교, 당일=D-Day=0), 제출률은 active 유저만 카운트
 - **Discord 알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM 알림 성공/실패 기록, `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤)
@@ -82,7 +82,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **포스트 삭제**: 본인 또는 관리자만 가능, 트랜잭션으로 댓글/조회기록/활동점수(blog_post) 일괄 삭제
 - **이모지 리액션**: 게시판 글 + 포스트에 고정 6종 이모지 (👍👀🔥💡😂✅) 토글, `ReactionBar` 공용 컴포넌트 (`apiPath` prop으로 board/posts 구분), 호버(PC)/클릭(모바일) 시 닉네임 팝오버, 복수 선택 가능, 활동 점수/알림 없음
 - **인기글 점수**: `댓글×3 + 조회수×2 + 리액션×1`, 인기순 상위 5개 메달 테두리 (금/은/동/스카이블루/라벤더)
-- **인기 포스트 알림**: 화 08:05 KST 자동 + 수동 트리거, 이전 회차 TOP 5 Discord Embed (이모지별 카운트, 썸네일, 링크 버튼), `popular_posts_channel_id` 설정 필요
+- **인기 포스트 알림**: 화 08:05 KST 자동 + 수동 트리거, 이전 회차 TOP 5 Discord Embed (이모지별 카운트, 썸네일, 링크 버튼), `popular_posts_channel_id` 설정 필요, grace period 종료 후 4일 이내만 자동 발송 (중복 방지)
 - **포스트 회차 필터**: 전체/회차별 셀렉트 드롭다운, `/api/rounds`에서 동적 조회, 인기순도 선택 회차 기준
 - **스터디원 목록**: active + dormant + ob 모두 표시, 상태 칩으로 구분 (OB: 황금 파스텔, 휴면: secondary)
 
