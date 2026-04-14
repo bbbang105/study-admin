@@ -228,7 +228,7 @@ export async function sendFineNotification(
       `📝 **사유**: ${reason}`,
       `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
       ``,
-      `납부 완료 후 아래 버튼을 클릭해주세요.`,
+      `계좌에 금액 입금 후 아래 완료 버튼을 클릭해주세요.`,
     ].join('\n');
 
     // Create payment confirmation button
@@ -299,7 +299,7 @@ export async function sendFineReminder(
       `💰 **금액**: ${amount.toLocaleString()}원`,
       `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
       ``,
-      `납부 완료 후 아래 버튼을 클릭해주세요.`,
+      `계좌에 금액 입금 후 아래 완료 버튼을 클릭해주세요.`,
     ].join('\n');
 
     // Create payment confirmation button
