@@ -15,7 +15,7 @@ import { isValidCategory } from '@/lib/board-config';
 import { sanitizeDescription, sanitizeTiptapContent } from '@/lib/sanitize';
 import { grantWebScore } from '@/lib/score';
 import { sendPushToMembers } from '@/lib/push';
-import { sendDiscordChannelMessage } from '@/lib/discord-notify';
+import { escapeDiscordMarkdown, sendDiscordChannelMessage } from '@/lib/discord-notify';
 import { logNotification } from '@/lib/notification-log';
 
 const {
@@ -298,10 +298,22 @@ export async function POST(request: NextRequest) {
           const channelId = channelRow?.value;
           if (channelId) {
             const postUrl = `https://kusting-web.vercel.app/board/${result.id}`;
+            const trimmedContent = contentText?.trim() ?? '';
+            const previewText = escapeDiscordMarkdown(trimmedContent.slice(0, 500));
             const discordResult = await sendDiscordChannelMessage({
               channelId,
               allowEveryone: true,
-              content: `@everyone\n\n📢 **새로운 공지사항이 등록되었습니다!**\n\n## ${title.trim().slice(0, 100)}`,
+              content: '@everyone',
+              embeds: [
+                {
+                  title: `📢 ${escapeDiscordMarkdown(title.trim()).slice(0, 100)}`,
+                  description: previewText
+                    ? `${previewText}${trimmedContent.length > 500 ? '\n\n…' : ''}`
+                    : undefined,
+                  color: 0x0091ff,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
               components: [
                 {
                   type: 1,
