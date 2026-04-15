@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-03-23 (v12)
+> 최종 업데이트: 2026-04-15 (v13)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -71,6 +71,7 @@ graph TB
     API -->|POST /api/trigger/*| BOT_API
     BOT_API --> SCH
     BOT_API -->|POST /api/internal/new-post-push| API
+    BOT_API -->|POST /api/internal/reminder-push| API
     API -->|Discord REST API| CH_ADMIN
 
     Web -->|HTTPS| DB
@@ -252,6 +253,7 @@ flowchart TD
 | User | `/members` | 멤버 목록 | 로그인 필수 |
 | User | `/members/[id]` | 멤버 상세 | 로그인 필수 |
 | User | `/profile` | 프로필 | 로그인 필수 |
+| User | `/profile/fines` | 벌금 상세 (내 벌금 내역 + 납부 완료) | 로그인 필수 |
 | User | `/profile/notifications` | 알림 설정 (푸시 토글 + 타입별 설정 + 테스트) | 로그인 필수 |
 | Admin | `/admin` | 관리자 대시보드 | 관리자 전용 |
 | Admin | `/admin/members` | 멤버 관리 | 관리자 전용 |
@@ -461,7 +463,7 @@ erDiagram
 |------|------|------|
 | RSS Poller | 5분 | active 멤버 RSS 피드 수집 |
 | Attendance Checker | 매주 화 00:00 | 지각/결석 판정 |
-| Fine Reminder | 매일 10:00 | 미납 벌금 DM 리마인드 (1일 간격) |
+| Fine Reminder | 매일 10:00 | 미납 벌금 FCM 푸시 리마인드 (봇→웹 내부 API, 1일 간격) |
 | Curation Crawler | 매일 09:00 | 외부 컨텐츠 크롤링 |
 | Daily Content | 매일 10:00 | 큐레이션 컨텐츠 공유 |
 | Round Reporter | 회차 종료 시 | 회차 리포트 자동 생성 → #공지사항 |
@@ -481,7 +483,7 @@ erDiagram
 | **SQL Injection** | Drizzle ORM 파라미터화 쿼리 (raw SQL 사용 안 함) | 전체 API Routes |
 | **CSRF** | Supabase Auth 쿠키 `SameSite=Lax` | Supabase 기본 설정 |
 | **입력 검증** | description 새니타이즈 (제어 문자/제로 너비 유니코드 제거, 300자 제한) | `lib/sanitize.ts` |
-| **내부 API 인증** | Bearer 토큰 (`INTERNAL_API_KEY`, timing-safe 비교) + rate limit 20/min + UUID/길이 검증 | `api/internal/new-post-push/` |
+| **내부 API 인증** | Bearer 토큰 (`INTERNAL_API_KEY`, timing-safe 비교) + rate limit 20/min + UUID/길이 검증 | `api/internal/new-post-push/`, `api/internal/reminder-push/` |
 
 ### 에러 처리
 

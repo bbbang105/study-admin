@@ -69,9 +69,10 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **새 글 푸시 알림**: 수동 등록 + RSS 수집 모두 지원. 대상: active/OB/dormant (작성자 본인 제외), 알림 타입 `new_post`. 봇→웹 내부 API(`/api/internal/new-post-push`, Bearer 인증) 경유
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
 - **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + embed(제목+본문 미리보기 500자) + 웹 딥링크 버튼
-- **벌금 DM**: 계좌 정보 포함 (3333333114501 카카오뱅크), 납부완료 시 관리자 채널 알림
+- **벌금 납부**: 웹 `/profile/fines`에서 본인 납부 처리 (atomic update), 납부 시 관리자 Discord 채널 알림. 계좌 정보: 3333333114501 카카오뱅크
+- **리마인더 푸시**: 벌금 알림(`fine_notification`)/벌금 리마인더(`fine_reminder`)/마감 리마인더(`deadline_reminder`)/지각 독촉(`grace_nudge`)/투표 리마인더(`poll_reminder`) 5종은 Discord DM 대신 FCM 푸시로 발송. 봇→웹 내부 API(`/api/internal/reminder-push`) 경유. `FORCE_SEND_TYPES`로 유저가 끌 수 없음
 - **D-Day 계산**: KST 캘린더 날짜 기준 (midnight 비교, 당일=D-Day=0), 제출률은 active 유저만 카운트
-- **Discord 알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM 알림 성공/실패 기록, `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤)
+- **알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM+푸시 알림 성공/실패 기록 (target: `channel`/`dm`/`push`), `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤, 푸시 로그에 수신자 닉네임 표시)
 - **비밀답글 가시성**: 비밀 답글은 작성자/포스트작성자/부모댓글작성자/관리자가 열람 가능
 - **랭킹**: active + OB + dormant 전원 표시, 웹 페이지 4위부터 (포디움과 분리), 주간랭킹 전원 나열
 - **RSS 수집**: active + OB (rssConsent=true만), 포스트 점수는 active만 부여
@@ -145,6 +146,11 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/api/push/test/route.ts` | 테스트 푸시 알림 API (레이트 리밋 5/min) |
 | `packages/web/src/app/api/notification-preferences/route.ts` | 알림 타입별 설정 CRUD API |
 | `packages/web/src/app/api/internal/new-post-push/route.ts` | 새 글 푸시 알림 내부 API (봇→웹, Bearer 인증, rate limit 20/min) |
+| `packages/web/src/app/api/internal/reminder-push/route.ts` | 범용 리마인더 푸시 내부 API (봇→웹, 5종 FORCE_SEND_TYPES) |
+| `packages/bot/src/lib/push-client.ts` | 봇→웹 내부 API 호출 래퍼 (reminder-push 등) |
+| `packages/web/src/app/(user)/profile/fines/page.tsx` | 벌금 상세 페이지 (내 벌금 내역 + 납부 완료) |
+| `packages/web/src/app/api/profile/fines/route.ts` | 내 벌금 목록 API |
+| `packages/web/src/app/api/fines/[id]/pay/route.ts` | 벌금 납부 완료 API (atomic update) |
 | `packages/web/src/app/api/firebase-sw/route.ts` | FCM 서비스 워커 동적 서빙 (rewrite: `/firebase-messaging-sw.js` → `/api/firebase-sw`) |
 | `packages/bot/src/scripts/rss-collect.ts` | 수동 RSS 수집 스크립트 (봇 없이 독립 실행) |
 | `packages/bot/src/scripts/setup-channels.ts` | 디스코드 채널 일괄 생성 스크립트 |
@@ -215,6 +221,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **토스트**: sonner (`<Toaster />` in root layout, `position="bottom-center"`, `richColors`)
 - **에러 바운더리**: `(user)/error.tsx`, `(admin)/error.tsx` — Sentry 전송 + 리셋 버튼, `global-error.tsx` — 전역 폴백 (다크모드 인라인 스타일)
 - **404 페이지**: `not-found.tsx` — 대시보드 링크 포함
+- **벌금 상세**: `/profile/fines` — 내 벌금 내역 카드 + "납부 완료" 버튼, 프로필 미납 스탯 카드 클릭 시 이동, 푸시 딥링크 대상
 - **CSP**: `next.config.ts`에 Content-Security-Policy 헤더 설정
 - **상세 스펙**: `docs/26-03-06-ui-design-system.md` 참조
 
