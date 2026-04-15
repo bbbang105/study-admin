@@ -1,8 +1,13 @@
 import { timingSafeEqual } from 'crypto';
 import { NextRequest } from 'next/server';
+import { inArray } from 'drizzle-orm';
+import { db as sharedDb } from '@blog-study/shared';
+import { getDb } from '@/lib/db';
 import { sendPushToMembers } from '@/lib/push';
 import { logNotification } from '@/lib/notification-log';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+
+const { members } = sharedDb;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -71,12 +76,24 @@ export async function POST(request: NextRequest) {
       data: { type },
     });
 
+    // 수신자 닉네임 조회 (로그 표시용)
+    const database = getDb();
+    const recipients = await database
+      .select({ id: members.id, nickname: members.nickname })
+      .from(members)
+      .where(inArray(members.id, memberIds));
+    const recipientNicknames = recipients.map((r) => r.nickname);
+
     // 알림 로그 기록
     await logNotification({
       source: 'web',
       type,
       summary: `[푸시] ${title}: ${pushBody}`.slice(0, 500),
-      metadata: { memberCount: memberIds.length, ...result },
+      metadata: {
+        memberCount: memberIds.length,
+        recipients: recipientNicknames,
+        ...result,
+      },
       status: result.success > 0 ? 'sent' : 'failed',
       errorMessage:
         result.success === 0 && result.failed > 0

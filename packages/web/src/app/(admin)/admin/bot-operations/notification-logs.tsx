@@ -231,11 +231,18 @@ export default function NotificationLogs() {
                           {log.source === 'bot' ? '봇' : '웹'}
                         </Badge>
                         <span className="truncate">
-                          {target === 'push'
-                            ? '푸시'
-                            : target === 'dm'
-                              ? `DM → ${log.targetDiscordId}`
-                              : `#${log.channelName || log.channelId || '—'}`}
+                          {(() => {
+                            if (target === 'push') {
+                              const recipients = (log.metadata?.recipients as string[] | undefined) ?? [];
+                              const count = (log.metadata?.memberCount as number | undefined) ?? recipients.length;
+                              if (recipients.length > 0) {
+                                return `푸시 → ${recipients.join(', ')}`;
+                              }
+                              return count > 0 ? `푸시 → ${count}명` : '푸시';
+                            }
+                            if (target === 'dm') return `DM → ${log.targetDiscordId}`;
+                            return `#${log.channelName || log.channelId || '—'}`;
+                          })()}
                         </span>
                         <span className="ml-auto shrink-0">{formatRelativeTime(log.createdAt)}</span>
                       </div>

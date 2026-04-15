@@ -7,7 +7,14 @@ import type { MulticastMessage } from 'firebase-admin/messaging';
 const { fcmTokens, notificationPreferences } = sharedDb;
 
 /** preference 무시하고 항상 전송하는 알림 타입 */
-const FORCE_SEND_TYPES = new Set(['board_notice']);
+const FORCE_SEND_TYPES = new Set([
+  'board_notice',
+  'fine_notification',
+  'fine_reminder',
+  'deadline_reminder',
+  'grace_nudge',
+  'poll_reminder',
+]);
 
 export interface PushPayload {
   title: string;

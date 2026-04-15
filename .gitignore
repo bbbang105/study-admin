@@ -44,3 +44,6 @@ firebase-service-account.json
 packages/shared/drizzle/*.sql
 .vercel
 scripts
+
+# Superpowers brainstorming artifacts (local only)
+.superpowers
