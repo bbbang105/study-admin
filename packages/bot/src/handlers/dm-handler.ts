@@ -7,9 +7,6 @@
  */
 
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChannelType,
   Client,
   Events,
@@ -22,6 +19,7 @@ import { formatFineReason, getFineService, } from '../services';
 import { ConfigKeys, getConfigValue } from '../services/round.service';
 import logger, { serializeError } from '../lib/logger';
 import { logNotification } from '../lib/notification-logger';
+import { sendReminderPush } from '../lib/push-client';
 
 /**
  * Add a pending fine confirmation for a user
@@ -199,83 +197,40 @@ async function handleButtonInteraction(interaction: Interaction): Promise<void> 
 }
 
 /**
- * Send fine notification DM to a user with payment confirmation button
- * Requirements: 8.1 - Send DM with fine amount, reason, and payment instructions
- * MessageContent Intent 없이 동작 - 버튼 사용
+ * Send fine notification push to a user
+ * Requirements: 8.1 - Send push with fine amount, reason, and payment instructions
  */
 export async function sendFineNotification(
-  client: Client,
-  discordId: string,
+  memberId: string,
   fineId: string,
   amount: number,
   type: 'late' | 'absent',
   roundNumber: number
 ): Promise<boolean> {
   try {
-    const user = await client.users.fetch(discordId);
-    if (!user) {
-      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
-      return false;
-    }
-
     const reason = formatFineReason(type);
-    const message = [
-      `📢 **벌금 알림**`,
-      ``,
-      `${roundNumber}회차 ${reason}으로 인해 벌금이 부과되었습니다.`,
-      ``,
-      `💰 **금액**: ${amount.toLocaleString()}원`,
-      `📝 **사유**: ${reason}`,
-      `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
-      ``,
-      `계좌에 금액 입금 후 아래 완료 버튼을 클릭해주세요.`,
-    ].join('\n');
-
-    // Create payment confirmation button
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`confirm_payment_${fineId}`)
-          .setLabel('✅ 납부 완료')
-          .setStyle(ButtonStyle.Success)
-      );
-
-    await user.send({
-      content: message,
-      components: [row],
+    const result = await sendReminderPush({
+      type: 'fine_notification',
+      memberIds: [memberId],
+      title: '벌금이 부과되었어요',
+      body: `${roundNumber}회차 ${reason} 벌금 ${amount.toLocaleString()}원이 부과되었습니다.`,
+      clickUrl: '/profile/fines',
     });
-    await logNotification({
-      source: 'bot', type: 'fine_notification',
-      targetDiscordId: discordId,
-      summary: `${roundNumber}회차 벌금 알림 (${amount.toLocaleString()}원)`,
-      status: 'sent',
-    });
-
-    // Track pending confirmation in DB
-    await addPendingConfirmation(discordId, fineId);
-
-    logger.info({ discordId, fineId }, '💬 [DM] 벌금 알림 발송 완료');
-    return true;
+    await addPendingConfirmation(memberId, fineId);
+    logger.info({ memberId, fineId }, '📱 [Push] 벌금 알림 발송 완료');
+    return result.success > 0;
   } catch (error) {
-    await logNotification({
-      source: 'bot', type: 'fine_notification',
-      targetDiscordId: discordId,
-      summary: `${roundNumber}회차 벌금 알림 (${amount.toLocaleString()}원)`,
-      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
-    });
-    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 알림 발송 실패');
+    logger.error({ memberId, error: serializeError(error) }, '📱 [Push] 벌금 알림 발송 실패');
     return false;
   }
 }
 
 /**
- * Send fine reminder DM to a user with payment confirmation button
+ * Send fine reminder push to a user
  * Requirements: 8.4 - Send reminder for unpaid fines
- * MessageContent Intent 없이 동작 - 버튼 사용
  */
 export async function sendFineReminder(
-  client: Client,
-  discordId: string,
+  memberId: string,
   fineId: string,
   amount: number,
   type: 'late' | 'absent',
@@ -283,80 +238,34 @@ export async function sendFineReminder(
   daysSinceCreation: number
 ): Promise<boolean> {
   try {
-    const user = await client.users.fetch(discordId);
-    if (!user) {
-      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
-      return false;
-    }
-
     const reason = formatFineReason(type);
-    const message = [
-      `⏰ **벌금 리마인더**`,
-      ``,
-      `${roundNumber}회차 ${reason} 벌금이 아직 미납 상태입니다.`,
-      `(${daysSinceCreation}일 경과)`,
-      ``,
-      `💰 **금액**: ${amount.toLocaleString()}원`,
-      `🏦 **계좌**: 3333333114501 (카카오뱅크)`,
-      ``,
-      `계좌에 금액 입금 후 아래 완료 버튼을 클릭해주세요.`,
-    ].join('\n');
-
-    // Create payment confirmation button
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`confirm_payment_${fineId}`)
-          .setLabel('✅ 납부 완료')
-          .setStyle(ButtonStyle.Success)
-      );
-
-    await user.send({
-      content: message,
-      components: [row],
+    const result = await sendReminderPush({
+      type: 'fine_reminder',
+      memberIds: [memberId],
+      title: '미납 벌금 리마인더',
+      body: `${roundNumber}회차 ${reason} 벌금 ${amount.toLocaleString()}원이 아직 미납 상태입니다. (${daysSinceCreation}일 경과)`,
+      clickUrl: '/profile/fines',
     });
-    await logNotification({
-      source: 'bot', type: 'fine_reminder',
-      targetDiscordId: discordId,
-      summary: `${roundNumber}회차 벌금 리마인더 (${daysSinceCreation}일 경과)`,
-      status: 'sent',
-    });
-
-    // Ensure pending confirmation is tracked in DB
-    await addPendingConfirmation(discordId, fineId);
-
-    logger.info({ discordId, fineId }, '💬 [DM] 벌금 리마인더 발송 완료');
-    return true;
+    await addPendingConfirmation(memberId, fineId);
+    logger.info({ memberId, fineId }, '📱 [Push] 벌금 리마인더 발송 완료');
+    return result.success > 0;
   } catch (error) {
-    await logNotification({
-      source: 'bot', type: 'fine_reminder',
-      targetDiscordId: discordId,
-      summary: `${roundNumber}회차 벌금 리마인더 (${daysSinceCreation}일 경과)`,
-      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
-    });
-    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 벌금 리마인더 발송 실패');
+    logger.error({ memberId, error: serializeError(error) }, '📱 [Push] 벌금 리마인더 발송 실패');
     return false;
   }
 }
 
 /**
- * Send poll reminder DM to a user
- * 투표 마감 전 미참여자에게 리마인더 발송
+ * Send poll reminder push to a user
+ * 투표 마감 전 미참여자에게 푸시 리마인더 발송
  */
-export async function sendPollReminderDM(
-  client: Client,
-  discordId: string,
+export async function sendPollReminderPush(
+  memberId: string,
   pollQuestion: string,
   expiresAt: Date,
   postId: string,
 ): Promise<boolean> {
   try {
-    const user = await client.users.fetch(discordId);
-    if (!user) {
-      logger.error({ discordId }, '💬 [DM] 유저를 찾을 수 없음');
-      return false;
-    }
-
     const expiresHour = expiresAt.toLocaleString('ko-KR', {
       timeZone: 'Asia/Seoul',
       month: 'long',
@@ -365,45 +274,17 @@ export async function sendPollReminderDM(
       minute: '2-digit',
     });
 
-    const webUrl = process.env.WEB_URL || 'https://kusting-web.vercel.app';
-    const postUrl = `${webUrl}/board/${postId}`;
-
-    const message = [
-      `📊 **투표 참여 요청**`,
-      ``,
-      `"${pollQuestion}" 투표가 ${expiresHour}에 마감됩니다!`,
-      `아직 참여하지 않으셨으니 투표해주세요 🙏`,
-    ].join('\n');
-
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setLabel('📊 투표하러 가기')
-          .setStyle(ButtonStyle.Link)
-          .setURL(postUrl),
-      );
-
-    await user.send({
-      content: message,
-      components: [row],
+    const result = await sendReminderPush({
+      type: 'poll_reminder',
+      memberIds: [memberId],
+      title: '투표 참여 요청',
+      body: `"${pollQuestion}" 투표가 ${expiresHour}에 마감됩니다! 아직 참여하지 않으셨으니 투표해주세요.`,
+      clickUrl: `/board/${postId}`,
     });
-    await logNotification({
-      source: 'bot', type: 'poll_reminder',
-      targetDiscordId: discordId,
-      summary: `투표 리마인더: ${pollQuestion}`.slice(0, 200),
-      status: 'sent',
-    });
-
-    logger.info({ discordId, pollQuestion }, '💬 [DM] 투표 리마인더 발송 완료');
-    return true;
+    logger.info({ memberId, pollQuestion }, '📱 [Push] 투표 리마인더 발송 완료');
+    return result.success > 0;
   } catch (error) {
-    await logNotification({
-      source: 'bot', type: 'poll_reminder',
-      targetDiscordId: discordId,
-      summary: `투표 리마인더: ${pollQuestion}`.slice(0, 200),
-      status: 'failed', errorMessage: error instanceof Error ? error.message : String(error),
-    });
-    logger.error({ discordId, error: serializeError(error) }, '💬 [DM] 투표 리마인더 발송 실패');
+    logger.error({ memberId, error: serializeError(error) }, '📱 [Push] 투표 리마인더 발송 실패');
     return false;
   }
 }

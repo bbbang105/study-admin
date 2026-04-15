@@ -171,6 +171,7 @@ export default function NotificationLogs() {
             <SelectItem value="_all">전체</SelectItem>
             <SelectItem value="channel">채널</SelectItem>
             <SelectItem value="dm">DM</SelectItem>
+            <SelectItem value="push">푸시</SelectItem>
           </SelectContent>
         </Select>
 
@@ -200,7 +201,7 @@ export default function NotificationLogs() {
           {logs.map((log) => {
             const meta = getLogTypeMeta(log.type);
             const isSent = log.status === 'sent';
-            const isDM = log.targetDiscordId != null;
+            const target = meta.target;
 
             return (
               <Card key={log.id} className="py-0">
@@ -230,13 +231,18 @@ export default function NotificationLogs() {
                           {log.source === 'bot' ? '봇' : '웹'}
                         </Badge>
                         <span className="truncate">
-                          {isDM
-                            ? `DM → ${log.targetDiscordId}`
-                            : log.channelName
-                              ? `#${log.channelName}`
-                              : log.channelId
-                                ? `#${log.channelId}`
-                                : '—'}
+                          {(() => {
+                            if (target === 'push') {
+                              const recipients = (log.metadata?.recipients as string[] | undefined) ?? [];
+                              const count = (log.metadata?.memberCount as number | undefined) ?? recipients.length;
+                              if (recipients.length > 0) {
+                                return `푸시 → ${recipients.join(', ')}`;
+                              }
+                              return count > 0 ? `푸시 → ${count}명` : '푸시';
+                            }
+                            if (target === 'dm') return `DM → ${log.targetDiscordId}`;
+                            return `#${log.channelName || log.channelId || '—'}`;
+                          })()}
                         </span>
                         <span className="ml-auto shrink-0">{formatRelativeTime(log.createdAt)}</span>
                       </div>

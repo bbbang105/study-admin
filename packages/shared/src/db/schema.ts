@@ -583,6 +583,11 @@ export const NotificationType = {
   POST_REPLY: 'post_reply',
   BOARD_NOTICE: 'board_notice',
   NEW_POST: 'new_post',
+  FINE_NOTIFICATION: 'fine_notification',
+  FINE_REMINDER: 'fine_reminder',
+  DEADLINE_REMINDER: 'deadline_reminder',
+  GRACE_NUDGE: 'grace_nudge',
+  POLL_REMINDER: 'poll_reminder',
 } as const;
 
 export type NotificationTypeType = (typeof NotificationType)[keyof typeof NotificationType];

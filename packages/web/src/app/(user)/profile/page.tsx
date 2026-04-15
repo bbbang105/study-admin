@@ -434,24 +434,26 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60 shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">미납 벌금</p>
-                      <p className="text-2xl font-bold tracking-tight">
-                        {data.stats.unpaidFines.toLocaleString()}원
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        총 {data.stats.totalFines.toLocaleString()}원
-                      </p>
+              <Link href="/profile/fines">
+                <Card className="border-border/60 shadow-none hover:bg-muted/50 transition-colors cursor-pointer">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">미납 벌금</p>
+                        <p className="text-2xl font-bold tracking-tight">
+                          {data.stats.unpaidFines.toLocaleString()}원
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          총 {data.stats.totalFines.toLocaleString()}원
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                        <Wallet className="h-4 w-4" />
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                      <Wallet className="h-4 w-4" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
           )}
 

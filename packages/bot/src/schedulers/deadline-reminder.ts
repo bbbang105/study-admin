@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { attendance, AttendanceStatus, getDb, members, MemberStatus } from '@blog-study/shared/db';
 import { getCurrentRound } from '../services/round.service';
 import logger, { serializeError } from '../lib/logger';
-import { logNotification } from '../lib/notification-logger';
+import { sendReminderPush } from '../lib/push-client';
 
 export interface DeadlineReminderResult {
   timestamp: Date;
@@ -80,6 +80,7 @@ function formatKSTDate(dateStr: string): string {
 
 export class DeadlineReminder {
   private isRunning = false;
+  // @ts-expect-error -- scheduler-registry 호환 유지, push 전환 후 미사용
   private client: Client | null = null;
 
   setClient(client: Client): void {
@@ -104,11 +105,6 @@ export class DeadlineReminder {
 
     if (this.isRunning) {
       logger.info('📅 [마감 리마인더] 이미 실행 중, 건너뜀');
-      return emptyResult();
-    }
-
-    if (!this.client) {
-      logger.error('📅 [마감 리마인더] Discord 클라이언트 미설정');
       return emptyResult();
     }
 
@@ -164,12 +160,6 @@ export class DeadlineReminder {
 
     this.isRunning = true;
 
-    if (!this.client) {
-      this.isRunning = false;
-      logger.error('📅 [마감 리마인더] Discord 클라이언트 미설정');
-      return emptyResult();
-    }
-
     if (dDay < 0 || dDay > 2) {
       this.isRunning = false;
       logger.info({ dDay }, '📅 [마감 리마인더] 유효하지 않은 D-day (0~2만 가능)');
@@ -193,7 +183,7 @@ export class DeadlineReminder {
   }
 
   /**
-   * 실제 DM 발송 로직 (자동/수동 공용)
+   * 실제 푸시 발송 로직 (자동/수동 공용)
    */
   private async sendForDDay(
     dDay: number,
@@ -213,7 +203,7 @@ export class DeadlineReminder {
     const db = getDb();
     const pendingMembers = await db
       .select({
-        discordId: members.discordId,
+        id: members.id,
         nickname: members.nickname,
       })
       .from(attendance)
@@ -233,58 +223,27 @@ export class DeadlineReminder {
 
     logger.info(
       { dDay, count: pendingMembers.length },
-      `📅 [마감 리마인더] D-${dDay} 미제출 멤버 ${pendingMembers.length}명에게 DM 발송`
+      `📅 [마감 리마인더] D-${dDay} 미제출 멤버 ${pendingMembers.length}명에게 푸시 발송`
     );
 
-    let sentCount = 0;
-    let failedCount = 0;
+    const memberIds = pendingMembers.map((m) => m.id);
+    const pushTitle = message.title.replace(/^"|"$/g, '');
+    const pushBody = message.body.join(' ').slice(0, 200);
 
-    for (const member of pendingMembers) {
-      try {
-        const user = await this.client!.users.fetch(member.discordId);
-        const dmContent = [
-          `${message.title}`,
-          ``,
-          ...message.body,
-        ].join('\n');
-
-        await user.send(dmContent);
-        await logNotification({
-          source: 'bot', type: 'deadline_reminder',
-          targetDiscordId: member.discordId,
-          summary: `D-${dDay} 마감 리마인더`,
-          metadata: { dDay },
-          status: 'sent',
-        });
-        sentCount++;
-      } catch (err) {
-        await logNotification({
-          source: 'bot', type: 'deadline_reminder',
-          targetDiscordId: member.discordId,
-          summary: `D-${dDay} 마감 리마인더`,
-          metadata: { dDay },
-          status: 'failed',
-          errorMessage: err instanceof Error ? err.message : String(err),
-        });
-        logger.error(
-          { discordId: member.discordId, err: serializeError(err) },
-          '📅 [마감 리마인더] DM 발송 실패'
-        );
-        failedCount++;
-      }
-    }
-
-    logger.info(
-      { dDay, sentCount, failedCount },
-      `📅 [마감 리마인더] 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건`
-    );
+    const result = await sendReminderPush({
+      type: 'deadline_reminder',
+      memberIds,
+      title: pushTitle,
+      body: pushBody,
+      clickUrl: '/dashboard',
+    });
 
     return {
       timestamp: new Date(),
       dDay,
       targetCount: pendingMembers.length,
-      sentCount,
-      failedCount,
+      sentCount: result.success,
+      failedCount: result.failed,
     };
   }
 }

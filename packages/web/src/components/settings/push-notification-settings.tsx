@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, FileText, MessageCircle, MessageSquare, SendHorizonal } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  Clock,
+  FileText,
+  MessageCircle,
+  MessageSquare,
+  SendHorizonal,
+  Vote,
+  Wallet,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -39,6 +49,31 @@ const NOTIFICATION_LABELS: Record<
     description: '내 댓글에 답글이 달릴 때',
   },
   new_post: { label: '새 글 알림', icon: FileText, description: '스터디원이 새 글을 등록할 때' },
+  fine_notification: {
+    label: '벌금 알림',
+    icon: Wallet,
+    description: '벌금이 부과될 때',
+  },
+  fine_reminder: {
+    label: '벌금 리마인더',
+    icon: Wallet,
+    description: '미납 벌금 독촉',
+  },
+  deadline_reminder: {
+    label: '마감 리마인더',
+    icon: Clock,
+    description: '제출 마감 D-2/D-1/D-day',
+  },
+  grace_nudge: {
+    label: '지각 독촉',
+    icon: AlertTriangle,
+    description: '지각 기간 제출 독려',
+  },
+  poll_reminder: {
+    label: '투표 리마인더',
+    icon: Vote,
+    description: '투표 마감 전 참여 요청',
+  },
 };
 
 export function PushNotificationSettings() {

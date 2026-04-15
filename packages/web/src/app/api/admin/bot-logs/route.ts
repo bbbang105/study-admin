@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
-import { desc, eq, and, lt, isNull, isNotNull, type SQL } from 'drizzle-orm';
+import { desc, eq, and, lt, isNull, isNotNull, inArray, type SQL } from 'drizzle-orm';
 import { db as sharedDb } from '@blog-study/shared';
 import { db } from '@/lib/db';
 import { withAdminAuth } from '@/lib/admin';
 import { successResponse, Errors } from '@/lib/api-error';
+import { notificationLogTypeConfig } from '@/lib/notification-log-config';
 
 const { discordNotificationLogs } = sharedDb;
 
@@ -17,7 +18,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const type = searchParams.get('type');
     const source = searchParams.get('source');
     const status = searchParams.get('status');
-    const target = searchParams.get('target'); // 'channel' | 'dm'
+    const target = searchParams.get('target'); // 'channel' | 'dm' | 'push'
     const cursor = searchParams.get('cursor'); // ISO timestamp
     const limit = Math.min(Number(searchParams.get('limit') || 20), 50);
 
@@ -36,6 +37,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       conditions.push(isNull(discordNotificationLogs.targetDiscordId));
     } else if (target === 'dm') {
       conditions.push(isNotNull(discordNotificationLogs.targetDiscordId));
+    } else if (target === 'push') {
+      const pushTypes = Object.entries(notificationLogTypeConfig)
+        .filter(([, meta]) => meta.target === 'push')
+        .map(([type]) => type);
+      conditions.push(inArray(discordNotificationLogs.type, pushTypes));
     }
 
     const logs = await database

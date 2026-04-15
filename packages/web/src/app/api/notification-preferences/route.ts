@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { FORCE_SEND_TYPES } from '@/lib/push';
 
 const { notificationPreferences, NotificationType } = sharedDb;
 
@@ -18,10 +19,8 @@ export async function GET(_request: NextRequest) {
 
     const database = getDb();
 
-    // 모든 알림 타입에 대한 설정 조회 (board_notice는 강제 전송이므로 제외)
-    const allTypes = Object.values(NotificationType).filter(
-      (t) => t !== NotificationType.BOARD_NOTICE
-    );
+    // 모든 알림 타입에 대한 설정 조회 (강제 전송 타입은 제외 - 끌 수 없음)
+    const allTypes = Object.values(NotificationType).filter((t) => !FORCE_SEND_TYPES.has(t));
     const existing = await database
       .select()
       .from(notificationPreferences)
