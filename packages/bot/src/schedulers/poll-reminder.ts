@@ -6,7 +6,7 @@
 import { Client } from 'discord.js';
 import { and, eq, inArray, isNull, notInArray } from 'drizzle-orm';
 import { boardPolls, boardPollVotes, getDb, members, MemberStatus } from '@blog-study/shared/db';
-import { sendPollReminderDM } from '../handlers/dm-handler';
+import { sendPollReminderPush } from '../handlers/dm-handler';
 import logger from '../lib/logger';
 
 export interface PollReminderResult {
@@ -153,7 +153,7 @@ export class PollReminder {
     // 특정 멤버 지정 시 해당 멤버에게만 발송
     if (targetDiscordId) {
       const [target] = await db
-        .select({ discordId: members.discordId, name: members.name })
+        .select({ id: members.id, discordId: members.discordId, name: members.name })
         .from(members)
         .where(eq(members.discordId, targetDiscordId))
         .limit(1);
@@ -166,7 +166,7 @@ export class PollReminder {
       logger.info(`📊 [투표 리마인더] "${question}" — ${target.name}에게 개별 발송`);
 
       try {
-        const success = await sendPollReminderDM(this.client!, target.discordId, question, expiresAt, postId);
+        const success = await sendPollReminderPush(target.id, question, expiresAt, postId);
         return success ? { sent: 1, failed: 0 } : { sent: 0, failed: 1 };
       } catch {
         return { sent: 0, failed: 1 };
@@ -186,7 +186,7 @@ export class PollReminder {
     // eligible 멤버 중 미투표자 조회 (단일 쿼리)
     const statusFilter = inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]);
     const nonVoterMembers = await db
-      .select({ discordId: members.discordId, name: members.name })
+      .select({ id: members.id, name: members.name })
       .from(members)
       .where(
         voterMemberIds.length > 0
@@ -198,9 +198,8 @@ export class PollReminder {
 
     for (const member of nonVoterMembers) {
       try {
-        const success = await sendPollReminderDM(
-          this.client!,
-          member.discordId,
+        const success = await sendPollReminderPush(
+          member.id,
           question,
           expiresAt,
           postId,

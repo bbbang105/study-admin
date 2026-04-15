@@ -11,7 +11,7 @@ import { getFineService } from '../services/fine.service';
 import { sendFineReminder } from '../handlers/dm-handler';
 import { getCurrentRound } from '../services/round.service';
 import logger from '../lib/logger';
-import { logNotification } from '../lib/notification-logger';
+import { sendReminderPush } from '../lib/push-client';
 
 /**
  * Result of a fine reminder cycle
@@ -46,12 +46,10 @@ export class FineReminder {
   }
 
   /**
-   * 지각 기간(월요일)에 아직 PENDING인 멤버에게 독촉 DM 발송
+   * 지각 기간(월요일)에 아직 PENDING인 멤버에게 푸시 발송
    * "오늘 안에 제출하면 결석은 피할 수 있어요!"
    */
   private async sendGracePeriodNudge(): Promise<void> {
-    if (!this.client) return;
-
     try {
       const currentRound = await getCurrentRound().catch(() => null);
       if (!currentRound) return;
@@ -67,7 +65,7 @@ export class FineReminder {
       const db = getDb();
       const pendingMembers = await db
         .select({
-          discordId: members.discordId,
+          id: members.id,
           nickname: members.nickname,
         })
         .from(attendance)
@@ -82,33 +80,16 @@ export class FineReminder {
 
       if (pendingMembers.length === 0) return;
 
-      logger.info(`✍️ [지각 독촉] 미제출 멤버 ${pendingMembers.length}명에게 DM 발송`);
+      logger.info(`✍️ [지각 독촉] 미제출 멤버 ${pendingMembers.length}명에게 푸시 발송`);
 
-      for (const member of pendingMembers) {
-        try {
-          const user = await this.client.users.fetch(member.discordId);
-          await user.send([
-            `✍️ **${member.nickname}님, 아직 시간이 있어요!**`,
-            ``,
-            `${currentRound.roundNumber}회차 마감은 지났지만, 오늘 안에 제출하면 결석은 피할 수 있어요.`,
-            `짧은 글이라도 괜찮아요. 지금 시작해보는 건 어때요?`,
-          ].join('\n'));
-          await logNotification({
-            source: 'bot', type: 'grace_nudge',
-            targetDiscordId: member.discordId,
-            summary: `${currentRound.roundNumber}회차 지각 독촉`,
-            status: 'sent',
-          });
-        } catch (err) {
-          await logNotification({
-            source: 'bot', type: 'grace_nudge',
-            targetDiscordId: member.discordId,
-            summary: `${currentRound.roundNumber}회차 지각 독촉`,
-            status: 'failed', errorMessage: err instanceof Error ? err.message : String(err),
-          });
-          logger.error({ discordId: member.discordId, err }, '✍️ [지각 독촉] DM 발송 실패');
-        }
-      }
+      const memberIds = pendingMembers.map((m) => m.id);
+      await sendReminderPush({
+        type: 'grace_nudge',
+        memberIds,
+        title: '아직 시간이 있어요!',
+        body: `${currentRound.roundNumber}회차 마감은 지났지만, 오늘 안에 제출하면 결석은 피할 수 있어요.`,
+        clickUrl: '/dashboard',
+      });
     } catch (error) {
       logger.error({ error }, '✍️ [지각 독촉] 에러');
     }
@@ -180,7 +161,7 @@ export class FineReminder {
       );
 
       // Send reminders
-      for (const { fine, discordId, roundNumber } of finesNeedingReminder) {
+      for (const { fine, roundNumber } of finesNeedingReminder) {
         const createdAt = fine.createdAt ? new Date(fine.createdAt) : new Date();
         const daysSinceCreation = Math.floor(
           (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -188,8 +169,7 @@ export class FineReminder {
 
         try {
           const success = await sendFineReminder(
-            this.client,
-            discordId,
+            fine.memberId,
             fine.id,
             fine.amount,
             fine.type as 'late' | 'absent',
@@ -284,7 +264,7 @@ export class FineReminder {
 
       const now = new Date();
 
-      for (const { fine, discordId, roundNumber } of finesWithInfo) {
+      for (const { fine, roundNumber } of finesWithInfo) {
         const createdAt = fine.createdAt ? new Date(fine.createdAt) : new Date();
         const daysSinceCreation = Math.floor(
           (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -292,8 +272,7 @@ export class FineReminder {
 
         try {
           const success = await sendFineReminder(
-            this.client,
-            discordId,
+            fine.memberId,
             fine.id,
             fine.amount,
             fine.type as 'late' | 'absent',
