@@ -1,14 +1,16 @@
 import { NextRequest, after } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db as sharedDb } from '@blog-study/shared';
 import { config } from '@blog-study/shared/db';
 import { createClient } from '@/lib/supabase/server';
 import { getDb } from '@/lib/db';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
-import { sendDiscordChannelMessage } from '@/lib/discord-notify';
+import { escapeDiscordMarkdown, sendDiscordChannelMessage } from '@/lib/discord-notify';
 import { logNotification } from '@/lib/notification-log';
 
 const { members, fines, rounds, FineStatus } = sharedDb;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function PATCH(
   _request: NextRequest,
@@ -16,6 +18,9 @@ export async function PATCH(
 ) {
   try {
     const { id: fineId } = await params;
+    if (!UUID_RE.test(fineId)) {
+      return Errors.badRequest('Invalid fine ID format').toResponse();
+    }
     const supabase = await createClient();
     const {
       data: { user },
@@ -49,8 +54,12 @@ export async function PATCH(
         paidAt: new Date(),
         pendingConfirmation: false,
       })
-      .where(eq(fines.id, fineId))
+      .where(and(eq(fines.id, fineId), eq(fines.status, FineStatus.UNPAID)))
       .returning();
+
+    if (!updated) {
+      return Errors.badRequest('이미 처리된 벌금입니다.').toResponse();
+    }
 
     after(async () => {
       try {
@@ -61,6 +70,7 @@ export async function PATCH(
           .limit(1);
 
         const displayName = member.name || member.nickname;
+        const safeName = escapeDiscordMarkdown(displayName);
         const reason = fine.type === 'late' ? '지각' : '결석';
         const roundText = round ? `${round.roundNumber}회차` : '';
 
@@ -74,7 +84,7 @@ export async function PATCH(
         if (adminChannelId) {
           const discordResult = await sendDiscordChannelMessage({
             channelId: adminChannelId,
-            content: `💰 **${displayName}**님이 ${roundText} ${reason} 벌금 ${fine.amount.toLocaleString()}원 납부를 완료했습니다. (웹)`,
+            content: `💰 **${safeName}**님이 ${roundText} ${reason} 벌금 ${fine.amount.toLocaleString()}원 납부를 완료했습니다. (웹)`,
           });
           await logNotification({
             source: 'web',

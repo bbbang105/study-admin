@@ -29,6 +29,7 @@ export interface FineReminderResult {
  */
 export class FineReminder {
   private isRunning = false;
+  // @ts-expect-error -- scheduler-registry 호환 유지, push 전환 후 미사용
   private client: Client | null = null;
 
   /**
@@ -108,17 +109,6 @@ export class FineReminder {
         sentCount: 0,
         failedCount: 0,
         errors: ['이미 실행 중'],
-      };
-    }
-
-    if (!this.client) {
-      logger.error('⏰ [벌금 리마인더] Discord 클라이언트 미설정');
-      return {
-        timestamp: new Date(),
-        processedCount: 0,
-        sentCount: 0,
-        failedCount: 0,
-        errors: ['Discord 클라이언트 미설정'],
       };
     }
 
@@ -234,17 +224,6 @@ export class FineReminder {
         sentCount: 0,
         failedCount: 0,
         errors: ['Reminder already in progress'],
-      };
-    }
-
-    if (!this.client) {
-      logger.error('[FineReminder] Discord client not set');
-      return {
-        timestamp: new Date(),
-        processedCount: 0,
-        sentCount: 0,
-        failedCount: 0,
-        errors: ['Discord client not set'],
       };
     }
 

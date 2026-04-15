@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { getDb } from '@/lib/db';
-import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 
 const { members, fines, rounds, FineStatus } = sharedDb;
 
@@ -55,7 +55,7 @@ export async function GET() {
       total: fineList.reduce((sum, f) => sum + f.amount, 0),
     };
 
-    return successResponse({ fines: fineList, summary });
+    return withCache(successResponse({ fines: fineList, summary }), 30);
   } catch (error) {
     return errorResponse(error);
   }

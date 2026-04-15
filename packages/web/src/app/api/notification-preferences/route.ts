@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
+import { FORCE_SEND_TYPES } from '@/lib/push';
 
 const { notificationPreferences, NotificationType } = sharedDb;
 
@@ -19,14 +20,6 @@ export async function GET(_request: NextRequest) {
     const database = getDb();
 
     // 모든 알림 타입에 대한 설정 조회 (강제 전송 타입은 제외 - 끌 수 없음)
-    const FORCE_SEND_TYPES = new Set<string>([
-      NotificationType.BOARD_NOTICE,
-      NotificationType.FINE_NOTIFICATION,
-      NotificationType.FINE_REMINDER,
-      NotificationType.DEADLINE_REMINDER,
-      NotificationType.GRACE_NUDGE,
-      NotificationType.POLL_REMINDER,
-    ]);
     const allTypes = Object.values(NotificationType).filter((t) => !FORCE_SEND_TYPES.has(t));
     const existing = await database
       .select()

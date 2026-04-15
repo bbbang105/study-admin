@@ -93,18 +93,6 @@ export default function FinesPage() {
   const unpaidFines = data?.fines.filter((f) => f.status === 'PENDING') ?? [];
   const completedFines = data?.fines.filter((f) => f.status !== 'PENDING') ?? [];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <PageError message={error} />;
-  }
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -121,6 +109,14 @@ export default function FinesPage() {
           <h1 className="text-xl font-semibold tracking-tight">벌금 내역</h1>
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <PageError message={error} />
+      ) : (<>
 
       {/* Summary Cards */}
       {data && (
@@ -205,9 +201,14 @@ export default function FinesPage() {
                             <AlertDialogTitle className="text-base">
                               입금을 완료하셨나요?
                             </AlertDialogTitle>
-                            <AlertDialogDescription className="text-sm text-muted-foreground">
-                              {fine.roundNumber}회차 {getTypeLabel(fine.type)} 벌금{' '}
-                              {fine.amount.toLocaleString()}원의 납부를 확인합니다.
+                            <AlertDialogDescription className="text-sm space-y-2">
+                              <span className="block">
+                                {fine.roundNumber}회차 {getTypeLabel(fine.type)} 벌금{' '}
+                                {fine.amount.toLocaleString()}원의 납부를 확인합니다.
+                              </span>
+                              <span className="block text-xs rounded-md bg-muted px-2 py-1.5 font-mono">
+                                카카오뱅크 3333333114501
+                              </span>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -282,9 +283,13 @@ export default function FinesPage() {
                     카카오뱅크 3333333114501
                   </p>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText('3333333114501');
-                      toast.success('계좌번호가 복사되었습니다.');
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText('3333333114501');
+                        toast.success('계좌번호가 복사되었습니다.');
+                      } catch {
+                        toast.error('복사에 실패했습니다.');
+                      }
                     }}
                     className="shrink-0 rounded-md border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
@@ -297,6 +302,8 @@ export default function FinesPage() {
           </CardContent>
         </Card>
       )}
+
+      </>)}
     </div>
   );
 }

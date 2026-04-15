@@ -11,6 +11,14 @@ const { members } = sharedDb;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const ALLOWED_TYPES = new Set([
+  'fine_notification',
+  'fine_reminder',
+  'deadline_reminder',
+  'grace_nudge',
+  'poll_reminder',
+]);
+
 // Rate limit: 30 requests/minute
 const rateLimitMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW = 60_000;
@@ -65,9 +73,20 @@ export async function POST(request: NextRequest) {
     if (!memberIds.every((id: unknown) => typeof id === 'string' && UUID_RE.test(id))) {
       return Errors.badRequest('Invalid memberIds format').toResponse();
     }
+    if (memberIds.length > 200) {
+      return Errors.badRequest('memberIds too large (max 200)').toResponse();
+    }
+    if (!ALLOWED_TYPES.has(type)) {
+      return Errors.badRequest('Invalid notification type').toResponse();
+    }
+    if (type.length > 50) {
+      return Errors.badRequest('type too long').toResponse();
+    }
     if (title.length > 200) return Errors.badRequest('title too long (max 200)').toResponse();
     if (pushBody.length > 1000) return Errors.badRequest('body too long (max 1000)').toResponse();
-    if (!clickUrl.startsWith('/')) return Errors.badRequest('clickUrl must start with /').toResponse();
+    if (!clickUrl.startsWith('/') || clickUrl.startsWith('//')) {
+      return Errors.badRequest('clickUrl must be a relative path starting with /').toResponse();
+    }
 
     const result = await sendPushToMembers(memberIds, {
       title,

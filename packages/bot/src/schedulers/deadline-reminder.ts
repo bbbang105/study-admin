@@ -80,6 +80,7 @@ function formatKSTDate(dateStr: string): string {
 
 export class DeadlineReminder {
   private isRunning = false;
+  // @ts-expect-error -- scheduler-registry 호환 유지, push 전환 후 미사용
   private client: Client | null = null;
 
   setClient(client: Client): void {
@@ -104,11 +105,6 @@ export class DeadlineReminder {
 
     if (this.isRunning) {
       logger.info('📅 [마감 리마인더] 이미 실행 중, 건너뜀');
-      return emptyResult();
-    }
-
-    if (!this.client) {
-      logger.error('📅 [마감 리마인더] Discord 클라이언트 미설정');
       return emptyResult();
     }
 
@@ -163,12 +159,6 @@ export class DeadlineReminder {
     }
 
     this.isRunning = true;
-
-    if (!this.client) {
-      this.isRunning = false;
-      logger.error('📅 [마감 리마인더] Discord 클라이언트 미설정');
-      return emptyResult();
-    }
 
     if (dDay < 0 || dDay > 2) {
       this.isRunning = false;
