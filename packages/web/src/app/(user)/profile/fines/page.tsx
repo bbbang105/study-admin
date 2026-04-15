@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Wallet } from 'lucide-react';
+import { ArrowLeft, Copy, Loader2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -275,11 +275,23 @@ export default function FinesPage() {
               <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0">
                 <Wallet className="h-4 w-4" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 flex-1">
                 <p className="text-sm font-semibold">입금 계좌</p>
-                <p className="text-sm text-muted-foreground">
-                  카카오뱅크 3333333114501
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    카카오뱅크 3333333114501
+                  </p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('3333333114501');
+                      toast.success('계좌번호가 복사되었습니다.');
+                    }}
+                    className="shrink-0 rounded-md border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Copy className="h-3 w-3 inline mr-1" />
+                    복사
+                  </button>
+                </div>
               </div>
             </div>
           </CardContent>
