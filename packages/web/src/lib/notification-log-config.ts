@@ -25,96 +25,96 @@ export type NotificationLogTypeValue = (typeof NotificationLogType)[keyof typeof
 export interface NotificationLogTypeMeta {
   label: string;
   color: string;
-  isDM: boolean;
+  target: 'channel' | 'dm' | 'push';
 }
 
 export const notificationLogTypeConfig: Record<NotificationLogTypeValue, NotificationLogTypeMeta> = {
   round_report: {
     label: '회차 리포트',
     color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-    isDM: false,
+    target: 'channel',
   },
   round_start: {
     label: '회차 시작',
     color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    isDM: false,
+    target: 'channel',
   },
   weekly_ranking: {
     label: '주간 랭킹',
     color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-    isDM: false,
+    target: 'channel',
   },
   curation: {
     label: '큐레이션',
     color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-    isDM: false,
+    target: 'channel',
   },
   new_post: {
     label: '새 글 알림',
     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    isDM: false,
+    target: 'channel',
   },
   popular_posts: {
     label: '인기 포스트',
     color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
-    isDM: false,
+    target: 'channel',
   },
   fine_payment: {
     label: '벌금 확인',
     color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    isDM: false,
+    target: 'channel',
   },
   deadline_reminder: {
     label: '마감 리마인더',
     color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
-    isDM: true,
+    target: 'push',
   },
   fine_notification: {
     label: '벌금 알림',
     color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    isDM: true,
+    target: 'push',
   },
   fine_reminder: {
     label: '벌금 독촉',
     color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-    isDM: true,
+    target: 'push',
   },
   grace_nudge: {
     label: '지각 독촉',
     color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    isDM: true,
+    target: 'push',
   },
   poll_reminder: {
     label: '투표 리마인더',
     color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
-    isDM: true,
+    target: 'push',
   },
   board_notice: {
     label: '게시판 공지',
     color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
-    isDM: false,
+    target: 'channel',
   },
   post_register: {
     label: '수동 등록',
     color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-    isDM: false,
+    target: 'channel',
   },
   member_approval: {
     label: '가입 승인',
     color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
-    isDM: false,
+    target: 'channel',
   },
   announcement: {
     label: '공지 알림',
     color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-    isDM: false,
+    target: 'channel',
   },
 };
 
 const fallbackMeta: NotificationLogTypeMeta = {
   label: '알 수 없음',
   color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
-  isDM: false,
+  target: 'channel',
 };
 
 export function getLogTypeMeta(type: string): NotificationLogTypeMeta {

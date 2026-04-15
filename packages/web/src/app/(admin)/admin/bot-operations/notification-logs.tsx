@@ -171,6 +171,7 @@ export default function NotificationLogs() {
             <SelectItem value="_all">전체</SelectItem>
             <SelectItem value="channel">채널</SelectItem>
             <SelectItem value="dm">DM</SelectItem>
+            <SelectItem value="push">푸시</SelectItem>
           </SelectContent>
         </Select>
 
@@ -200,7 +201,7 @@ export default function NotificationLogs() {
           {logs.map((log) => {
             const meta = getLogTypeMeta(log.type);
             const isSent = log.status === 'sent';
-            const isDM = log.targetDiscordId != null;
+            const target = meta.target;
 
             return (
               <Card key={log.id} className="py-0">
@@ -230,13 +231,11 @@ export default function NotificationLogs() {
                           {log.source === 'bot' ? '봇' : '웹'}
                         </Badge>
                         <span className="truncate">
-                          {isDM
-                            ? `DM → ${log.targetDiscordId}`
-                            : log.channelName
-                              ? `#${log.channelName}`
-                              : log.channelId
-                                ? `#${log.channelId}`
-                                : '—'}
+                          {target === 'push'
+                            ? '푸시'
+                            : target === 'dm'
+                              ? `DM → ${log.targetDiscordId}`
+                              : `#${log.channelName || log.channelId || '—'}`}
                         </span>
                         <span className="ml-auto shrink-0">{formatRelativeTime(log.createdAt)}</span>
                       </div>
