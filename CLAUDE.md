@@ -70,7 +70,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
 - **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + embed(제목+본문 미리보기 500자) + 웹 딥링크 버튼
 - **벌금 납부**: 웹 `/profile/fines`에서 본인 납부 처리 (atomic update), 납부 시 관리자 Discord 채널 알림. 계좌 정보: 3333333114501 카카오뱅크
-- **리마인더 푸시**: 벌금 알림(`fine_notification`)/벌금 리마인더(`fine_reminder`)/마감 리마인더(`deadline_reminder`)/지각 독촉(`grace_nudge`)/투표 리마인더(`poll_reminder`) 5종은 Discord DM 대신 FCM 푸시로 발송. 봇→웹 내부 API(`/api/internal/reminder-push`) 경유. `FORCE_SEND_TYPES`로 유저가 끌 수 없음
+- **리마인더 푸시**: 벌금 알림(`fine_notification`)/벌금 리마인더(`fine_reminder`)/마감 리마인더(`deadline_reminder`)/지각 독촉(`grace_nudge`)/투표 리마인더(`poll_reminder`) 5종은 Discord DM 대신 FCM 푸시로 발송. 봇→웹 내부 API(`/api/internal/reminder-push`) 경유. `FORCE_SEND_TYPES`로 유저가 끌 수 없음. **FCM 푸시 body는 plain text** (`**bold**` 등 마크다운 렌더 안 됨 — 강조 시 따옴표 `'X'` 사용)
 - **D-Day 계산**: KST 캘린더 날짜 기준 (midnight 비교, 당일=D-Day=0), 제출률은 active 유저만 카운트
 - **알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM+푸시 알림 성공/실패 기록 (target: `channel`/`dm`/`push`), `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤, 푸시 로그에 수신자 닉네임 표시)
 - **비밀답글 가시성**: 비밀 답글은 작성자/포스트작성자/부모댓글작성자/관리자가 열람 가능
