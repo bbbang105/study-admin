@@ -34,7 +34,7 @@ function getDeadlineMessage(dDay: number, roundNumber: number, endDate: string):
       return {
         title: '"📝 글 제출 마감이 이틀 남았어요"',
         body: [
-          `${roundNumber}회차 마감일은 **${formattedDate}**이에요.`,
+          `${roundNumber}회차 마감일은 '${formattedDate}'이에요.`,
           ``,
           `아직 여유가 있지만, 미리 준비하면 마음이 편하겠죠?`,
           `주제가 안 떠오르면 최근에 배운 걸 짧게 정리하는 것도 좋아요 ✍️`,
@@ -44,7 +44,7 @@ function getDeadlineMessage(dDay: number, roundNumber: number, endDate: string):
       return {
         title: '"⏳ 내일이 마감이에요!"',
         body: [
-          `${roundNumber}회차 마감이 **내일 ${formattedDate}**이에요.`,
+          `${roundNumber}회차 마감이 '내일 ${formattedDate}'이에요.`,
           ``,
           `완벽하지 않아도 괜찮아요.`,
           `짧은 글이라도 꾸준히 쓰는 게 중요하니까요 💪`,
@@ -54,7 +54,7 @@ function getDeadlineMessage(dDay: number, roundNumber: number, endDate: string):
       return {
         title: '"🔥 오늘이 마감일이에요!"',
         body: [
-          `${roundNumber}회차 마감이 **오늘**까지입니다.`,
+          `${roundNumber}회차 마감이 '오늘'까지입니다.`,
           ``,
           `아직 시간이 있어요! 지금 시작해도 충분합니다.`,
           `오늘 안에 제출하면 정상 출석 처리돼요 ✅`,
