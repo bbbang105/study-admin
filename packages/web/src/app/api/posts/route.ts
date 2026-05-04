@@ -70,14 +70,13 @@ export async function GET(request: NextRequest) {
     const conditions = [isNull(posts.deletedAt)];
     if (roundIdNum !== null) conditions.push(eq(posts.roundId, roundIdNum));
     if (search) {
-      conditions.push(
-        or(
-          ilike(posts.title, `%${search}%`),
-          ilike(members.name, `%${search}%`),
-          ilike(members.nickname, `%${search}%`),
-          ilike(members.discordUsername, `%${search}%`)
-        )
+      const searchCondition = or(
+        ilike(posts.title, `%${search}%`),
+        ilike(members.name, `%${search}%`),
+        ilike(members.nickname, `%${search}%`),
+        ilike(members.discordUsername, `%${search}%`)
       );
+      if (searchCondition) conditions.push(searchCondition);
     }
     if (partsFilter && partsFilter.length > 0) {
       conditions.push(inArray(members.part, partsFilter));
