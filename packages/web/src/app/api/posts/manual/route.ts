@@ -150,15 +150,23 @@ export async function POST(request: NextRequest) {
       return Errors.notFound('멤버 정보를 찾을 수 없습니다.').toResponse();
     }
 
-    // 중복 URL 체크
+    // 중복 URL 체크 (soft deleted 포함 — 본인 글이면 복원 처리)
     const [existing] = await database
-      .select({ id: posts.id })
+      .select({ id: posts.id, memberId: posts.memberId, deletedAt: posts.deletedAt })
       .from(posts)
       .where(eq(posts.url, url))
       .limit(1);
 
     if (existing) {
-      return Errors.conflict('이미 등록된 URL입니다.').toResponse();
+      // 활성 포스트면 conflict
+      if (!existing.deletedAt) {
+        return Errors.conflict('이미 등록된 URL입니다.').toResponse();
+      }
+      // 다른 사람의 삭제된 포스트는 등록 불가 (URL 도용 방지)
+      if (existing.memberId !== member.id) {
+        return Errors.conflict('이미 등록된 URL입니다.').toResponse();
+      }
+      // 본인이 이전에 삭제한 글 → 복원 흐름으로 진행
     }
 
     // 클라이언트에서 미리보기 후 편집된 값 우선 사용, 없으면 OG 크롤링
@@ -201,19 +209,49 @@ export async function POST(request: NextRequest) {
       .where(eq(rounds.isCurrent, true))
       .limit(1);
 
-    // 포스트 등록
-    const [newPost] = await database
-      .insert(posts)
-      .values({
-        memberId: member.id,
-        roundId: currentRound?.id ?? null,
-        title,
-        url,
-        publishedAt,
-        thumbnailUrl,
-        description,
-      })
-      .returning();
+    // 포스트 등록 (또는 본인 soft deleted 글 복원)
+    // 복원 흐름은 deletedAt IS NOT NULL 조건을 update predicate에 포함시켜 race 차단
+    // (동시 요청이 둘 다 select에서 deleted 상태를 읽어도, 먼저 update한 쪽만 returning row 반환)
+    let newPost;
+    if (existing?.deletedAt && existing.memberId === member.id) {
+      [newPost] = await database
+        .update(posts)
+        .set({
+          roundId: currentRound?.id ?? null,
+          title,
+          publishedAt,
+          thumbnailUrl,
+          description,
+          commentCount: 0,
+          deletedAt: null,
+          collectedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(posts.id, existing.id),
+            eq(posts.memberId, member.id),
+            sql`${posts.deletedAt} IS NOT NULL`
+          )
+        )
+        .returning();
+      // race 패배 → 다른 요청이 이미 복원 완료. 중복 부수효과 차단
+      if (!newPost) {
+        return Errors.conflict('이미 처리된 요청입니다.').toResponse();
+      }
+    } else {
+      [newPost] = await database
+        .insert(posts)
+        .values({
+          memberId: member.id,
+          roundId: currentRound?.id ?? null,
+          title,
+          url,
+          publishedAt,
+          thumbnailUrl,
+          description,
+        })
+        .returning();
+    }
 
     // 출석 상태 업데이트 (현재 회차 + active 유저만)
     if (currentRound && member.status === 'active') {

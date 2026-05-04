@@ -44,18 +44,27 @@ async function isNotificationEnabled(memberId: string, type: string): Promise<bo
   }
 }
 
+export interface PushResult {
+  success: number;
+  failed: number;
+  /** preference로 비활성한 수신자 수 */
+  skipped?: number;
+  /** FCM 토큰이 0개인 수신자 수 (등록 안 했거나 invalid로 삭제됨) */
+  noToken?: number;
+}
+
 /**
  * 특정 멤버에게 FCM 푸시 알림 전송
  */
 export async function sendPushToMember(
   memberId: string,
   payload: PushPayload
-): Promise<{ success: number; failed: number }> {
+): Promise<PushResult> {
   const notificationType = payload.data?.type;
   if (notificationType && !FORCE_SEND_TYPES.has(notificationType)) {
     const enabled = await isNotificationEnabled(memberId, notificationType);
     if (!enabled) {
-      return { success: 0, failed: 0 };
+      return { success: 0, failed: 0, skipped: 1 };
     }
   }
 
@@ -67,7 +76,7 @@ export async function sendPushToMember(
     .where(eq(fcmTokens.memberId, memberId));
 
   if (tokens.length === 0) {
-    return { success: 0, failed: 0 };
+    return { success: 0, failed: 0, noToken: 1 };
   }
 
   const message: MulticastMessage = {
@@ -140,12 +149,13 @@ export async function sendPushToMember(
 export async function sendPushToMembers(
   memberIds: string[],
   payload: PushPayload
-): Promise<{ success: number; failed: number }> {
+): Promise<PushResult> {
   const database = getDb();
 
   // 알림 설정으로 수신 거부한 멤버 필터링 (강제 전송 타입은 스킵)
   const notificationType = payload.data?.type;
   let filteredMemberIds = memberIds;
+  let skipped = 0;
   if (notificationType && !FORCE_SEND_TYPES.has(notificationType)) {
     const disabledPrefs = await database
       .select({ memberId: notificationPreferences.memberId })
@@ -159,10 +169,11 @@ export async function sendPushToMembers(
       );
     const disabledSet = new Set(disabledPrefs.map((p) => p.memberId));
     filteredMemberIds = memberIds.filter((id) => !disabledSet.has(id));
+    skipped = memberIds.length - filteredMemberIds.length;
   }
 
   if (filteredMemberIds.length === 0) {
-    return { success: 0, failed: 0 };
+    return { success: 0, failed: 0, skipped, noToken: 0 };
   }
 
   const tokens = await database
@@ -170,8 +181,11 @@ export async function sendPushToMembers(
     .from(fcmTokens)
     .where(inArray(fcmTokens.memberId, filteredMemberIds));
 
+  const memberIdsWithToken = new Set(tokens.map((t) => t.memberId));
+  const noToken = filteredMemberIds.filter((id) => !memberIdsWithToken.has(id)).length;
+
   if (tokens.length === 0) {
-    return { success: 0, failed: 0 };
+    return { success: 0, failed: 0, skipped, noToken };
   }
 
   // 멤버별로 그룹화하여 전송 (FCM quota 최적화)
@@ -249,5 +263,5 @@ export async function sendPushToMembers(
     }
   }
 
-  return { success: totalSuccess, failed: totalFailed };
+  return { success: totalSuccess, failed: totalFailed, skipped, noToken };
 }

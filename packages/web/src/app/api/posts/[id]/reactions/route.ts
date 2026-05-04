@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { getBoardAuth } from '@/lib/board-auth';
@@ -14,10 +14,7 @@ const { postReactions, posts, members } = sharedDb;
  * GET /api/posts/[id]/reactions
  * 포스트 리액션 조회
  */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -61,10 +58,7 @@ export async function GET(
  * POST /api/posts/[id]/reactions
  * 포스트 리액션 토글
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getBoardAuth();
     if (!auth) return Errors.unauthorized().toResponse();
@@ -82,7 +76,7 @@ export async function POST(
     const [post] = await database
       .select({ id: posts.id })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     if (!post) return Errors.notFound('포스트를 찾을 수 없습니다.').toResponse();
@@ -101,23 +95,15 @@ export async function POST(
         .limit(1);
 
       if (existing) {
-        await tx
-          .delete(postReactions)
-          .where(eq(postReactions.id, existing.id));
+        await tx.delete(postReactions).where(eq(postReactions.id, existing.id));
         return 'removed' as const;
       } else {
-        await tx
-          .insert(postReactions)
-          .values({ postId, memberId: auth.memberId, emoji });
+        await tx.insert(postReactions).values({ postId, memberId: auth.memberId, emoji });
         return 'added' as const;
       }
     });
 
-    return successResponse(
-      { action, emoji },
-      undefined,
-      action === 'added' ? 201 : 200
-    );
+    return successResponse({ action, emoji }, undefined, action === 'added' ? 201 : 200);
   } catch (error) {
     return errorResponse(error);
   }

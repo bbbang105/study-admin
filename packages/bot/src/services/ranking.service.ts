@@ -4,7 +4,7 @@
  * 주간/월간 랭킹, 포디움 추출
  */
 
-import { and, count, inArray, sql } from 'drizzle-orm';
+import { and, count, inArray, isNull, sql } from 'drizzle-orm';
 import { activityScores, getDb, members, MemberStatus, posts, } from '@blog-study/shared/db';
 
 /**
@@ -63,9 +63,9 @@ export class RankingService {
 
     const memberIds = activeMembers.map((m) => m.id);
 
-    // 포스트 수 집계
+    // 포스트 수 집계 (soft deleted 제외)
     let postCounts = new Map<string, number>();
-    const postConditions = [inArray(posts.memberId, memberIds)];
+    const postConditions = [inArray(posts.memberId, memberIds), isNull(posts.deletedAt)];
 
     // 날짜 범위 필터링
     if (startDate && endDate) {

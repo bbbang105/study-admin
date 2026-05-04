@@ -21,6 +21,7 @@ export interface FineReminderResult {
   processedCount: number;
   sentCount: number;
   failedCount: number;
+  noTokenCount?: number;
   errors: string[];
 }
 
@@ -117,6 +118,7 @@ export class FineReminder {
     const errors: string[] = [];
     let sentCount = 0;
     let failedCount = 0;
+    let noTokenCount = 0;
 
     try {
       // 지각 기간이면 PENDING 멤버에게 독촉 DM 발송
@@ -158,7 +160,7 @@ export class FineReminder {
         );
 
         try {
-          const success = await sendFineReminder(
+          const result = await sendFineReminder(
             fine.memberId,
             fine.id,
             fine.amount,
@@ -167,12 +169,21 @@ export class FineReminder {
             daysSinceCreation
           );
 
-          if (success) {
+          if (result.sent) {
             sentCount++;
             // P1 #10: 리마인드 발송 후 lastReminderAt 업데이트
             await fineService.updateLastReminderAt(fine.id);
+          } else if (result.noToken) {
+            // FCM 토큰 미등록 — 매일 무한 재시도되지 않도록 lastReminderAt 갱신
+            noTokenCount++;
+            await fineService.updateLastReminderAt(fine.id);
+            errors.push(`벌금 ${fine.id} 수신자(${fine.memberId}) FCM 토큰 미등록`);
           } else {
             failedCount++;
+            logger.warn(
+              { fineId: fine.id, memberId: fine.memberId, result },
+              '⏰ [벌금 리마인더] 분류 실패 (sent=false, noToken=false) — webUrl이 옛 reminder-push API를 호출 중일 가능성'
+            );
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -183,7 +194,7 @@ export class FineReminder {
       }
 
       logger.info(
-        `⏰ [벌금 리마인더] 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건`
+        `⏰ [벌금 리마인더] 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건, 토큰 미등록 ${noTokenCount}건`
       );
 
       return {
@@ -191,6 +202,7 @@ export class FineReminder {
         processedCount: finesNeedingReminder.length,
         sentCount,
         failedCount,
+        noTokenCount,
         errors,
       };
     } catch (error) {
@@ -232,6 +244,7 @@ export class FineReminder {
     const errors: string[] = [];
     let sentCount = 0;
     let failedCount = 0;
+    let noTokenCount = 0;
 
     try {
       const fineService = getFineService();
@@ -250,7 +263,7 @@ export class FineReminder {
         );
 
         try {
-          const success = await sendFineReminder(
+          const result = await sendFineReminder(
             fine.memberId,
             fine.id,
             fine.amount,
@@ -259,11 +272,18 @@ export class FineReminder {
             daysSinceCreation
           );
 
-          if (success) {
+          if (result.sent) {
             sentCount++;
             // 수동 실행이므로 lastReminderAt 업데이트 안 함
+          } else if (result.noToken) {
+            noTokenCount++;
+            errors.push(`벌금 ${fine.id} 수신자(${fine.memberId}) FCM 토큰 미등록`);
           } else {
             failedCount++;
+            logger.warn(
+              { fineId: fine.id, memberId: fine.memberId, result },
+              '⏰ [벌금 리마인더] 분류 실패 (sent=false, noToken=false) — webUrl이 옛 reminder-push API를 호출 중일 가능성'
+            );
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -273,7 +293,7 @@ export class FineReminder {
       }
 
       logger.info(
-        `⏰ [벌금 리마인더] 수동 실행 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건`
+        `⏰ [벌금 리마인더] 수동 실행 완료 — 발송 ${sentCount}건, 실패 ${failedCount}건, 토큰 미등록 ${noTokenCount}건`
       );
 
       return {
@@ -281,6 +301,7 @@ export class FineReminder {
         processedCount: finesWithInfo.length,
         sentCount,
         failedCount,
+        noTokenCount,
         errors,
       };
     } catch (error) {

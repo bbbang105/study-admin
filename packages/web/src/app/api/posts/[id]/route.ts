@@ -1,11 +1,11 @@
-import { and, eq, like } from 'drizzle-orm';
+import { and, eq, isNull, like } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isAdminDiscordId } from '@/lib/admin';
 
-const { posts, members, postComments, postViews, activityScores, ActivityScoreType } = sharedDb;
+const { posts, members, postComments, postViews, postReactions, activityScores, ActivityScoreType } = sharedDb;
 
 /**
  * PATCH /api/posts/[id]
@@ -31,11 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const database = db();
 
-    // 포스트 조회
+    // 포스트 조회 (soft deleted 제외)
     const [post] = await database
       .select({ id: posts.id, memberId: posts.memberId })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     if (!post) {
@@ -110,7 +110,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const database = db();
 
-    // 포스트 조회
+    // 포스트 조회 (soft deleted 제외)
     const [post] = await database
       .select({
         id: posts.id,
@@ -119,7 +119,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         url: posts.url,
       })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     if (!post) {
@@ -140,13 +140,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return Errors.forbidden('삭제 권한이 없습니다.').toResponse();
     }
 
-    // 트랜잭션으로 일괄 삭제
+    // 포스트는 soft delete (URL 보존 → RSS 재수집 방지)
+    // 댓글/조회/리액션/점수는 hard delete (복원 시 이전 데이터가 새 포스트에 살아남는 것 방지)
     await database.transaction(async (tx) => {
-      // 1. 댓글 삭제
+      // 1. 댓글 hard delete
       await tx.delete(postComments).where(eq(postComments.postId, postId));
 
-      // 2. 조회 기록 삭제
+      // 2. 조회 기록 hard delete
       await tx.delete(postViews).where(eq(postViews.postId, postId));
+
+      // 2b. 리액션 hard delete (복원 시 인기점수 부풀림 차단)
+      await tx.delete(postReactions).where(eq(postReactions.postId, postId));
 
       // 3. blog_post 점수 회수
       // 봇: "블로그 포스트: {title(특수문자 제거, 200자)}", 수동: "블로그 포스트: {title(200자)}"
@@ -162,8 +166,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
           )
         );
 
-      // 4. 포스트 삭제
-      await tx.delete(posts).where(eq(posts.id, postId));
+      // 4. 포스트 soft delete (URL은 unique constraint로 남아 RSS 재수집 차단)
+      await tx.update(posts).set({ deletedAt: new Date() }).where(eq(posts.id, postId));
     });
 
     return successResponse({ deleted: true });

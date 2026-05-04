@@ -12,7 +12,7 @@ import {
   EmbedBuilder,
   type MessageCreateOptions,
 } from 'discord.js';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import logger from '../lib/logger';
 import { logNotification } from '../lib/notification-logger';
 import { getDb, members, posts } from '@blog-study/shared/db';
@@ -76,7 +76,7 @@ async function getPopularPostsForRound(roundId: number): Promise<PopularPost[]> 
     })
     .from(posts)
     .leftJoin(members, eq(posts.memberId, members.id))
-    .where(eq(posts.roundId, roundId))
+    .where(and(eq(posts.roundId, roundId), isNull(posts.deletedAt)))
     .orderBy(desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt))
     .limit(5);
 

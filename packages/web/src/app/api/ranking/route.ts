@@ -1,13 +1,21 @@
 import { NextRequest } from 'next/server';
-import { count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
 import { getAdminDiscordIds } from '@/lib/admin';
 
-const { members, posts, attendance, rounds, activityScores, config, MemberStatus, AttendanceStatus } =
-  sharedDb;
+const {
+  members,
+  posts,
+  attendance,
+  rounds,
+  activityScores,
+  config,
+  MemberStatus,
+  AttendanceStatus,
+} = sharedDb;
 
 const VALID_SORT_KEYS = ['score', 'posts', 'activity'] as const;
 type SortKey = (typeof VALID_SORT_KEYS)[number];
@@ -160,7 +168,10 @@ export async function GET(request: NextRequest) {
       .where(eq(config.key, 'ranking_excluded_ids'))
       .limit(1);
     const configExcludedIds = excludedRow
-      ? excludedRow.value.split(',').map((id) => id.trim()).filter(Boolean)
+      ? excludedRow.value
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
       : [];
     const excludedDiscordIds = new Set([...adminDiscordIds, ...configExcludedIds]);
     const filteredMembersWithPosts = membersWithPosts.filter(
@@ -176,7 +187,7 @@ export async function GET(request: NextRequest) {
           count: count(posts.id),
         })
         .from(posts)
-        .where(eq(posts.roundId, currentRoundId))
+        .where(and(eq(posts.roundId, currentRoundId), isNull(posts.deletedAt)))
         .groupBy(posts.memberId);
 
       for (const row of crPosts) {

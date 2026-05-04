@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { count, desc, eq, sql } from 'drizzle-orm';
+import { count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
@@ -98,8 +98,11 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
 
     const memberCountMap = new Map(memberCounts.map((m) => [m.status, m.count]));
 
-    // Get total posts count
-    const [totalPostsResult] = await database.select({ count: count() }).from(posts);
+    // Get total posts count (soft deleted 제외)
+    const [totalPostsResult] = await database
+      .select({ count: count() })
+      .from(posts)
+      .where(isNull(posts.deletedAt));
 
     // Get unpaid fines summary
     const [unpaidFinesResult] = await database
@@ -122,6 +125,7 @@ export const GET = withAdminAuth(async (_request, _adminAuth) => {
       })
       .from(posts)
       .leftJoin(members, eq(posts.memberId, members.id))
+      .where(isNull(posts.deletedAt))
       .orderBy(desc(posts.publishedAt))
       .limit(5);
 

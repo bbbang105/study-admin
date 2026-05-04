@@ -30,7 +30,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const [post] = await database
       .select({ memberId: posts.memberId })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     const rows = await database
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const [post] = await database
       .select({ id: posts.id, memberId: posts.memberId })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     if (!post) return Errors.notFound('글을 찾을 수 없습니다.').toResponse();

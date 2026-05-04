@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
@@ -81,7 +81,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const [postCount] = await database
       .select({ count: count() })
       .from(posts)
-      .where(eq(posts.roundId, roundData.id));
+      .where(and(eq(posts.roundId, roundData.id), isNull(posts.deletedAt)));
 
     // Calculate time-related info
     const now = new Date();

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -42,7 +42,7 @@ export async function GET() {
         const [postCount] = await database
           .select({ count: count() })
           .from(posts)
-          .where(eq(posts.memberId, member.id));
+          .where(and(eq(posts.memberId, member.id), isNull(posts.deletedAt)));
 
         const attendanceStats = await database
           .select({

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -38,11 +38,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       return Errors.notFound('멤버를 찾을 수 없습니다.').toResponse();
     }
 
-    // Get post count
+    // Get post count (soft deleted 제외)
     const [postCount] = await database
       .select({ count: count() })
       .from(posts)
-      .where(eq(posts.memberId, member.id));
+      .where(and(eq(posts.memberId, member.id), isNull(posts.deletedAt)));
 
     // Get attendance stats
     const attendanceStats = await database
@@ -57,7 +57,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     const attStats = attendanceStats[0] || { total: 0, submitted: 0, late: 0, absent: 0 };
 
-    // Get recent posts
+    // Get recent posts (soft deleted 제외)
     const recentPosts = await database
       .select({
         id: posts.id,
@@ -66,7 +66,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         publishedAt: posts.publishedAt,
       })
       .from(posts)
-      .where(eq(posts.memberId, member.id))
+      .where(and(eq(posts.memberId, member.id), isNull(posts.deletedAt)))
       .orderBy(desc(posts.publishedAt))
       .limit(5);
 

@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -71,6 +71,7 @@ export async function GET() {
         })
         .from(posts)
         .leftJoin(members, eq(posts.memberId, members.id))
+        .where(isNull(posts.deletedAt))
         .orderBy(desc(posts.publishedAt))
         .limit(5),
 
@@ -79,7 +80,7 @@ export async function GET() {
         .from(members)
         .where(eq(members.status, MemberStatus.ACTIVE)),
 
-      database.select({ count: count() }).from(posts),
+      database.select({ count: count() }).from(posts).where(isNull(posts.deletedAt)),
 
       database.select({ count: count() }).from(members).where(eq(members.status, MemberStatus.OB)),
 

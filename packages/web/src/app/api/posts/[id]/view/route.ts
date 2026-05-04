@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -45,11 +45,11 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ scored: false }, { status: 404 });
     }
 
-    // 포스트 존재 확인 + 작성자 체크
+    // 포스트 존재 확인 + 작성자 체크 (soft deleted 제외)
     const [post] = await database
       .select({ id: posts.id, memberId: posts.memberId, title: posts.title })
       .from(posts)
-      .where(eq(posts.id, postId))
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
       .limit(1);
 
     if (!post) {

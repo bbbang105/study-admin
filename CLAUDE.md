@@ -70,7 +70,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **포스트 수정**: 본인 또는 관리자만 제목/설명 수정 가능 (`PATCH /api/posts/[id]`)
 - **공지 알림**: 게시판 공지 작성 시 FCM 푸시 + Discord 공지채널(`notice_channel_id`) `@everyone` + embed(제목+본문 미리보기 500자) + 웹 딥링크 버튼
 - **벌금 납부**: 웹 `/profile/fines`에서 본인 납부 처리 (atomic update), 납부 시 관리자 Discord 채널 알림. 계좌 정보: 3333333114501 카카오뱅크
-- **리마인더 푸시**: 벌금 알림(`fine_notification`)/벌금 리마인더(`fine_reminder`)/마감 리마인더(`deadline_reminder`)/지각 독촉(`grace_nudge`)/투표 리마인더(`poll_reminder`) 5종은 Discord DM 대신 FCM 푸시로 발송. 봇→웹 내부 API(`/api/internal/reminder-push`) 경유. `FORCE_SEND_TYPES`로 유저가 끌 수 없음. **FCM 푸시 body는 plain text** (`**bold**` 등 마크다운 렌더 안 됨 — 강조 시 따옴표 `'X'` 사용)
+- **리마인더 푸시**: 벌금 알림(`fine_notification`)/벌금 리마인더(`fine_reminder`)/마감 리마인더(`deadline_reminder`)/지각 독촉(`grace_nudge`)/투표 리마인더(`poll_reminder`) 5종은 Discord DM 대신 FCM 푸시로 발송. 봇→웹 내부 API(`/api/internal/reminder-push`) 경유. `FORCE_SEND_TYPES`로 유저가 끌 수 없음. **FCM 푸시 body는 plain text** (`**bold**` 등 마크다운 렌더 안 됨 — 강조 시 따옴표 `'X'` 사용). `PushResult`(`push.ts`)는 `success`/`failed`/`skipped`/`noToken` 카운트 반환. 벌금 리마인더에서 `noToken`(FCM 토큰 미등록) 케이스는 `sent=false`로 처리하되 `lastReminderAt`을 갱신해 매일 무한 재시도 차단. `addPendingConfirmation`은 `sent===true`일 때만 호출
 - **D-Day 계산**: KST 캘린더 날짜 기준 (midnight 비교, 당일=D-Day=0), 제출률은 active 유저만 카운트
 - **알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM+푸시 알림 성공/실패 기록 (target: `channel`/`dm`/`push`), `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤, 푸시 로그에 수신자 닉네임 표시)
 - **비밀답글 가시성**: 비밀 답글은 작성자/포스트작성자/부모댓글작성자/관리자가 열람 가능
@@ -80,7 +80,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
 - **비밀댓글 isSecret 토글**: PATCH 시 본인만 변경 가능 (관리자도 타인 비밀 상태 변경 불가)
-- **포스트 삭제**: 본인 또는 관리자만 가능, 트랜잭션으로 댓글/조회기록/활동점수(blog_post) 일괄 삭제
+- **포스트 삭제**: 본인 또는 관리자만 가능. 포스트는 soft delete (`deletedAt` 설정, URL unique constraint 유지 → RSS 재수집 차단). 트랜잭션 내 댓글/조회기록/리액션은 hard delete (복원 시 이전 데이터 잔존 방지), 활동점수(blog_post)도 hard delete. 본인이 soft delete한 URL 재등록 시 복원 흐름(`deletedAt=null`, TOCTOU race 차단), 타인의 삭제된 URL은 conflict 반환
 - **이모지 리액션**: 게시판 글 + 포스트에 고정 6종 이모지 (👍👀🔥💡😂✅) 토글, `ReactionBar` 공용 컴포넌트 (`apiPath` prop으로 board/posts 구분), 호버(PC)/클릭(모바일) 시 닉네임 팝오버, 복수 선택 가능, 활동 점수/알림 없음
 - **인기글 점수**: `댓글×3 + 조회수×2 + 리액션×1`, 인기순 상위 5개 메달 테두리 (금/은/동/스카이블루/라벤더)
 - **인기 포스트 알림**: 화 08:05 KST 자동 + 수동 트리거, 이전 회차 TOP 5 Discord Embed (이모지별 카운트, 썸네일, 링크 버튼), `popular_posts_channel_id` 설정 필요, grace period 종료 후 4일 이내만 자동 발송 (중복 방지)
@@ -136,7 +136,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
 | `packages/web/src/app/api/profile/edit/route.ts` | 프로필 수정 API (blogUrl 변경 시 RSS 재감지, 소셜 URL SSRF 체크) |
-| `packages/web/src/app/api/posts/[id]/route.ts` | 포스트 삭제 API (본인/관리자, 댓글+조회+점수 일괄 삭제) |
+| `packages/web/src/app/api/posts/[id]/route.ts` | 포스트 PATCH/DELETE API (본인/관리자, soft delete + 댓글/조회/리액션/점수 hard delete) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/web/src/lib/firebase/admin.ts` | Firebase Admin SDK (lazy 초기화, `getAdminMessaging()`) |
 | `packages/web/src/lib/firebase/client.ts` | Firebase 클라이언트 (FCM 토큰 요청, 포그라운드 메시지) |

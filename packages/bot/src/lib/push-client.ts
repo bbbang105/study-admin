@@ -11,6 +11,10 @@ interface ReminderPushPayload {
 interface PushResult {
   success: number;
   failed: number;
+  /** 알림 설정으로 수신 거부한 멤버 수 */
+  skipped?: number;
+  /** FCM 토큰이 0개인 멤버 수 (등록 안 했거나 invalid로 삭제됨) */
+  noToken?: number;
 }
 
 export async function sendReminderPush(payload: ReminderPushPayload): Promise<PushResult> {
@@ -41,7 +45,7 @@ export async function sendReminderPush(payload: ReminderPushPayload): Promise<Pu
 
     const json = (await res.json()) as { data?: PushResult };
     const result: PushResult = json.data ?? { success: 0, failed: 0 };
-    logger.info({ type: payload.type, ...result }, '📱 [Push] 발송 완료');
+    logger.info({ type: payload.type, webUrl, raw: json, ...result }, '📱 [Push] 발송 완료');
     return result;
   } catch (error) {
     logger.error({ error, type: payload.type }, '📱 [Push] 내부 API 호출 에러');
