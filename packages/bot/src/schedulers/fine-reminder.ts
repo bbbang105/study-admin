@@ -180,6 +180,10 @@ export class FineReminder {
             errors.push(`벌금 ${fine.id} 수신자(${fine.memberId}) FCM 토큰 미등록`);
           } else {
             failedCount++;
+            logger.warn(
+              { fineId: fine.id, memberId: fine.memberId, result },
+              '⏰ [벌금 리마인더] 분류 실패 (sent=false, noToken=false) — webUrl이 옛 reminder-push API를 호출 중일 가능성'
+            );
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -276,6 +280,10 @@ export class FineReminder {
             errors.push(`벌금 ${fine.id} 수신자(${fine.memberId}) FCM 토큰 미등록`);
           } else {
             failedCount++;
+            logger.warn(
+              { fineId: fine.id, memberId: fine.memberId, result },
+              '⏰ [벌금 리마인더] 분류 실패 (sent=false, noToken=false) — webUrl이 옛 reminder-push API를 호출 중일 가능성'
+            );
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);

@@ -45,7 +45,7 @@ export async function sendReminderPush(payload: ReminderPushPayload): Promise<Pu
 
     const json = (await res.json()) as { data?: PushResult };
     const result: PushResult = json.data ?? { success: 0, failed: 0 };
-    logger.info({ type: payload.type, ...result }, '📱 [Push] 발송 완료');
+    logger.info({ type: payload.type, webUrl, raw: json, ...result }, '📱 [Push] 발송 완료');
     return result;
   } catch (error) {
     logger.error({ error, type: payload.type }, '📱 [Push] 내부 API 호출 에러');
