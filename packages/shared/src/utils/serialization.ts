@@ -15,6 +15,7 @@ export interface SerializedPost {
   thumbnailUrl: string | null;
   commentCount: number | null;
   collectedAt: string | null; // ISO 8601 string
+  deletedAt: string | null; // ISO 8601 string
 }
 
 /**
@@ -33,6 +34,7 @@ export function serializePost(post: Post): SerializedPost {
     thumbnailUrl: post.thumbnailUrl,
     commentCount: post.commentCount,
     collectedAt: post.collectedAt?.toISOString() ?? null,
+    deletedAt: post.deletedAt?.toISOString() ?? null,
   };
 }
 
@@ -52,6 +54,7 @@ export function deserializePost(serialized: SerializedPost): Post {
     thumbnailUrl: serialized.thumbnailUrl,
     commentCount: serialized.commentCount ?? 0,
     collectedAt: serialized.collectedAt ? new Date(serialized.collectedAt) : null,
+    deletedAt: serialized.deletedAt ? new Date(serialized.deletedAt) : null,
   };
 }
 
