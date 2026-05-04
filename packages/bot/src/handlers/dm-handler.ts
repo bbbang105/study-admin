@@ -6,13 +6,7 @@
  * P0 #9 해결: 인메모리 Map → DB 영속화로 변경
  */
 
-import {
-  ChannelType,
-  Client,
-  Events,
-  Interaction,
-  TextChannel
-} from 'discord.js';
+import { ChannelType, Client, Events, Interaction, TextChannel } from 'discord.js';
 import { fines, getDb, members, rounds } from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 import { formatFineReason, getFineService, } from '../services';
@@ -229,6 +223,15 @@ export async function sendFineNotification(
  * Send fine reminder push to a user
  * Requirements: 8.4 - Send reminder for unpaid fines
  */
+export interface FineReminderResult {
+  /** 1건 이상 실제로 푸시 발송된 경우 true */
+  sent: boolean;
+  /** 수신자에게 FCM 토큰이 1개도 없는 경우 true */
+  noToken: boolean;
+  /** 처리 중 예외가 발생한 경우 true */
+  errored: boolean;
+}
+
 export async function sendFineReminder(
   memberId: string,
   fineId: string,
@@ -236,7 +239,7 @@ export async function sendFineReminder(
   type: 'late' | 'absent',
   roundNumber: number,
   daysSinceCreation: number
-): Promise<boolean> {
+): Promise<FineReminderResult> {
   try {
     const reason = formatFineReason(type);
     const result = await sendReminderPush({
@@ -246,12 +249,28 @@ export async function sendFineReminder(
       body: `${roundNumber}회차 ${reason} 벌금 ${amount.toLocaleString()}원이 아직 미납 상태입니다. (${daysSinceCreation}일 경과)`,
       clickUrl: '/profile/fines',
     });
-    await addPendingConfirmation(memberId, fineId);
-    logger.info({ memberId, fineId }, '📱 [Push] 벌금 리마인더 발송 완료');
-    return result.success > 0;
+    const sent = result.success > 0;
+    const noToken = !sent && (result.noToken ?? 0) > 0;
+    if (sent) {
+      // 실제 발송된 경우에만 confirmation pending 등록 (noToken/실패 시 리마인더 사이클이 다시 처리)
+      await addPendingConfirmation(memberId, fineId);
+    }
+    logger.info(
+      {
+        memberId,
+        fineId,
+        success: result.success,
+        failed: result.failed,
+        noToken: result.noToken ?? 0,
+      },
+      noToken
+        ? '📱 [Push] 벌금 리마인더 — FCM 토큰 미등록 (수신자가 푸시 권한을 켠 적 없음)'
+        : '📱 [Push] 벌금 리마인더 발송 완료'
+    );
+    return { sent, noToken, errored: false };
   } catch (error) {
     logger.error({ memberId, error: serializeError(error) }, '📱 [Push] 벌금 리마인더 발송 실패');
-    return false;
+    return { sent: false, noToken: false, errored: true };
   }
 }
 

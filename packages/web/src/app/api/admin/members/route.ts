@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, count, sql, asc } from 'drizzle-orm';
+import { asc, count, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { db as sharedDb } from '@blog-study/shared';
+import { db as sharedDb, utils } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
-import { utils } from '@blog-study/shared';
 import { detectRssUrl } from '@/lib/rss-detect';
 
 const { isValidBlogUrl } = utils;
@@ -24,7 +23,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     // Build query
     let query = database.select().from(members);
-    
+
     if (status && status !== 'all') {
       query = query.where(eq(members.status, status)) as typeof query;
     }
@@ -38,6 +37,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         count: count(),
       })
       .from(posts)
+      .where(isNull(posts.deletedAt))
       .groupBy(posts.memberId);
 
     // Get attendance stats for all members
@@ -73,7 +73,12 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 
     const result = membersList.map((member) => {
       const postCount = postCountMap.get(member.id) || 0;
-      const attStats = attendanceMap.get(member.id) || { total: 0, submitted: 0, late: 0, absent: 0 };
+      const attStats = attendanceMap.get(member.id) || {
+        total: 0,
+        submitted: 0,
+        late: 0,
+        absent: 0,
+      };
       const attendanceRate =
         attStats.total > 0 ? Math.round((attStats.submitted / attStats.total) * 100) : 0;
 
@@ -174,10 +179,7 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       .limit(1);
 
     if (existingMember) {
-      return NextResponse.json(
-        { message: '이미 등록된 Discord ID입니다.' },
-        { status: 409 }
-      );
+      return NextResponse.json({ message: '이미 등록된 Discord ID입니다.' }, { status: 409 });
     }
 
     // RSS URL 자동 감지 (비어있으면 blogUrl로부터 감지 시도)

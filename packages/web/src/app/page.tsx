@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { eq, count } from 'drizzle-orm';
+import { count, eq, isNull } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
@@ -26,7 +26,7 @@ export default async function Home() {
 
   const [memberResult, postResult, roundResult] = await Promise.all([
     database.select({ value: count() }).from(members).where(eq(members.status, 'active')),
-    database.select({ value: count() }).from(posts),
+    database.select({ value: count() }).from(posts).where(isNull(posts.deletedAt)),
     database
       .select({ roundNumber: rounds.roundNumber })
       .from(rounds)

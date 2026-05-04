@@ -150,6 +150,7 @@ export const posts = pgTable(
     thumbnailUrl: varchar('thumbnail_url', { length: 2000 }),
     commentCount: integer('comment_count').default(0),
     collectedAt: timestamp('collected_at', { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => ({
     memberIdIdx: index('idx_posts_member_id').on(table.memberId),
@@ -546,11 +547,7 @@ export const postReactions = pgTable(
   (table) => ({
     postIdIdx: index('idx_post_reactions_post_id').on(table.postId),
     memberIdIdx: index('idx_post_reactions_member_id').on(table.memberId),
-    uniqueReaction: unique('unique_post_reaction').on(
-      table.postId,
-      table.memberId,
-      table.emoji
-    ),
+    uniqueReaction: unique('unique_post_reaction').on(table.postId, table.memberId, table.emoji),
   })
 );
 

@@ -11,6 +11,10 @@ interface ReminderPushPayload {
 interface PushResult {
   success: number;
   failed: number;
+  /** 알림 설정으로 수신 거부한 멤버 수 */
+  skipped?: number;
+  /** FCM 토큰이 0개인 멤버 수 (등록 안 했거나 invalid로 삭제됨) */
+  noToken?: number;
 }
 
 export async function sendReminderPush(payload: ReminderPushPayload): Promise<PushResult> {

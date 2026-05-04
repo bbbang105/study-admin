@@ -61,6 +61,7 @@
 | `thumbnail_url` | varchar(1000) | nullable, OG 이미지 |
 | `comment_count` | integer | default 0 |
 | `collected_at` | timestamptz | defaultNow |
+| `deleted_at` | timestamptz | nullable (soft delete, URL unique constraint 유지 → RSS 재수집 차단) |
 
 ### attendance
 | 컬럼 | 타입 | 비고 |

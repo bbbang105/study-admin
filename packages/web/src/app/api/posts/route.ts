@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import {
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       return Errors.badRequest('유효하지 않은 회차 ID입니다.').toResponse();
     }
 
-    // WHERE 조건 조합
-    const conditions = [];
+    // WHERE 조건 조합 (soft deleted 제외)
+    const conditions = [isNull(posts.deletedAt)];
     if (roundIdNum !== null) conditions.push(eq(posts.roundId, roundIdNum));
     if (search) {
       conditions.push(
@@ -82,14 +82,14 @@ export async function GET(request: NextRequest) {
     if (partsFilter && partsFilter.length > 0) {
       conditions.push(inArray(members.part, partsFilter));
     }
-    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereCondition = and(...conditions);
 
     // Get total count (join members for search/parts filter)
     const totalCountQuery = database
       .select({ count: count() })
       .from(posts)
-      .leftJoin(members, eq(posts.memberId, members.id));
-    if (whereCondition) totalCountQuery.where(whereCondition);
+      .leftJoin(members, eq(posts.memberId, members.id))
+      .where(whereCondition);
     const totalCountResult = await totalCountQuery;
     const totalCount = totalCountResult[0]?.count ?? 0;
 
@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
       .from(posts)
       .leftJoin(members, eq(posts.memberId, members.id))
       .leftJoin(rounds, eq(posts.roundId, rounds.id))
+      .where(whereCondition)
       .orderBy(
         ...(sort === 'popular'
           ? [desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt)]
@@ -126,7 +127,6 @@ export async function GET(request: NextRequest) {
       .limit(pageSize)
       .offset(offset);
 
-    if (whereCondition) postsQuery.where(whereCondition);
     const postsResult = await postsQuery;
 
     // Get viewer info for these posts (max 4 per post for display)

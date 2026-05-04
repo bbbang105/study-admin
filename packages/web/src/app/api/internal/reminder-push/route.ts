@@ -104,6 +104,17 @@ export async function POST(request: NextRequest) {
     const recipientNicknames = recipients.map((r) => r.nickname);
 
     // 알림 로그 기록
+    const noToken = result.noToken ?? 0;
+    const skipped = result.skipped ?? 0;
+    let errorMessage: string | undefined;
+    if (result.success === 0) {
+      const reasons: string[] = [];
+      if (noToken > 0) reasons.push(`FCM 토큰 미등록 ${noToken}명`);
+      if (result.failed > 0) reasons.push(`전송 실패 ${result.failed}건`);
+      if (skipped > 0) reasons.push(`수신 거부 ${skipped}명`);
+      errorMessage = reasons.length > 0 ? reasons.join(', ') : undefined;
+    }
+
     await logNotification({
       source: 'web',
       type,
@@ -114,10 +125,7 @@ export async function POST(request: NextRequest) {
         ...result,
       },
       status: result.success > 0 ? 'sent' : 'failed',
-      errorMessage:
-        result.success === 0 && result.failed > 0
-          ? `${result.failed}건 전송 실패`
-          : undefined,
+      errorMessage,
     });
 
     return successResponse(result);

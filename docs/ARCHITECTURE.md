@@ -345,6 +345,7 @@ erDiagram
         text description
         varchar thumbnail_url
         integer comment_count
+        timestamp deleted_at
     }
 
     attendance {

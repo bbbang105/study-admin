@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { count, eq, inArray, sql } from 'drizzle-orm';
+import { count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
@@ -47,13 +47,14 @@ export async function GET(request: NextRequest) {
         statuses.length === 1 ? eq(members.status, statuses[0]!) : inArray(members.status, statuses)
       );
 
-    // Get post counts for all members
+    // Get post counts for all members (soft deleted 제외)
     const postCounts = await database
       .select({
         memberId: posts.memberId,
         count: count(),
       })
       .from(posts)
+      .where(isNull(posts.deletedAt))
       .groupBy(posts.memberId);
 
     // Get attendance stats for all members
