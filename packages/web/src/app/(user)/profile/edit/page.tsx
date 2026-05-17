@@ -3,7 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, FileText, Heart, Image, Link2, Save, Target, User } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileText,
+  Heart,
+  Image,
+  Link2,
+  Plus,
+  Save,
+  Target,
+  Trash2,
+  User,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +68,24 @@ const INTEREST_OPTIONS = [
   '일상 기록',
 ];
 
+// 멤버당 블로그 최대 개수 (서버 MAX_BLOGS_PER_MEMBER와 동일, 서버가 최종 검증)
+const MAX_BLOGS = 3;
+
+interface BlogItem {
+  key: string;
+  id?: string;
+  label: string;
+  blogUrl: string;
+  rssConsent: boolean;
+}
+
+interface ProfileBlog {
+  id: string;
+  label: string | null;
+  blogUrl: string;
+  rssConsent: boolean;
+}
+
 interface ProfileData {
   user: {
     id: string;
@@ -65,18 +94,20 @@ interface ProfileData {
     name: string;
     nickname: string;
     part: string;
-    blogUrl: string;
+    blogs: ProfileBlog[];
     profileImageUrl: string | null;
     bio: string | null;
     interests: string[] | null;
     resolution: string | null;
-    rssConsent: boolean;
     onboardingCompleted: boolean;
     githubUrl: string | null;
     linkedinUrl: string | null;
     instagramUrl: string | null;
   } | null;
 }
+
+let blogKeySeq = 0;
+const newBlogKey = () => `blog-${Date.now()}-${blogKeySeq++}`;
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -90,7 +121,7 @@ export default function ProfileEditPage() {
   const [nickname, setNickname] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [customPart, setCustomPart] = useState('');
-  const [blogUrl, setBlogUrl] = useState('');
+  const [blogs, setBlogs] = useState<BlogItem[]>([]);
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [bio, setBio] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
@@ -98,7 +129,6 @@ export default function ProfileEditPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
-  const [rssConsent, setRssConsent] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -128,7 +158,17 @@ export default function ProfileEditPage() {
             setCustomPart(data.member.part);
           }
         }
-        if (data.member.blogUrl) setBlogUrl(data.member.blogUrl);
+        if (Array.isArray(data.member.blogs)) {
+          setBlogs(
+            data.member.blogs.map((b) => ({
+              key: newBlogKey(),
+              id: b.id,
+              label: b.label ?? '',
+              blogUrl: b.blogUrl,
+              rssConsent: b.rssConsent,
+            }))
+          );
+        }
         if (data.member.profileImageUrl) setProfileImageUrl(data.member.profileImageUrl);
         if (data.member.bio) setBio(data.member.bio);
         if (data.member.interests) setInterests(data.member.interests);
@@ -136,8 +176,6 @@ export default function ProfileEditPage() {
         if (data.member.githubUrl) setGithubUrl(data.member.githubUrl);
         if (data.member.linkedinUrl) setLinkedinUrl(data.member.linkedinUrl);
         if (data.member.instagramUrl) setInstagramUrl(data.member.instagramUrl);
-        if (data.member.rssConsent !== undefined && data.member.rssConsent !== null)
-          setRssConsent(data.member.rssConsent);
       } catch (err) {
         console.error(err);
         router.push('/profile');
@@ -159,6 +197,27 @@ export default function ProfileEditPage() {
     });
   };
 
+  const addBlog = () => {
+    setBlogs((prev) =>
+      prev.length >= MAX_BLOGS
+        ? prev
+        : [...prev, { key: newBlogKey(), label: '', blogUrl: '', rssConsent: true }]
+    );
+  };
+
+  const removeBlog = (key: string) => {
+    setBlogs((prev) => (prev.length <= 1 ? prev : prev.filter((b) => b.key !== key)));
+  };
+
+  const updateBlog = (key: string, patch: Partial<Omit<BlogItem, 'key'>>) => {
+    setBlogs((prev) => prev.map((b) => (b.key === key ? { ...b, ...patch } : b)));
+  };
+
+  const blogsValid =
+    blogs.length >= 1 &&
+    blogs.length <= MAX_BLOGS &&
+    blogs.every((b) => b.blogUrl.trim().length > 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -173,7 +232,12 @@ export default function ProfileEditPage() {
           name: name.trim() || null,
           nickname: nickname.trim() || null,
           part: part || null,
-          blogUrl: blogUrl.trim() || null,
+          blogs: blogs.map((b) => ({
+            id: b.id,
+            label: b.label.trim() || null,
+            blogUrl: b.blogUrl.trim(),
+            rssConsent: b.rssConsent,
+          })),
           profileImageUrl: profileImageUrl || null,
           bio: bio || null,
           interests: interests.length > 0 ? interests : null,
@@ -181,7 +245,6 @@ export default function ProfileEditPage() {
           githubUrl: githubUrl || null,
           linkedinUrl: linkedinUrl || null,
           instagramUrl: instagramUrl || null,
-          rssConsent,
         }),
       });
 
@@ -401,7 +464,7 @@ export default function ProfileEditPage() {
           </CardContent>
         </Card>
 
-        {/* Blog URL */}
+        {/* Blogs */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -409,46 +472,75 @@ export default function ProfileEditPage() {
               <CardTitle>블로그</CardTitle>
             </div>
             <CardDescription>
-              블로그 주소를 변경하면 RSS URL이 자동으로 재감지됩니다.
+              블로그를 최대 {MAX_BLOGS}개까지 등록할 수 있습니다. 각 블로그별로 이름과 RSS 자동 수집
+              여부를 설정하세요. 주소를 변경하면 RSS가 자동으로 재감지됩니다.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="blogUrl">
-              블로그 URL <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="blogUrl"
-              placeholder="https://velog.io/@username"
-              value={blogUrl}
-              onChange={(e) => setBlogUrl(e.target.value)}
-              maxLength={500}
-            />
-          </CardContent>
-        </Card>
-
-        {/* RSS 설정 */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <CardTitle>RSS 설정</CardTitle>
-            </div>
-            <CardDescription>블로그 글 자동 수집 설정을 관리하세요.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="rssConsent" className="text-sm font-medium">
-                  RSS 자동 수집 동의
-                </Label>
-                {!rssConsent && (
-                  <p className="text-xs text-muted-foreground">
-                    RSS 수집을 비활성화하면 글을 직접 등록해야 합니다.
-                  </p>
-                )}
+          <CardContent className="space-y-4">
+            {blogs.map((blog, idx) => (
+              <div key={blog.key} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">블로그 {idx + 1}</p>
+                  {blogs.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeBlog(blog.key)}
+                      aria-label={`블로그 ${idx + 1} 삭제`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`blog-label-${blog.key}`}>이름 (선택)</Label>
+                  <Input
+                    id={`blog-label-${blog.key}`}
+                    placeholder="예: 기술 블로그, 벨로그"
+                    value={blog.label}
+                    onChange={(e) => updateBlog(blog.key, { label: e.target.value })}
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`blog-url-${blog.key}`}>
+                    블로그 URL <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id={`blog-url-${blog.key}`}
+                    placeholder="https://velog.io/@username"
+                    value={blog.blogUrl}
+                    onChange={(e) => updateBlog(blog.key, { blogUrl: e.target.value })}
+                    maxLength={500}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-md border p-2.5">
+                  <div className="space-y-0.5">
+                    <Label htmlFor={`blog-rss-${blog.key}`} className="text-sm font-medium">
+                      RSS 자동 수집
+                    </Label>
+                    {!blog.rssConsent && (
+                      <p className="text-xs text-muted-foreground">
+                        끄면 이 블로그 글을 직접 등록해야 합니다.
+                      </p>
+                    )}
+                  </div>
+                  <Switch
+                    id={`blog-rss-${blog.key}`}
+                    checked={blog.rssConsent}
+                    onCheckedChange={(checked) => updateBlog(blog.key, { rssConsent: checked })}
+                  />
+                </div>
               </div>
-              <Switch id="rssConsent" checked={rssConsent} onCheckedChange={setRssConsent} />
-            </div>
+            ))}
+            {blogs.length < MAX_BLOGS && (
+              <Button type="button" variant="outline" className="w-full" onClick={addBlog}>
+                <Plus className="h-4 w-4 mr-2" />
+                블로그 추가 ({blogs.length}/{MAX_BLOGS})
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -511,7 +603,7 @@ export default function ProfileEditPage() {
               saving ||
               !name.trim() ||
               !nickname.trim() ||
-              !blogUrl.trim() ||
+              !blogsValid ||
               interests.length < 3 ||
               bio.trim().length < 100
             }

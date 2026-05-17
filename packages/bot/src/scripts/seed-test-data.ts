@@ -14,7 +14,17 @@
  */
 
 import { loadBotEnv } from '@blog-study/shared';
-import { getDb, members, rounds, attendance, posts, fines, activityScores, ActivityScoreType } from '@blog-study/shared/db';
+import {
+  activityScores,
+  ActivityScoreType,
+  attendance,
+  fines,
+  getDb,
+  memberBlogs,
+  members,
+  posts,
+  rounds,
+} from '@blog-study/shared/db';
 import { eq } from 'drizzle-orm';
 
 async function main() {
@@ -36,7 +46,9 @@ async function main() {
 
     if (existingTestRound) {
       console.log('   테스트 회차가 이미 존재합니다. (999회차)');
-      const deleteConfirm = await prompt('   기존 테스트 데이터를 삭제하고 다시 생성하시겠습니까? (y/N): ');
+      const deleteConfirm = await prompt(
+        '   기존 테스트 데이터를 삭제하고 다시 생성하시겠습니까? (y/N): '
+      );
 
       if (deleteConfirm.toLowerCase() === 'y') {
         console.log('   기존 테스트 데이터 삭제 중...');
@@ -85,11 +97,41 @@ async function main() {
     console.log('--- Step 3: 테스트 멤버 확인 ---');
 
     const testMembers = [
-      { name: '황동준', nickname: '동준이', discordUsername: 'hwangdongjun', discordId: '111111111111111111', part: 'frontend' },
-      { name: '테스터2', nickname: '투스', discordUsername: 'tester2', discordId: '222222222222222222', part: 'backend' },
-      { name: '테스터3', nickname: '쓰리스', discordUsername: 'tester3', discordId: '333333333333333333', part: 'devops' },
-      { name: '테스터4', nickname: '포스', discordUsername: 'tester4', discordId: '444444444444444444', part: 'design' },
-      { name: '테스터5', nickname: '파이브', discordUsername: 'tester5', discordId: '555555555555555555', part: 'frontend' },
+      {
+        name: '황동준',
+        nickname: '동준이',
+        discordUsername: 'hwangdongjun',
+        discordId: '111111111111111111',
+        part: 'frontend',
+      },
+      {
+        name: '테스터2',
+        nickname: '투스',
+        discordUsername: 'tester2',
+        discordId: '222222222222222222',
+        part: 'backend',
+      },
+      {
+        name: '테스터3',
+        nickname: '쓰리스',
+        discordUsername: 'tester3',
+        discordId: '333333333333333333',
+        part: 'devops',
+      },
+      {
+        name: '테스터4',
+        nickname: '포스',
+        discordUsername: 'tester4',
+        discordId: '444444444444444444',
+        part: 'design',
+      },
+      {
+        name: '테스터5',
+        nickname: '파이브',
+        discordUsername: 'tester5',
+        discordId: '555555555555555555',
+        part: 'frontend',
+      },
     ];
 
     const memberIds: string[] = [];
@@ -112,13 +154,18 @@ async function main() {
           .values({
             ...testMember,
             status: 'active',
-            blogUrl: `https://${testMember.discordUsername}.blog.com`,
-            rssUrl: `https://${testMember.discordUsername}.blog.com/rss`,
-            rssConsent: true,
             onboardingCompleted: true,
             interests: ['React', 'TypeScript', 'Node.js'],
           })
           .returning();
+
+        await db.insert(memberBlogs).values({
+          memberId: created.id,
+          blogUrl: `https://${testMember.discordUsername}.blog.com`,
+          rssUrl: `https://${testMember.discordUsername}.blog.com/rss`,
+          rssConsent: true,
+          sortOrder: 0,
+        });
 
         memberIds.push(created.id);
         console.log(`   ✅ 신규 멤버: ${testMember.name} (@${testMember.discordUsername})`);
@@ -131,10 +178,10 @@ async function main() {
     console.log('--- Step 4: 출석 기록 생성 ---');
 
     const attendanceData = [
-      { memberId: memberIds[0], status: 'LATE' },      // 황동준: 지각
+      { memberId: memberIds[0], status: 'LATE' }, // 황동준: 지각
       { memberId: memberIds[1], status: 'SUBMITTED' }, // 제출완료
-      { memberId: memberIds[2], status: 'PENDING' },   // 대기중
-      { memberId: memberIds[3], status: 'ABSENT' },    // 결석
+      { memberId: memberIds[2], status: 'PENDING' }, // 대기중
+      { memberId: memberIds[3], status: 'ABSENT' }, // 결석
       { memberId: memberIds[4], status: 'SUBMITTED' }, // 제출완료
     ];
 
@@ -227,9 +274,9 @@ async function main() {
 
     const scoreData = [
       { memberId: memberIds[0], points: 100 }, // 1번: 100점 (3개 포스트 + 활동)
-      { memberId: memberIds[1], points: 70 },  // 2번: 70점 (2개 포스트 + 활동)
-      { memberId: memberIds[2], points: 20 },  // 3번: 20점 (활동만)
-      { memberId: memberIds[3], points: 10 },  // 4번: 10점 (활동만)
+      { memberId: memberIds[1], points: 70 }, // 2번: 70점 (2개 포스트 + 활동)
+      { memberId: memberIds[2], points: 20 }, // 3번: 20점 (활동만)
+      { memberId: memberIds[3], points: 10 }, // 4번: 10점 (활동만)
       { memberId: memberIds[4], points: 140 }, // 5번: 140점 (4개 포스트 + 활동)
     ];
 
@@ -260,7 +307,6 @@ async function main() {
     console.log('  pnpm --filter @blog-study/bot test-attendance');
     console.log('  pnpm --filter @blog-study/bot test-round-report');
     console.log('  pnpm --filter @blog-study/bot test-fine-reminder');
-
   } catch (error) {
     console.error('❌ 테스트 데이터 생성 실패:', error);
     process.exit(1);

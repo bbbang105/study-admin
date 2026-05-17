@@ -1,13 +1,13 @@
 /**
  * RSS Poller Scheduler
- * 5분마다 모든 active 멤버의 RSS 폴링
+ * 5분마다 active/OB 멤버의 모든 블로그 RSS 폴링
  * Requirements: 6.1, 6.2
  */
 
-import { getMemberService } from '../services/member.service';
+import { getMemberBlogService, type PollableBlog } from '../services/member-blog.service';
 import { getPostService } from '../services/post.service';
 import { getRssService, type PollResult, type RssFeedItem } from '../services/rss.service';
-import { type Member, MemberStatus } from '@blog-study/shared/db';
+import { type Member } from '@blog-study/shared/db';
 import logger from '../lib/logger';
 
 /**
@@ -51,27 +51,22 @@ export class RssPoller {
   }
 
   /**
-   * Get members that should be polled
-   * Active + OB members with RSS consent
+   * Get blogs that should be polled
+   * Active + OB members' blogs with RSS consent and an RSS URL
    */
-  async getMembersToPoll(): Promise<Member[]> {
-    const memberService = getMemberService();
-    const [activeMembers, obMembers] = await Promise.all([
-      memberService.getAllByStatus(MemberStatus.ACTIVE),
-      memberService.getAllByStatus(MemberStatus.OB),
-    ]);
-
-    // Filter to only members with RSS URLs and RSS consent
-    return [...activeMembers, ...obMembers].filter(member => member.rssUrl && member.rssConsent !== false);
+  async getBlogsToPoll(): Promise<PollableBlog[]> {
+    const memberBlogService = getMemberBlogService();
+    return memberBlogService.getPollableBlogs();
   }
 
   /**
-   * Poll a single member's RSS feed
+   * Poll a single blog's RSS feed
    */
-  async pollMember(member: Member): Promise<PollResult> {
-    if (!member.rssUrl) {
+  async pollBlog({ member, blog }: PollableBlog): Promise<PollResult> {
+    if (!blog.rssUrl) {
       return {
         memberId: member.id,
+        blogId: blog.id,
         success: false,
         newItems: [],
         error: 'No RSS URL configured',
@@ -81,10 +76,10 @@ export class RssPoller {
     try {
       const rssService = getRssService();
       const postService = getPostService();
-      const items = await rssService.fetchFeed(member.rssUrl);
+      const items = await rssService.fetchFeed(blog.rssUrl);
 
       if (items.length === 0) {
-        return { memberId: member.id, success: true, newItems: [] };
+        return { memberId: member.id, blogId: blog.id, success: true, newItems: [] };
       }
 
       // Batch duplicate check: 1 IN query instead of N individual SELECTs
@@ -95,6 +90,7 @@ export class RssPoller {
 
       return {
         memberId: member.id,
+        blogId: blog.id,
         success: true,
         newItems,
       };
@@ -102,11 +98,14 @@ export class RssPoller {
       // Requirements: 6.5 - Log error and continue processing other feeds
       logger.error({
         member: member.discordUsername,
+        blogId: blog.id,
+        rssUrl: blog.rssUrl,
         error,
-      }, '📡 [RSS] 멤버 피드 폴링 에러');
+      }, '📡 [RSS] 블로그 피드 폴링 에러');
 
       return {
         memberId: member.id,
+        blogId: blog.id,
         success: false,
         newItems: [],
         error: error instanceof Error ? error.message : String(error),
@@ -115,7 +114,7 @@ export class RssPoller {
   }
 
   /**
-   * Run a polling cycle for all active members
+   * Run a polling cycle for all active/OB members' blogs
    * Requirements: 6.1, 6.2
    */
   async poll(): Promise<PollingCycleResult> {
@@ -136,15 +135,16 @@ export class RssPoller {
     const errors: string[] = [];
 
     try {
-      const members = await this.getMembersToPoll();
-      logger.info({ memberCount: members.length }, '📡 [RSS] 활성 멤버 폴링 시작');
+      const blogs = await this.getBlogsToPoll();
+      logger.info({ blogCount: blogs.length }, '📡 [RSS] 블로그 폴링 시작');
 
-      for (const member of members) {
-        const result = await this.pollMember(member);
+      for (const pollable of blogs) {
+        const { member } = pollable;
+        const result = await this.pollBlog(pollable);
         results.push(result);
 
         if (!result.success && result.error) {
-          errors.push(`${member.discordUsername}: ${result.error}`);
+          errors.push(`${member.discordUsername} (${pollable.blog.rssUrl}): ${result.error}`);
         }
 
         // Call the callback if there are new items
@@ -165,11 +165,13 @@ export class RssPoller {
       }
 
       const totalNewItems = results.reduce((sum, r) => sum + r.newItems.length, 0);
+      // 한 멤버가 블로그를 여러 개 가질 수 있으므로 distinct 멤버 수로 집계
+      const membersPolled = new Set(blogs.map((b) => b.member.id)).size;
       logger.info({ totalNewItems }, '📡 [RSS] 폴링 완료');
 
       return {
         timestamp: startTime,
-        membersPolled: members.length,
+        membersPolled,
         totalNewItems,
         results,
         errors,

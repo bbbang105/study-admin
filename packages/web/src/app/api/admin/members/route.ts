@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asc, count, eq, isNull, sql } from 'drizzle-orm';
+import { asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { db as sharedDb, utils } from '@blog-study/shared';
+import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
-import { detectRssUrl } from '@/lib/rss-detect';
+import { createMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
 
-const { isValidBlogUrl } = utils;
-
-const { members, posts, attendance, AttendanceStatus, MemberStatus } = sharedDb;
+const { members, memberBlogs, posts, attendance, AttendanceStatus, MemberStatus } = sharedDb;
 
 /**
  * GET /api/admin/members
@@ -29,6 +27,23 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     }
 
     const membersList = await query.orderBy(asc(members.name));
+
+    // Get blogs for all listed members
+    const memberIds = membersList.map((m) => m.id);
+    const blogRows =
+      memberIds.length > 0
+        ? await database
+            .select()
+            .from(memberBlogs)
+            .where(inArray(memberBlogs.memberId, memberIds))
+            .orderBy(asc(memberBlogs.sortOrder))
+        : [];
+    const blogMap = new Map<string, typeof blogRows>();
+    for (const b of blogRows) {
+      const list = blogMap.get(b.memberId) ?? [];
+      list.push(b);
+      blogMap.set(b.memberId, list);
+    }
 
     // Get post counts for all members
     const postCounts = await database
@@ -89,13 +104,18 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         name: member.name,
         nickname: member.nickname,
         part: member.part,
-        blogUrl: member.blogUrl,
-        rssUrl: member.rssUrl,
+        blogs: (blogMap.get(member.id) ?? []).map((b) => ({
+          id: b.id,
+          label: b.label,
+          blogUrl: b.blogUrl,
+          rssUrl: b.rssUrl,
+          rssConsent: b.rssConsent,
+          sortOrder: b.sortOrder,
+        })),
         profileImageUrl: member.profileImageUrl,
         bio: member.bio,
         interests: member.interests,
         resolution: member.resolution,
-        rssConsent: member.rssConsent ?? true,
         status: member.status,
         onboardingCompleted: member.onboardingCompleted,
         dormantUsed: member.dormantUsed,
@@ -143,7 +163,7 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
 export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
   try {
     const body = await request.json();
-    const { name, part, discordId, discordUsername, blogUrl, rssUrl } = body;
+    const { name, part, discordId, discordUsername, blogs } = body;
 
     // Validate required fields (Requirement: 19.2)
     const errors: string[] = [];
@@ -156,13 +176,10 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (!discordId || typeof discordId !== 'string' || discordId.trim().length === 0) {
       errors.push('Discord ID는 필수입니다.');
     }
-    if (!blogUrl || typeof blogUrl !== 'string' || blogUrl.trim().length === 0) {
-      errors.push('블로그 URL은 필수입니다.');
-    }
 
-    // Validate blog URL format
-    if (blogUrl && !isValidBlogUrl(blogUrl)) {
-      errors.push('유효하지 않은 블로그 URL 형식입니다.');
+    const blogValidation = validateBlogInputs(blogs, true);
+    if (!blogValidation.ok) {
+      errors.push(blogValidation.message);
     }
 
     if (errors.length > 0) {
@@ -182,12 +199,6 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       return NextResponse.json({ message: '이미 등록된 Discord ID입니다.' }, { status: 409 });
     }
 
-    // RSS URL 자동 감지 (비어있으면 blogUrl로부터 감지 시도)
-    let resolvedRssUrl = rssUrl?.trim() || null;
-    if (!resolvedRssUrl && blogUrl) {
-      resolvedRssUrl = await detectRssUrl(blogUrl.trim());
-    }
-
     // Create member (Requirement: 19.3)
     const [newMember] = await database
       .insert(members)
@@ -197,11 +208,13 @@ export const POST = withAdminAuth(async (request: NextRequest, _adminAuth) => {
         part: part.trim(),
         discordId: discordId.trim(),
         discordUsername: discordUsername?.trim() || discordId.trim(),
-        blogUrl: blogUrl.trim(),
-        rssUrl: resolvedRssUrl,
         status: MemberStatus.ACTIVE,
       })
       .returning();
+
+    if (newMember && blogValidation.ok) {
+      await createMemberBlogs(newMember.id, blogValidation.value);
+    }
 
     return NextResponse.json({
       message: '멤버가 등록되었습니다.',

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
-import { ExternalLink, Check, X, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ interface PendingMember {
   name: string;
   nickname: string;
   part: string;
-  blogUrl: string;
+  blogs: { id: string; label: string | null; blogUrl: string }[];
   profileImageUrl: string | null;
   bio: string | null;
   interests: string[] | null;
@@ -48,17 +48,20 @@ export function PendingMemberCard({ member, onApprove, onReject }: PendingMember
               <span className="font-semibold">{member.name}</span>
               <span className="text-sm text-muted-foreground">({member.nickname})</span>
             </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <PartBadge part={member.part} />
-              <a
-                href={member.blogUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                블로그
-              </a>
+              {member.blogs.map((b) => (
+                <a
+                  key={b.id}
+                  href={b.blogUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {b.label || '블로그'}
+                </a>
+              ))}
             </div>
           </div>
         </div>
@@ -85,7 +88,9 @@ export function PendingMemberCard({ member, onApprove, onReject }: PendingMember
         {member.resolution && (
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1">각오</p>
-            <p className="text-sm italic text-muted-foreground">&ldquo;{member.resolution}&rdquo;</p>
+            <p className="text-sm italic text-muted-foreground">
+              &ldquo;{member.resolution}&rdquo;
+            </p>
           </div>
         )}
         <div className="flex items-center gap-2 pt-2 border-t">
@@ -93,7 +98,10 @@ export function PendingMemberCard({ member, onApprove, onReject }: PendingMember
             <div className="flex items-center gap-2 w-full">
               <Button
                 size="sm"
-                onClick={() => { onApprove(member.id, 'active'); setShowStatusSelect(false); }}
+                onClick={() => {
+                  onApprove(member.id, 'active');
+                  setShowStatusSelect(false);
+                }}
                 className="flex-1"
               >
                 활성으로 승인
@@ -101,26 +109,21 @@ export function PendingMemberCard({ member, onApprove, onReject }: PendingMember
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => { onApprove(member.id, 'ob'); setShowStatusSelect(false); }}
+                onClick={() => {
+                  onApprove(member.id, 'ob');
+                  setShowStatusSelect(false);
+                }}
                 className="flex-1"
               >
                 OB로 승인
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowStatusSelect(false)}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setShowStatusSelect(false)}>
                 취소
               </Button>
             </div>
           ) : (
             <>
-              <Button
-                size="sm"
-                onClick={() => setShowStatusSelect(true)}
-                className="gap-1"
-              >
+              <Button size="sm" onClick={() => setShowStatusSelect(true)} className="gap-1">
                 <Check className="h-3.5 w-3.5" />
                 승인
                 <ChevronDown className="h-3 w-3" />

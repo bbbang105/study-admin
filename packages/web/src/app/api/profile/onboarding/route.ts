@@ -6,6 +6,7 @@ import { config } from '@blog-study/shared/db';
 import { createClient } from '@/lib/supabase/server';
 import { notifyNewMemberPendingApproval } from '@/lib/discord-notify';
 import { isSafeUrl } from '@/lib/rss-detect';
+import { createMemberBlogs, syncMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
 
 const { members } = sharedDb;
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       name,
       nickname,
       part,
-      blogUrl,
+      blogs,
       profileImageUrl,
       bio,
       interests,
@@ -48,7 +49,6 @@ export async function POST(request: NextRequest) {
       githubUrl,
       linkedinUrl,
       instagramUrl,
-      rssConsent,
     } = body;
 
     // 필수 필드 검증
@@ -64,14 +64,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: '파트는 필수입니다.' }, { status: 400 });
     }
 
-    if (!blogUrl || typeof blogUrl !== 'string') {
-      return NextResponse.json({ message: '블로그 URL은 필수입니다.' }, { status: 400 });
+    // 블로그 목록 검증 (1~MAX개, 각 SSRF 체크, 이름 길이)
+    const blogValidation = validateBlogInputs(blogs, true);
+    if (!blogValidation.ok) {
+      return NextResponse.json({ message: blogValidation.message }, { status: 400 });
     }
-
-    // 블로그 URL 검증 (SSRF 방지 포함)
-    if (!isSafeUrl(blogUrl)) {
-      return NextResponse.json({ message: '유효하지 않은 블로그 URL입니다.' }, { status: 400 });
-    }
+    const blogList = blogValidation.value;
 
     if (!bio || typeof bio !== 'string' || bio.trim().length < 100) {
       return NextResponse.json({ message: '자기소개는 100자 이상 작성해주세요.' }, { status: 400 });
@@ -127,7 +125,6 @@ export async function POST(request: NextRequest) {
           name: name.trim(),
           nickname: nickname.trim(),
           part,
-          blogUrl,
           profileImageUrl: profileImageUrl || null,
           bio: bio.trim(),
           interests,
@@ -135,33 +132,41 @@ export async function POST(request: NextRequest) {
           githubUrl: githubUrl || null,
           linkedinUrl: linkedinUrl || null,
           instagramUrl: instagramUrl || null,
-          rssConsent: rssConsent !== false,
           onboardingCompleted: true,
           updatedAt: new Date(),
         })
         .where(eq(members.id, existingMember.id));
+
+      // 블로그 동기화 (재온보딩 케이스)
+      await syncMemberBlogs(existingMember.id, blogList);
     } else {
       // 신규 유저: INSERT
-      await database.insert(members).values({
-        discordId,
-        discordUsername,
-        name: name.trim(),
-        nickname: nickname.trim(),
-        part,
-        blogUrl,
-        profileImageUrl: profileImageUrl || null,
-        bio: bio.trim(),
-        interests,
-        resolution: resolution.trim(),
-        githubUrl: githubUrl || null,
-        linkedinUrl: linkedinUrl || null,
-        instagramUrl: instagramUrl || null,
-        rssConsent: rssConsent !== false,
-        onboardingCompleted: true,
-        status: 'pending_approval',
-      });
+      const [newMember] = await database
+        .insert(members)
+        .values({
+          discordId,
+          discordUsername,
+          name: name.trim(),
+          nickname: nickname.trim(),
+          part,
+          profileImageUrl: profileImageUrl || null,
+          bio: bio.trim(),
+          interests,
+          resolution: resolution.trim(),
+          githubUrl: githubUrl || null,
+          linkedinUrl: linkedinUrl || null,
+          instagramUrl: instagramUrl || null,
+          onboardingCompleted: true,
+          status: 'pending_approval',
+        })
+        .returning({ id: members.id });
+
+      if (newMember) {
+        await createMemberBlogs(newMember.id, blogList);
+      }
 
       // 관리자 채널에 승인대기 알림 (fire-and-forget)
+      const primaryBlogUrl = blogList[0]?.blogUrl ?? '';
       after(async () => {
         try {
           const [channelConfig] = await database
@@ -178,7 +183,7 @@ export async function POST(request: NextRequest) {
             name: name.trim(),
             discordUsername,
             part,
-            blogUrl,
+            blogUrl: primaryBlogUrl,
             bio: bio.trim(),
             adminDashboardUrl: 'https://kusting-web.vercel.app/admin/members',
           });

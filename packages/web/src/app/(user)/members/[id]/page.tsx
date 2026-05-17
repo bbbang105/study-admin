@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, User, FileText, ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
+import { ArrowLeft, ExternalLink, FileText, Github, Instagram, Linkedin, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ interface MemberInfo {
   name: string;
   nickname: string;
   part: string;
-  blogUrl: string;
+  blogs: { id: string; label: string | null; blogUrl: string }[];
   profileImageUrl: string | null;
   bio: string | null;
   interests: string[] | null;
@@ -107,7 +107,11 @@ export default function MemberProfilePage() {
   const { member, recentPosts } = data;
 
   const socialLinks = [
-    { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
+    ...member.blogs.map((b) => ({
+      url: b.blogUrl,
+      icon: ExternalLink,
+      label: b.label || '블로그',
+    })),
     { url: member.githubUrl, icon: Github, label: 'GitHub' },
     { url: member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
     { url: member.instagramUrl, icon: Instagram, label: 'Instagram' },
@@ -116,11 +120,19 @@ export default function MemberProfilePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="shrink-0" aria-label="뒤로 가기" onClick={() => router.back()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          aria-label="뒤로 가기"
+          onClick={() => router.back()}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{member.nickname}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+            {member.nickname}
+          </h1>
           <p className="text-muted-foreground text-sm">스터디원 프로필</p>
         </div>
       </div>
@@ -148,7 +160,9 @@ export default function MemberProfilePage() {
               <div>
                 <p className="text-xl sm:text-2xl font-semibold">{member.nickname}</p>
                 <p className="text-sm text-muted-foreground">{member.name}</p>
-                <p className="text-muted-foreground text-sm">@{member.discordUsername.replace(/#0$/, '')}</p>
+                <p className="text-muted-foreground text-sm">
+                  @{member.discordUsername.replace(/#0$/, '')}
+                </p>
               </div>
               <PartBadge part={member.part} />
             </div>
@@ -169,7 +183,9 @@ export default function MemberProfilePage() {
               <p className="text-sm text-muted-foreground mb-2">관심 분야</p>
               <div className="flex flex-wrap gap-2">
                 {member.interests.map((interest, idx) => (
-                  <Badge key={idx} variant="secondary">{interest}</Badge>
+                  <Badge key={idx} variant="secondary">
+                    {interest}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -187,20 +203,18 @@ export default function MemberProfilePage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">가입일</p>
-              <p className="font-medium">
-                {new Date(member.joinedAt).toLocaleDateString('ko-KR')}
-              </p>
+              <p className="font-medium">{new Date(member.joinedAt).toLocaleDateString('ko-KR')}</p>
             </div>
           </div>
 
           {/* Social Links */}
           {socialLinks.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {socialLinks.map((link) => {
+              {socialLinks.map((link, i) => {
                 const Icon = link.icon;
                 return (
                   <a
-                    key={link.label}
+                    key={`${link.label}-${i}`}
                     href={link.url!}
                     target="_blank"
                     rel="noopener noreferrer"
