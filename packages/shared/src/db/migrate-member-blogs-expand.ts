@@ -1,24 +1,23 @@
 /**
- * member_blogs 마이그레이션 + 백필 스크립트 (1회성)
+ * member_blogs 마이그레이션 — Phase 1 (EXPAND, 비파괴)
  *
- * 1. member_blogs 테이블 생성 (idempotent, drizzle 스키마와 동일 DDL)
+ * 1. member_blogs 테이블 생성 (FK / index / UNIQUE 포함, idempotent)
  * 2. 기존 members.blog_url/rss_url/rss_consent → member_blogs 1행 백필
- * 3. members 테이블의 blog_url/rss_url/rss_consent 컬럼 제거
  *
- * 모든 작업을 단일 트랜잭션으로 처리 — 도중 실패 시 전체 롤백.
- * 재실행해도 안전 (CREATE TABLE IF NOT EXISTS, NOT EXISTS 가드, DROP COLUMN IF EXISTS).
+ * ❗ members 의 구컬럼은 그대로 둔다 — 구버전 코드가 계속 동작하므로
+ *    이 단계는 운영 중에 안전하게 실행 가능. 컬럼 제거는 Phase 2(contract).
  *
- * SQL은 전부 정적 (사용자 입력 없음) 이므로 `.unsafe()` 사용 — postgres tagged-template
- * 제네릭 타입이 환경별로 다르게 추론되는 문제를 피하기 위함.
+ * 재실행 안전 (CREATE TABLE IF NOT EXISTS, NOT EXISTS 백필 가드).
+ * SQL은 전부 정적(사용자 입력 없음) → .unsafe() 사용 (postgres tagged-template
+ * 제네릭이 환경별로 다르게 추론되는 문제 회피).
  *
- * Usage: pnpm --filter @blog-study/shared migrate:member-blogs
+ * Usage: pnpm --filter @blog-study/shared migrate:member-blogs:expand
  */
 
 import postgres from 'postgres';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
-// 루트 .env.local (shared/bot용) 우선 로드
 config({ path: resolve(__dirname, '../../../../.env.local') });
 config({ path: resolve(__dirname, '../../../../.env') });
 
@@ -82,7 +81,7 @@ async function main() {
         END $$
       `);
 
-      // members.blog_url 컬럼이 아직 존재할 때만 백필 (재실행 안전)
+      // members.blog_url 컬럼이 존재할 때만 백필 (구컬럼 유지 — 비파괴)
       const colCheck = (await tx.unsafe(`
         SELECT EXISTS (
           SELECT 1 FROM information_schema.columns
@@ -92,7 +91,6 @@ async function main() {
       const hasBlogUrl = colCheck[0]?.exists ?? false;
 
       if (hasBlogUrl) {
-        // 2. 백필: 멤버당 blog_url 1행 (이미 블로그가 있는 멤버는 스킵)
         const inserted = (await tx.unsafe(`
           INSERT INTO "member_blogs" ("member_id", "blog_url", "rss_url", "rss_consent", "sort_order")
           SELECT m."id", m."blog_url", m."rss_url", COALESCE(m."rss_consent", true), 0
@@ -103,25 +101,22 @@ async function main() {
               SELECT 1 FROM "member_blogs" mb WHERE mb."member_id" = m."id"
             )
         `)) as unknown as { count: number };
-        console.log(`✅ 백필 완료: ${inserted.count}개 멤버 블로그 행 생성`);
-
-        // 3. members 컬럼 제거
-        await tx.unsafe(`ALTER TABLE "members" DROP COLUMN IF EXISTS "blog_url"`);
-        await tx.unsafe(`ALTER TABLE "members" DROP COLUMN IF EXISTS "rss_url"`);
-        await tx.unsafe(`ALTER TABLE "members" DROP COLUMN IF EXISTS "rss_consent"`);
-        console.log('✅ members 테이블 blog_url/rss_url/rss_consent 컬럼 제거 완료');
+        console.log(`✅ 백필 완료: ${inserted.count}개 멤버 블로그 행 생성 (구컬럼 유지)`);
       } else {
-        console.log('ℹ️  members.blog_url 컬럼 없음 — 백필/컬럼제거 스킵 (이미 마이그레이션됨)');
+        console.log('ℹ️  members.blog_url 컬럼 없음 — 이미 contract 완료된 상태로 보임. 백필 스킵');
       }
     });
 
     const countRows = (await sql.unsafe(
       `SELECT COUNT(*) AS count FROM "member_blogs"`
     )) as unknown as Array<{ count: string }>;
-    console.log(`🎉 마이그레이션 완료 — member_blogs 총 ${countRows[0]?.count ?? '0'}행`);
+    console.log(
+      `🎉 EXPAND 완료 — member_blogs 총 ${countRows[0]?.count ?? '0'}행. ` +
+        `구컬럼은 유지됨 (운영 안전). 신코드 배포 검증 후 contract 실행.`
+    );
     process.exit(0);
   } catch (error) {
-    console.error('❌ 마이그레이션 실패 (롤백됨):', error);
+    console.error('❌ EXPAND 실패 (롤백됨):', error);
     process.exit(1);
   } finally {
     await sql.end();

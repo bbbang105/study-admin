@@ -150,7 +150,8 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/bot/src/lib/push-client.ts` | 봇→웹 내부 API 호출 래퍼 (reminder-push 등) |
 | `packages/bot/src/services/member-blog.service.ts` | RSS 폴링 대상 조회 (`getPollableBlogs`) + 멤버별 블로그 목록 (봇 전용) |
 | `packages/web/src/lib/member-blogs.ts` | 멀티 블로그 웹 헬퍼 (`validateBlogInputs`, `fetchMemberBlogs`, `createMemberBlogs`, `syncMemberBlogs`) |
-| `packages/shared/src/db/backfill-member-blogs.ts` | 1회성 마이그레이션 스크립트 (members→member_blogs 백필, `migrate:member-blogs` npm 스크립트) |
+| `packages/shared/src/db/migrate-member-blogs-expand.ts` | 멤버 블로그 마이그레이션 Phase1 (비파괴: member_blogs 생성+백필, 구컬럼 유지) — `migrate:member-blogs:expand` |
+| `packages/shared/src/db/migrate-member-blogs-contract.ts` | 멤버 블로그 마이그레이션 Phase2 (파괴적: 재백필 보정 후 members 구컬럼 DROP) — `migrate:member-blogs:contract`, 신코드 배포·검증 후 실행 |
 | `packages/web/src/app/(user)/profile/fines/page.tsx` | 벌금 상세 페이지 (내 벌금 내역 + 납부 완료) |
 | `packages/web/src/app/api/profile/fines/route.ts` | 내 벌금 목록 API |
 | `packages/web/src/app/api/fines/[id]/pay/route.ts` | 벌금 납부 완료 API (atomic update) |
