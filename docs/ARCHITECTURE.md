@@ -1,6 +1,6 @@
 # Blog Study Admin - 시스템 아키텍처
 
-> 최종 업데이트: 2026-04-15 (v13)
+> 최종 업데이트: 2026-05-17 (v14)
 
 블로그 글쓰기 스터디 운영 자동화 플랫폼. 웹 대시보드에서 모든 관리/유저 기능을 제공하고, Discord 봇은 스케줄러(RSS 수집/출석/벌금/큐레이션)와 이벤트 핸들러만 담당한다.
 
@@ -42,7 +42,7 @@ graph TB
 
     subgraph DB["Supabase · PostgreSQL"]
         AUTH["Supabase Auth<br/>Discord OAuth"]
-        TABLES["members · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · post_comments · board_posts<br/>board_comments · fcm_tokens · notification_preferences"]
+        TABLES["members · member_blogs · posts · rounds<br/>attendance · fines · config<br/>keywords · curation · activity_scores<br/>post_views · post_comments · board_posts<br/>board_comments · fcm_tokens · notification_preferences"]
         PGBOSS["pg-boss<br/>Job Queue"]
     end
 
@@ -298,6 +298,7 @@ flowchart TD
 
 ```mermaid
 erDiagram
+    members ||--o{ member_blogs : "블로그"
     members ||--o{ posts : "작성"
     members ||--o{ attendance : "출석"
     members ||--o{ fines : "벌금"
@@ -321,10 +322,19 @@ erDiagram
         varchar discord_id UK
         varchar name
         varchar part
-        varchar blog_url
         varchar status
         text[] interests
         boolean onboarding_completed
+    }
+
+    member_blogs {
+        uuid id PK
+        uuid member_id FK
+        varchar label
+        varchar blog_url
+        varchar rss_url
+        boolean rss_consent
+        integer sort_order
     }
 
     rounds {
@@ -462,7 +472,7 @@ erDiagram
 
 | 작업 | 주기 | 설명 |
 |------|------|------|
-| RSS Poller | 5분 | active 멤버 RSS 피드 수집 |
+| RSS Poller | 5분 | active/OB 멤버의 블로그(member_blogs) RSS 피드 수집 |
 | Attendance Checker | 매주 화 00:00 | 지각/결석 판정 |
 | Fine Reminder | 매일 10:00 | 미납 벌금 FCM 푸시 리마인드 (봇→웹 내부 API, 1일 간격) |
 | Curation Crawler | 매일 09:00 | 외부 컨텐츠 크롤링 |

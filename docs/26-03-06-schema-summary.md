@@ -26,19 +26,34 @@
 | `name` | varchar(50) | not null |
 | `nickname` | varchar(100) | not null |
 | `part` | varchar(50) | not null |
-| `blog_url` | varchar(500) | not null |
-| `rss_url` | varchar(500) | nullable |
 | `profile_image_url` | varchar(500) | nullable |
 | `bio` | varchar(200) | nullable |
 | `interests` | text[] | nullable |
 | `resolution` | varchar(300) | nullable |
 | `onboarding_completed` | boolean | default false |
-| `rss_consent` | boolean | default true |
 | `github_url`, `linkedin_url`, `instagram_url` | varchar(500) | 소셜 링크 |
 | `status` | varchar(20) | default 'active' |
 | `dormant_start_round` | integer | nullable |
 | `dormant_used` | boolean | default false |
 | `joined_at`, `updated_at` | timestamptz | defaultNow |
+
+> `blog_url` / `rss_url` / `rss_consent` 컬럼 제거됨 — `member_blogs` 테이블로 분리 (feat/multi-blog-urls)
+
+### member_blogs
+| 컬럼 | 타입 | 비고 |
+|------|------|------|
+| `id` | uuid PK | defaultRandom |
+| `member_id` | uuid FK → members | not null, ON DELETE cascade |
+| `label` | varchar(100) | nullable (사용자 지정 이름) |
+| `blog_url` | varchar(2000) | not null |
+| `rss_url` | varchar(2000) | nullable |
+| `rss_consent` | boolean | not null, default true |
+| `sort_order` | integer | not null, default 0 |
+| `created_at`, `updated_at` | timestamptz | defaultNow |
+| unique constraint: `(member_id, blog_url)` | | |
+| 인덱스: `member_id` | | |
+
+상수: `MAX_BLOGS_PER_MEMBER = 3` (멤버당 최대 등록 블로그 수)
 
 ### rounds
 | 컬럼 | 타입 | 비고 |
@@ -178,6 +193,7 @@
 ## FK 관계 요약
 
 ```
+members ──< member_blogs (member_id, cascade delete)
 members ──< posts (member_id)
 members ──< attendance (member_id)
 members ──< fines (member_id)
@@ -200,4 +216,4 @@ members ──< notification_preferences (member_id)
 
 ## 타입 Export
 
-모든 테이블에 `Type`/`NewType` export 있음 (예: `Member`/`NewMember`, `Post`/`NewPost`, `BoardPost`/`NewBoardPost`, `BoardComment`/`NewBoardComment`, `FcmToken`/`NewFcmToken`, `NotificationPreference`/`NewNotificationPreference`)
+모든 테이블에 `Type`/`NewType` export 있음 (예: `Member`/`NewMember`, `MemberBlog`/`NewMemberBlog`, `Post`/`NewPost`, `BoardPost`/`NewBoardPost`, `BoardComment`/`NewBoardComment`, `FcmToken`/`NewFcmToken`, `NotificationPreference`/`NewNotificationPreference`)

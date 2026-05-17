@@ -332,7 +332,10 @@ export function MemberFormDialog({ open, onClose, onSuccess, member }: MemberFor
                   value={blog.blogUrl}
                   onChange={(e) => updateBlog(blog.key, { blogUrl: e.target.value })}
                   placeholder="https://velog.io/@username"
-                  aria-invalid={errors.some((e) => e.includes('블로그 URL'))}
+                  aria-invalid={
+                    errors.length > 0 &&
+                    (!blog.blogUrl.trim() || errors.some((e) => e.includes(blog.blogUrl.trim())))
+                  }
                 />
                 <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
                   <Label htmlFor={`mfd-rss-${blog.key}`} className="text-xs font-medium">

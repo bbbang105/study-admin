@@ -206,7 +206,7 @@ export default function ProfileEditPage() {
   };
 
   const removeBlog = (key: string) => {
-    setBlogs((prev) => prev.filter((b) => b.key !== key));
+    setBlogs((prev) => (prev.length <= 1 ? prev : prev.filter((b) => b.key !== key)));
   };
 
   const updateBlog = (key: string, patch: Partial<Omit<BlogItem, 'key'>>) => {

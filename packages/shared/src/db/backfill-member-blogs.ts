@@ -65,6 +65,20 @@ async function main() {
           ON "member_blogs" ("member_id")
       `;
 
+      // (member_id, blog_url) 유니크 — 동시 요청 중복 삽입 방지
+      await tx`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'uq_member_blogs_member_id_blog_url'
+          ) THEN
+            ALTER TABLE "member_blogs"
+              ADD CONSTRAINT "uq_member_blogs_member_id_blog_url"
+              UNIQUE ("member_id", "blog_url");
+          END IF;
+        END $$
+      `;
+
       // members.blog_url 컬럼이 아직 존재할 때만 백필 (재실행 안전)
       const colCheck = await tx<{ exists: boolean }[]>`
         SELECT EXISTS (

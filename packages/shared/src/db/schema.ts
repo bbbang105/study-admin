@@ -140,6 +140,10 @@ export const memberBlogs = pgTable(
   },
   (table) => ({
     memberIdIdx: index('idx_member_blogs_member_id').on(table.memberId),
+    memberBlogUrlUnique: unique('uq_member_blogs_member_id_blog_url').on(
+      table.memberId,
+      table.blogUrl
+    ),
   })
 );
 

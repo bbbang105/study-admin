@@ -61,7 +61,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **API 응답**: 모든 API 라우트는 `Errors.*()` + `successResponse()` + `errorResponse()` 패턴 사용 (직접 `NextResponse.json` 금지)
 - **캐시**: 읽기 전용 API에 `withCache(response, maxAge)` 적용 (members: 60s, ranking: 30s)
 - **보안**: Tiptap content는 저장 전 `sanitizeTiptapContent()` 적용, 댓글 content는 `sanitizeDescription()` 적용, 외부 URL fetch/저장 시 `isSafeUrl()` SSRF 체크 (blogUrl, profileImageUrl, 소셜 URL 등 사용자 입력 URL 포함)
-- **블로그 URL 수정**: 프로필 수정 시 blogUrl 변경 가능, 변경 시 rssUrl을 null 초기화 후 `after()`로 RSS 비동기 재감지
+- **블로그 관리**: 프로필/온보딩/관리자 멤버 편집에서 `blogs[]` 배열로 입/출력 (최대 `MAX_BLOGS_PER_MEMBER=3`개). 각 블로그에 label(선택), blogUrl, rssConsent 포함. `syncMemberBlogs()`로 트랜잭션 내 upsert 처리 후 `after()`로 RSS 비동기 재감지
 - **Discord 알림**: 웹에서 직접 Discord REST API 호출 시 `discord-notify.ts` 유틸 사용, 사용자 입력은 `escapeDiscordMarkdown()` 적용, `allowed_mentions: { parse: [] }` 필수
 - **댓글 길이**: 최대 5000자 제한 (API에서 검증)
 - **이미지 업로드**: Cloudflare R2 (`board-images/{userId}/{uuid}.{ext}`), 5MB 제한, rate limit 20회/분/유저
@@ -75,7 +75,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 - **알림 로그**: `discord_notification_logs` 테이블에 봇/웹 모든 채널+DM+푸시 알림 성공/실패 기록 (target: `channel`/`dm`/`push`), `logNotification()` 헬퍼 (봇: `notification-logger.ts`, 웹: `notification-log.ts`), 관리자 페이지 "알림 로그" 탭에서 조회 (타입/소스/대상/상태 필터 + 무한 스크롤, 푸시 로그에 수신자 닉네임 표시)
 - **비밀답글 가시성**: 비밀 답글은 작성자/포스트작성자/부모댓글작성자/관리자가 열람 가능
 - **랭킹**: active + OB + dormant 전원 표시, 웹 페이지 4위부터 (포디움과 분리), 주간랭킹 전원 나열
-- **RSS 수집**: active + OB (rssConsent=true만), 포스트 점수는 active만 부여
+- **RSS 수집**: active + OB 멤버의 `member_blogs` 중 `rss_consent=true`이고 `rss_url`이 존재하는 블로그만 수집 (per-blog RSS consent). 포스트 점수는 active만 부여
 - **Discord 버튼**: `discord-notify.ts`에 `components` (Link Button) + `allowEveryone` 옵션 지원
 - **백그라운드 작업**: API route에서 푸시 알림/점수 부여 등 fire-and-forget 작업은 `after()` from `next/server` 사용 (Vercel 서버리스 종료 방지)
 - **비밀댓글 알림**: 비밀댓글(`isSecret`)의 푸시 알림은 내용 마스킹 (`'비밀 댓글이 달렸습니다.'`), 포스트/게시판 댓글 모두 적용
@@ -135,7 +135,7 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/(admin)/admin/bot-operations/page.tsx` | 봇 수동 실행 대시보드 (관리자 전용) |
 | `packages/web/src/app/api/admin/bot-operations/[operationId]/route.ts` | 봇 작업 트리거 프록시 (web → bot HTTP API, 30s 타임아웃) |
 | `packages/web/src/app/(admin)/admin/rounds/page.tsx` | 회차 관리 페이지 (CRUD + 현재 회차 설정) |
-| `packages/web/src/app/api/profile/edit/route.ts` | 프로필 수정 API (blogUrl 변경 시 RSS 재감지, 소셜 URL SSRF 체크) |
+| `packages/web/src/app/api/profile/edit/route.ts` | 프로필 수정 API (blogs[] 동기화 시 RSS 재감지, 소셜 URL SSRF 체크) |
 | `packages/web/src/app/api/posts/[id]/route.ts` | 포스트 PATCH/DELETE API (본인/관리자, soft delete + 댓글/조회/리액션/점수 hard delete) |
 | `packages/web/src/app/api/profile/withdraw/route.ts` | 유저 자체 탈퇴 API |
 | `packages/web/src/lib/firebase/admin.ts` | Firebase Admin SDK (lazy 초기화, `getAdminMessaging()`) |
@@ -148,6 +148,9 @@ pnpm --filter @blog-study/bot rss-collect      # 수동 RSS 수집 (봇 없이)
 | `packages/web/src/app/api/internal/new-post-push/route.ts` | 새 글 푸시 알림 내부 API (봇→웹, Bearer 인증, rate limit 20/min) |
 | `packages/web/src/app/api/internal/reminder-push/route.ts` | 범용 리마인더 푸시 내부 API (봇→웹, 5종 FORCE_SEND_TYPES) |
 | `packages/bot/src/lib/push-client.ts` | 봇→웹 내부 API 호출 래퍼 (reminder-push 등) |
+| `packages/bot/src/services/member-blog.service.ts` | RSS 폴링 대상 조회 (`getPollableBlogs`) + 멤버별 블로그 목록 (봇 전용) |
+| `packages/web/src/lib/member-blogs.ts` | 멀티 블로그 웹 헬퍼 (`validateBlogInputs`, `fetchMemberBlogs`, `createMemberBlogs`, `syncMemberBlogs`) |
+| `packages/shared/src/db/backfill-member-blogs.ts` | 1회성 마이그레이션 스크립트 (members→member_blogs 백필, `migrate:member-blogs` npm 스크립트) |
 | `packages/web/src/app/(user)/profile/fines/page.tsx` | 벌금 상세 페이지 (내 벌금 내역 + 납부 완료) |
 | `packages/web/src/app/api/profile/fines/route.ts` | 내 벌금 목록 API |
 | `packages/web/src/app/api/fines/[id]/pay/route.ts` | 벌금 납부 완료 API (atomic update) |

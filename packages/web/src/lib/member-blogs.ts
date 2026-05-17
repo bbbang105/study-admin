@@ -15,6 +15,7 @@ export const MAX_BLOGS = MAX_BLOGS_PER_MEMBER;
 
 const MAX_URL_LEN = 500;
 const MAX_LABEL_LEN = 100;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface BlogInput {
   id?: string;
@@ -82,7 +83,8 @@ export function validateBlogInputs(raw: unknown, required = true): ValidateResul
       label = trimmed.length > 0 ? trimmed : null;
     }
 
-    const id = typeof item?.id === 'string' && item.id.length > 0 ? item.id : undefined;
+    const id =
+      typeof item?.id === 'string' && UUID_RE.test(item.id) ? item.id : undefined;
     const rssConsent = item?.rssConsent !== false;
 
     normalized.push({ id, label, blogUrl, rssConsent });
@@ -148,63 +150,68 @@ export async function syncMemberBlogs(
   memberId: string,
   blogs: NormalizedBlog[]
 ): Promise<void> {
-  const database = db();
-  const existing = await database
-    .select()
-    .from(memberBlogs)
-    .where(eq(memberBlogs.memberId, memberId));
-
-  const existingById = new Map(existing.map((b) => [b.id, b]));
-  const keptIds = new Set<string>();
   const toRedetect: { id: string; blogUrl: string }[] = [];
 
-  for (let idx = 0; idx < blogs.length; idx++) {
-    const input = blogs[idx]!;
-    const current = input.id ? existingById.get(input.id) : undefined;
+  // 추가/수정/삭제를 단일 트랜잭션으로 처리 — 도중 실패 시 전체 롤백
+  await db().transaction(async (tx) => {
+    const existing = await tx
+      .select()
+      .from(memberBlogs)
+      .where(eq(memberBlogs.memberId, memberId));
 
-    if (current) {
-      keptIds.add(current.id);
-      const urlChanged = current.blogUrl !== input.blogUrl;
-      await database
-        .update(memberBlogs)
-        .set({
-          label: input.label,
-          blogUrl: input.blogUrl,
-          rssConsent: input.rssConsent,
-          sortOrder: idx,
-          ...(urlChanged ? { rssUrl: null } : {}),
-          updatedAt: new Date(),
-        })
-        .where(eq(memberBlogs.id, current.id));
+    const existingById = new Map(existing.map((b) => [b.id, b]));
+    const keptIds = new Set<string>();
 
-      if (urlChanged) toRedetect.push({ id: current.id, blogUrl: input.blogUrl });
-    } else {
-      const [created] = await database
-        .insert(memberBlogs)
-        .values({
-          memberId,
-          label: input.label,
-          blogUrl: input.blogUrl,
-          rssUrl: null,
-          rssConsent: input.rssConsent,
-          sortOrder: idx,
-        })
-        .returning({ id: memberBlogs.id });
-      if (created) {
-        keptIds.add(created.id);
-        toRedetect.push({ id: created.id, blogUrl: input.blogUrl });
+    for (let idx = 0; idx < blogs.length; idx++) {
+      const input = blogs[idx]!;
+      const current = input.id ? existingById.get(input.id) : undefined;
+
+      if (current) {
+        keptIds.add(current.id);
+        const urlChanged = current.blogUrl !== input.blogUrl;
+        await tx
+          .update(memberBlogs)
+          .set({
+            label: input.label,
+            blogUrl: input.blogUrl,
+            rssConsent: input.rssConsent,
+            sortOrder: idx,
+            ...(urlChanged ? { rssUrl: null } : {}),
+            updatedAt: new Date(),
+          })
+          // memberId도 함께 스코프 (방어적 — current는 이미 멤버 소유 행)
+          .where(and(eq(memberBlogs.id, current.id), eq(memberBlogs.memberId, memberId)));
+
+        if (urlChanged) toRedetect.push({ id: current.id, blogUrl: input.blogUrl });
+      } else {
+        const [created] = await tx
+          .insert(memberBlogs)
+          .values({
+            memberId,
+            label: input.label,
+            blogUrl: input.blogUrl,
+            rssUrl: null,
+            rssConsent: input.rssConsent,
+            sortOrder: idx,
+          })
+          .returning({ id: memberBlogs.id });
+        if (created) {
+          keptIds.add(created.id);
+          toRedetect.push({ id: created.id, blogUrl: input.blogUrl });
+        }
       }
     }
-  }
 
-  // 입력에서 빠진 기존 블로그 삭제
-  const removedIds = existing.filter((b) => !keptIds.has(b.id)).map((b) => b.id);
-  if (removedIds.length > 0) {
-    await database
-      .delete(memberBlogs)
-      .where(and(eq(memberBlogs.memberId, memberId), inArray(memberBlogs.id, removedIds)));
-  }
+    // 입력에서 빠진 기존 블로그 삭제
+    const removedIds = existing.filter((b) => !keptIds.has(b.id)).map((b) => b.id);
+    if (removedIds.length > 0) {
+      await tx
+        .delete(memberBlogs)
+        .where(and(eq(memberBlogs.memberId, memberId), inArray(memberBlogs.id, removedIds)));
+    }
+  });
 
+  // 커밋 후 RSS 비동기 재감지 스케줄
   scheduleRssDetection(toRedetect);
 }
 

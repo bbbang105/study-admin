@@ -165,11 +165,13 @@ export class RssPoller {
       }
 
       const totalNewItems = results.reduce((sum, r) => sum + r.newItems.length, 0);
+      // 한 멤버가 블로그를 여러 개 가질 수 있으므로 distinct 멤버 수로 집계
+      const membersPolled = new Set(blogs.map((b) => b.member.id)).size;
       logger.info({ totalNewItems }, '📡 [RSS] 폴링 완료');
 
       return {
         timestamp: startTime,
-        membersPolled: blogs.length,
+        membersPolled,
         totalNewItems,
         results,
         errors,
