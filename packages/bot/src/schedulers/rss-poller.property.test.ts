@@ -3,15 +3,16 @@
  * **Feature: blog-study-discord-bot**
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fc from 'fast-check';
-import { MemberStatus, type Member } from '@blog-study/shared/db';
+import { type Member, type MemberBlog, MemberStatus } from '@blog-study/shared/db';
+import { RssPoller } from './rss-poller';
 
-// Mock the member service
-const mockGetAllByStatus = vi.fn();
-vi.mock('../services/member.service', () => ({
-  getMemberService: () => ({
-    getAllByStatus: mockGetAllByStatus,
+// Mock the member-blog service (RSS 폴링 대상 조회를 담당)
+const mockGetPollableBlogs = vi.fn();
+vi.mock('../services/member-blog.service', () => ({
+  getMemberBlogService: () => ({
+    getPollableBlogs: mockGetPollableBlogs,
   }),
 }));
 
@@ -22,36 +23,65 @@ vi.mock('../services/rss.service', () => ({
   }),
 }));
 
-import { RssPoller } from './rss-poller';
-
 /**
  * Generate a mock member with specified status
  */
-function generateMember(
-  id: string,
-  discordId: string,
-  status: string,
-  hasRssUrl: boolean
-): Member {
+function generateMember(id: string, discordId: string, status: string): Member {
   return {
     id,
     discordId,
     discordUsername: `user_${discordId}`,
     name: `Name ${discordId}`,
+    nickname: `Nick ${discordId}`,
     part: 'frontend',
-    blogUrl: `https://blog.example.com/${discordId}`,
-    rssUrl: hasRssUrl ? `https://blog.example.com/${discordId}/rss` : null,
     profileImageUrl: null,
     bio: null,
     interests: null,
     resolution: null,
     onboardingCompleted: false,
+    githubUrl: null,
+    linkedinUrl: null,
+    instagramUrl: null,
     status,
     dormantStartRound: null,
     dormantUsed: false,
     joinedAt: new Date(),
     updatedAt: new Date(),
-  };
+  } as Member;
+}
+
+/**
+ * Generate a mock member blog
+ */
+function generateBlog(
+  id: string,
+  memberId: string,
+  hasRssUrl: boolean,
+  rssConsent: boolean
+): MemberBlog {
+  return {
+    id,
+    memberId,
+    label: null,
+    blogUrl: `https://blog.example.com/${memberId}`,
+    rssUrl: hasRssUrl ? `https://blog.example.com/${memberId}/rss` : null,
+    rssConsent,
+    sortOrder: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as MemberBlog;
+}
+
+/**
+ * The (member, blog) pollable filter as enforced by MemberBlogService.getPollableBlogs():
+ * member status ∈ {active, ob} AND blog.rssConsent === true AND blog.rssUrl !== null
+ */
+function pollableFilter(member: Member, blog: MemberBlog): boolean {
+  return (
+    (member.status === MemberStatus.ACTIVE || member.status === MemberStatus.OB) &&
+    blog.rssConsent === true &&
+    blog.rssUrl !== null
+  );
 }
 
 describe('RSS Poller Property Tests', () => {
@@ -68,73 +98,61 @@ describe('RSS Poller Property Tests', () => {
 
   /**
    * **Feature: blog-study-discord-bot, Property 15: Active Member RSS Polling**
-   * *For any* RSS polling operation, only Members with `active` status
-   * SHALL have their feeds processed.
+   * *For any* RSS polling operation, only blogs belonging to `active`/`ob`
+   * Members, with RSS consent and an RSS URL, SHALL have their feeds processed.
    * **Validates: Requirements 6.2**
    */
   describe('Property 15: Active Member RSS Polling', () => {
-    it('should only return active members with RSS URLs for polling', async () => {
+    it('should only return active/OB members blogs with RSS URL + consent', async () => {
       await fc.assert(
         fc.asyncProperty(
-          // Generate a list of members with various statuses
           fc.array(
             fc.record({
               id: fc.uuid(),
               discordId: fc.stringMatching(/^\d{17,19}$/),
               status: fc.constantFrom(
                 MemberStatus.ACTIVE,
+                MemberStatus.OB,
                 MemberStatus.DORMANT,
                 MemberStatus.WITHDRAWN
               ),
               hasRssUrl: fc.boolean(),
+              rssConsent: fc.boolean(),
             }),
             { minLength: 0, maxLength: 20 }
           ),
-          async (memberSpecs) => {
-            // Create mock members
-            const allMembers = memberSpecs.map((spec, index) =>
-              generateMember(
-                spec.id,
-                spec.discordId + index, // Ensure unique
-                spec.status,
-                spec.hasRssUrl
-              )
-            );
-
-            // Filter to active and OB members (what the service should return)
-            const activeMembers = allMembers.filter(
-              m => m.status === MemberStatus.ACTIVE
-            );
-            const obMembers = allMembers.filter(
-              m => m.status === MemberStatus.OB
-            );
-
-            // Mock the service to return active and OB members separately
-            mockGetAllByStatus.mockImplementation(async (status: string) => {
-              if (status === MemberStatus.ACTIVE) return activeMembers;
-              if (status === MemberStatus.OB) return obMembers;
-              return [];
+          async (specs) => {
+            const pairs = specs.map((spec, index) => {
+              const member = generateMember(spec.id, spec.discordId + index, spec.status);
+              const blog = generateBlog(
+                `blog-${index}`,
+                member.id,
+                spec.hasRssUrl,
+                spec.rssConsent
+              );
+              return { member, blog };
             });
 
-            // Get members to poll
-            const membersToPoll = await poller.getMembersToPoll();
+            // Service applies the SQL-level filter
+            const pollable = pairs.filter((p) => pollableFilter(p.member, p.blog));
+            mockGetPollableBlogs.mockResolvedValue(pollable);
 
-            // Verify: all returned members should be active or OB AND have RSS URL
-            for (const member of membersToPoll) {
+            const blogsToPoll = await poller.getBlogsToPoll();
+
+            for (const { member, blog } of blogsToPoll) {
               expect([MemberStatus.ACTIVE, MemberStatus.OB]).toContain(member.status);
-              expect(member.rssUrl).not.toBeNull();
+              expect(blog.rssConsent).toBe(true);
+              expect(blog.rssUrl).not.toBeNull();
             }
-
-            // Verify: the service was called with both ACTIVE and OB
-            expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.ACTIVE);
-            expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.OB);
+            expect(blogsToPoll.length).toBe(pollable.length);
+            expect(mockGetPollableBlogs).toHaveBeenCalled();
           }
         ),
         { numRuns: 100 }
       );
     });
 
-    it('should filter out members without RSS URLs', async () => {
+    it('should filter out blogs without RSS URLs or without consent', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(
@@ -142,43 +160,47 @@ describe('RSS Poller Property Tests', () => {
               id: fc.uuid(),
               discordId: fc.stringMatching(/^\d{17,19}$/),
               hasRssUrl: fc.boolean(),
+              rssConsent: fc.boolean(),
             }),
             { minLength: 1, maxLength: 20 }
           ),
-          async (memberSpecs) => {
-            // Create all active members, some with and some without RSS URLs
-            const activeMembers = memberSpecs.map((spec, index) =>
-              generateMember(
+          async (specs) => {
+            const pairs = specs.map((spec, index) => {
+              const member = generateMember(
                 spec.id,
                 spec.discordId + index,
-                MemberStatus.ACTIVE,
-                spec.hasRssUrl
-              )
-            );
-
-            mockGetAllByStatus.mockImplementation(async (status: string) => {
-              if (status === MemberStatus.ACTIVE) return activeMembers;
-              return []; // OB returns empty for this test
+                MemberStatus.ACTIVE
+              );
+              const blog = generateBlog(
+                `blog-${index}`,
+                member.id,
+                spec.hasRssUrl,
+                spec.rssConsent
+              );
+              return { member, blog };
             });
 
-            const membersToPoll = await poller.getMembersToPoll();
+            const pollable = pairs.filter((p) => pollableFilter(p.member, p.blog));
+            mockGetPollableBlogs.mockResolvedValue(pollable);
 
-            // All returned members should have RSS URLs
-            for (const member of membersToPoll) {
-              expect(member.rssUrl).not.toBeNull();
-              expect(member.rssUrl).toBeDefined();
+            const blogsToPoll = await poller.getBlogsToPoll();
+
+            for (const { blog } of blogsToPoll) {
+              expect(blog.rssUrl).not.toBeNull();
+              expect(blog.rssUrl).toBeDefined();
+              expect(blog.rssConsent).toBe(true);
             }
-
-            // Count should match members with RSS URLs
-            const expectedCount = activeMembers.filter(m => m.rssUrl).length;
-            expect(membersToPoll.length).toBe(expectedCount);
+            const expectedCount = pairs.filter(
+              (p) => p.blog.rssUrl && p.blog.rssConsent
+            ).length;
+            expect(blogsToPoll.length).toBe(expectedCount);
           }
         ),
         { numRuns: 100 }
       );
     });
 
-    it('should not poll dormant or withdrawn members', async () => {
+    it('should not poll dormant or withdrawn members blogs', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(
@@ -189,25 +211,20 @@ describe('RSS Poller Property Tests', () => {
             }),
             { minLength: 1, maxLength: 10 }
           ),
-          async (memberSpecs) => {
-            // Create non-active members
-            memberSpecs.map((spec, index) =>
-              generateMember(
-                spec.id,
-                spec.discordId + index,
-                spec.status,
-                true // All have RSS URLs
-              )
-            );
+          async (specs) => {
+            const pairs = specs.map((spec, index) => {
+              const member = generateMember(spec.id, spec.discordId + index, spec.status);
+              const blog = generateBlog(`blog-${index}`, member.id, true, true);
+              return { member, blog };
+            });
 
-            // Service returns empty for active (since we're testing non-active)
-            mockGetAllByStatus.mockResolvedValue([]);
+            // Service excludes non-active/OB members → empty
+            const pollable = pairs.filter((p) => pollableFilter(p.member, p.blog));
+            mockGetPollableBlogs.mockResolvedValue(pollable);
 
-            const membersToPoll = await poller.getMembersToPoll();
+            const blogsToPoll = await poller.getBlogsToPoll();
 
-            // Should return empty since we only query for active
-            expect(membersToPoll.length).toBe(0);
-            expect(mockGetAllByStatus).toHaveBeenCalledWith(MemberStatus.ACTIVE);
+            expect(blogsToPoll.length).toBe(0);
           }
         ),
         { numRuns: 100 }

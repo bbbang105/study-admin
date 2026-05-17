@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors } from '@/lib/api-error';
+import { fetchMemberBlogs } from '@/lib/member-blogs';
 
 const { members, posts, attendance, fines, AttendanceStatus, FineStatus } = sharedDb;
 
@@ -79,6 +80,8 @@ export async function GET() {
       }
     }
 
+    const blogs = memberData ? await fetchMemberBlogs(memberData.id) : [];
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -95,13 +98,11 @@ export async function GET() {
             name: memberData.name,
             nickname: memberData.nickname,
             part: memberData.part,
-            blogUrl: memberData.blogUrl,
-            rssUrl: memberData.rssUrl,
+            blogs,
             profileImageUrl: memberData.profileImageUrl,
             bio: memberData.bio,
             interests: memberData.interests,
             resolution: memberData.resolution,
-            rssConsent: memberData.rssConsent ?? true,
             onboardingCompleted: memberData.onboardingCompleted,
             status: memberData.status,
             dormantUsed: memberData.dormantUsed,

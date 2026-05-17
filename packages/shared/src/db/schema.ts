@@ -91,15 +91,13 @@ export const members = pgTable(
     name: varchar('name', { length: 50 }).notNull(),
     nickname: varchar('nickname', { length: 100 }).notNull(),
     part: varchar('part', { length: 50 }).notNull(),
-    blogUrl: varchar('blog_url', { length: 2000 }).notNull(),
-    rssUrl: varchar('rss_url', { length: 2000 }),
+    // 블로그/RSS 정보는 member_blogs 테이블로 분리 (멤버당 여러 블로그 지원)
     // 프로필 정보 (온보딩)
     profileImageUrl: varchar('profile_image_url', { length: 2000 }),
     bio: varchar('bio', { length: 200 }),
     interests: text('interests').array(),
     resolution: varchar('resolution', { length: 300 }),
     onboardingCompleted: boolean('onboarding_completed').default(false),
-    rssConsent: boolean('rss_consent').default(true),
     // 소셜 링크
     githubUrl: varchar('github_url', { length: 2000 }),
     linkedinUrl: varchar('linkedin_url', { length: 2000 }),
@@ -113,6 +111,35 @@ export const members = pgTable(
   },
   (table) => ({
     statusIdx: index('idx_members_status').on(table.status),
+  })
+);
+
+/**
+ * 멤버당 등록 가능한 블로그 최대 개수
+ */
+export const MAX_BLOGS_PER_MEMBER = 3;
+
+/**
+ * 멤버 블로그 (Member Blogs)
+ * 멤버당 여러 블로그 URL을 등록 — 각 블로그별로 RSS 수집/동의 관리
+ */
+export const memberBlogs = pgTable(
+  'member_blogs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    label: varchar('label', { length: 100 }),
+    blogUrl: varchar('blog_url', { length: 2000 }).notNull(),
+    rssUrl: varchar('rss_url', { length: 2000 }),
+    rssConsent: boolean('rss_consent').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    memberIdIdx: index('idx_member_blogs_member_id').on(table.memberId),
   })
 );
 
@@ -638,6 +665,7 @@ export const discordNotificationLogs = pgTable(
 // ============================================
 
 export const membersRelations = relations(members, ({ many }) => ({
+  blogs: many(memberBlogs),
   posts: many(posts),
   attendance: many(attendance),
   fines: many(fines),
@@ -650,6 +678,13 @@ export const membersRelations = relations(members, ({ many }) => ({
   notificationPreferences: many(notificationPreferences),
   boardPostReactions: many(boardPostReactions),
   postReactions: many(postReactions),
+}));
+
+export const memberBlogsRelations = relations(memberBlogs, ({ one }) => ({
+  member: one(members, {
+    fields: [memberBlogs.memberId],
+    references: [members.id],
+  }),
 }));
 
 export const fcmTokensRelations = relations(fcmTokens, ({ one }) => ({
@@ -835,6 +870,9 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
 
 export type Member = typeof members.$inferSelect;
 export type NewMember = typeof members.$inferInsert;
+
+export type MemberBlog = typeof memberBlogs.$inferSelect;
+export type NewMemberBlog = typeof memberBlogs.$inferInsert;
 
 export type Round = typeof rounds.$inferSelect;
 export type NewRound = typeof rounds.$inferInsert;

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { db as sharedDb, utils } from '@blog-study/shared';
+import { db as sharedDb } from '@blog-study/shared';
 import { withAdminAuth } from '@/lib/admin';
-import { detectRssUrl } from '@/lib/rss-detect';
+import { syncMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
 
-const { isValidBlogUrl } = utils;
-
-const { members, MemberStatus, rounds } = sharedDb;
+const { members, memberBlogs, MemberStatus, rounds } = sharedDb;
 
 /**
  * GET /api/admin/members/[id]
@@ -27,7 +25,26 @@ export const GET = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       return NextResponse.json({ message: '멤버를 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'success', member });
+    const blogs = await database
+      .select()
+      .from(memberBlogs)
+      .where(eq(memberBlogs.memberId, member.id))
+      .orderBy(asc(memberBlogs.sortOrder));
+
+    return NextResponse.json({
+      message: 'success',
+      member: {
+        ...member,
+        blogs: blogs.map((b) => ({
+          id: b.id,
+          label: b.label,
+          blogUrl: b.blogUrl,
+          rssUrl: b.rssUrl,
+          rssConsent: b.rssConsent,
+          sortOrder: b.sortOrder,
+        })),
+      },
+    });
   } catch (error) {
     console.error('Admin get member error:', error);
     return NextResponse.json({ message: '서버 오류가 발생했습니다.' }, { status: 500 });
@@ -47,7 +64,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     }
 
     const body = await request.json();
-    const { name, part, discordId, discordUsername, blogUrl, rssUrl, status } = body;
+    const { name, part, discordId, discordUsername, blogs, status } = body;
 
     const database = db();
 
@@ -76,13 +93,9 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     ) {
       errors.push('Discord ID는 필수입니다.');
     }
-    if (blogUrl !== undefined && (typeof blogUrl !== 'string' || blogUrl.trim().length === 0)) {
-      errors.push('블로그 URL은 필수입니다.');
-    }
-
-    // Validate blog URL format
-    if (blogUrl && !isValidBlogUrl(blogUrl)) {
-      errors.push('유효하지 않은 블로그 URL 형식입니다.');
+    const blogValidation = blogs !== undefined ? validateBlogInputs(blogs, true) : null;
+    if (blogValidation && !blogValidation.ok) {
+      errors.push(blogValidation.message);
     }
 
     // Validate status
@@ -124,8 +137,6 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
     if (part !== undefined) updateData.part = part.trim();
     if (discordId !== undefined) updateData.discordId = discordId.trim();
     if (discordUsername !== undefined) updateData.discordUsername = discordUsername.trim();
-    if (blogUrl !== undefined) updateData.blogUrl = blogUrl.trim();
-    if (rssUrl !== undefined) updateData.rssUrl = rssUrl?.trim() || null;
     if (status !== undefined) {
       // 휴면 전환 시 전용 로직 (1회 제한 해제됨 — 관리자가 필요에 따라 반복 전환 가능)
       if (status === MemberStatus.DORMANT) {
@@ -152,18 +163,17 @@ export const PUT = withAdminAuth(async (request: NextRequest, _adminAuth) => {
       updateData.status = status;
     }
 
-    // RSS URL 자동 감지: rssUrl이 비어있고 blogUrl이 있으면 감지 시도
-    const targetBlogUrl = updateData.blogUrl ?? existingMember.blogUrl;
-    if (!updateData.rssUrl && targetBlogUrl) {
-      updateData.rssUrl = await detectRssUrl(targetBlogUrl);
-    }
-
     // Update member
     const [updatedMember] = await database
       .update(members)
       .set(updateData)
       .where(eq(members.id, id))
       .returning();
+
+    // 블로그 동기화 (제공된 경우만)
+    if (blogValidation && blogValidation.ok) {
+      await syncMemberBlogs(id, blogValidation.value);
+    }
 
     return NextResponse.json({
       message: '멤버 정보가 수정되었습니다.',

@@ -2,6 +2,7 @@
 // 모든 서비스를 내보냅니다.
 
 export * from './member.service';
+export * from './member-blog.service';
 export * from './rss.service';
 export * from './round.service';
 export * from './post.service';

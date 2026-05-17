@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Check, Heart, Loader2, Target, User } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Heart,
+  Loader2,
+  Plus,
+  Target,
+  Trash2,
+  User,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +28,19 @@ import { FormPageSkeleton } from '@/components/ui/page-state';
 
 const TOTAL_STEPS = 3;
 
+// 멤버당 블로그 최대 개수 (서버 MAX_BLOGS_PER_MEMBER와 동일, 서버가 최종 검증)
+const MAX_BLOGS = 3;
+
+interface BlogItem {
+  key: string;
+  label: string;
+  blogUrl: string;
+  rssConsent: boolean;
+}
+
+let blogKeySeq = 0;
+const newBlogKey = () => `blog-${Date.now()}-${blogKeySeq++}`;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -30,7 +53,9 @@ export default function OnboardingPage() {
   const [nickname, setNickname] = useState('');
   const [selectedPart, setSelectedPart] = useState('');
   const [customPart, setCustomPart] = useState('');
-  const [blogUrl, setBlogUrl] = useState('');
+  const [blogs, setBlogs] = useState<BlogItem[]>([
+    { key: newBlogKey(), label: '', blogUrl: '', rssConsent: true },
+  ]);
   const [interests, setInterests] = useState<string[]>([]);
   const [bio, setBio] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
@@ -39,7 +64,6 @@ export default function OnboardingPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
-  const [rssConsent, setRssConsent] = useState(true);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -82,12 +106,29 @@ export default function OnboardingPage() {
     });
   };
 
+  const addBlog = () => {
+    setBlogs((prev) =>
+      prev.length >= MAX_BLOGS
+        ? prev
+        : [...prev, { key: newBlogKey(), label: '', blogUrl: '', rssConsent: true }]
+    );
+  };
+
+  const removeBlog = (key: string) => {
+    setBlogs((prev) => (prev.length <= 1 ? prev : prev.filter((b) => b.key !== key)));
+  };
+
+  const updateBlog = (key: string, patch: Partial<Omit<BlogItem, 'key'>>) => {
+    setBlogs((prev) => prev.map((b) => (b.key === key ? { ...b, ...patch } : b)));
+  };
+
   const part = selectedPart === 'other' ? customPart.trim() : selectedPart;
+  const blogsValid =
+    blogs.length >= 1 &&
+    blogs.length <= MAX_BLOGS &&
+    blogs.every((b) => b.blogUrl.trim().length > 0);
   const isStep1Valid =
-    name.trim().length > 0 &&
-    nickname.trim().length > 0 &&
-    part.length > 0 &&
-    blogUrl.trim().length > 0;
+    name.trim().length > 0 && nickname.trim().length > 0 && part.length > 0 && blogsValid;
   const isStep2Valid = interests.length >= 3 && interests.length <= 6 && bio.trim().length >= 100;
   const isStep3Valid = resolution.trim().length > 0;
 
@@ -111,7 +152,7 @@ export default function OnboardingPage() {
         if (!name.trim()) missing.push('이름');
         if (!nickname.trim()) missing.push('닉네임');
         if (!part) missing.push('파트');
-        if (!blogUrl.trim()) missing.push('블로그 URL');
+        if (!blogsValid) missing.push('블로그 URL');
         if (missing.length > 0) toast.error(`${missing.join(', ')}을(를) 입력해주세요.`);
         break;
       }
@@ -140,7 +181,11 @@ export default function OnboardingPage() {
           name: name.trim(),
           nickname: nickname.trim(),
           part,
-          blogUrl: blogUrl.trim(),
+          blogs: blogs.map((b) => ({
+            label: b.label.trim() || null,
+            blogUrl: b.blogUrl.trim(),
+            rssConsent: b.rssConsent,
+          })),
           profileImageUrl: profileImageUrl || null,
           bio: bio.trim(),
           interests,
@@ -148,7 +193,6 @@ export default function OnboardingPage() {
           githubUrl: githubUrl.trim() || null,
           linkedinUrl: linkedinUrl.trim() || null,
           instagramUrl: instagramUrl.trim() || null,
-          rssConsent,
         }),
       });
 
@@ -274,34 +318,68 @@ export default function OnboardingPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="blogUrl">
-                블로그 URL <span className="text-destructive">*</span>
+            <div className="space-y-3">
+              <Label>
+                블로그 <span className="text-destructive">*</span>
+                <span className="text-xs text-muted-foreground ml-2">(최대 {MAX_BLOGS}개)</span>
               </Label>
-              <Input
-                id="blogUrl"
-                placeholder="https://velog.io/@username"
-                value={blogUrl}
-                onChange={(e) => setBlogUrl(e.target.value)}
-                maxLength={500}
-              />
+              {blogs.map((blog, idx) => (
+                <div key={blog.key} className="space-y-3 rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">블로그 {idx + 1}</p>
+                    {blogs.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeBlog(blog.key)}
+                        aria-label={`블로그 ${idx + 1} 삭제`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="이름 (선택) — 예: 기술 블로그, 벨로그"
+                    value={blog.label}
+                    onChange={(e) => updateBlog(blog.key, { label: e.target.value })}
+                    maxLength={100}
+                  />
+                  <Input
+                    placeholder="https://velog.io/@username"
+                    value={blog.blogUrl}
+                    onChange={(e) => updateBlog(blog.key, { blogUrl: e.target.value })}
+                    maxLength={500}
+                  />
+                  <div className="flex items-center justify-between rounded-md border p-2.5">
+                    <div className="space-y-0.5">
+                      <Label htmlFor={`onb-rss-${blog.key}`} className="text-sm font-medium">
+                        RSS 자동 수집
+                      </Label>
+                      {!blog.rssConsent && (
+                        <p className="text-xs text-muted-foreground">
+                          끄면 이 블로그 글을 직접 등록해야 합니다.
+                        </p>
+                      )}
+                    </div>
+                    <Switch
+                      id={`onb-rss-${blog.key}`}
+                      checked={blog.rssConsent}
+                      onCheckedChange={(checked) => updateBlog(blog.key, { rssConsent: checked })}
+                    />
+                  </div>
+                </div>
+              ))}
+              {blogs.length < MAX_BLOGS && (
+                <Button type="button" variant="outline" className="w-full" onClick={addBlog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  블로그 추가 ({blogs.length}/{MAX_BLOGS})
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">
                 Velog, Tistory, Medium 등 블로그 주소를 입력하세요.
               </p>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="rssConsent" className="text-sm font-medium">
-                  RSS 자동 수집 동의
-                </Label>
-                {!rssConsent && (
-                  <p className="text-xs text-muted-foreground">
-                    RSS 수집을 비활성화하면 글을 직접 등록해야 합니다.
-                  </p>
-                )}
-              </div>
-              <Switch id="rssConsent" checked={rssConsent} onCheckedChange={setRssConsent} />
             </div>
 
             <Separator />

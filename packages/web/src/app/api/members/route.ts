@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 import { getAdminDiscordIds } from '@/lib/admin';
 
-const { members, posts, attendance, AttendanceStatus } = sharedDb;
+const { members, memberBlogs, posts, attendance, AttendanceStatus } = sharedDb;
 
 const ALLOWED_STATUSES = ['active', 'dormant', 'ob'];
 
@@ -46,6 +46,29 @@ export async function GET(request: NextRequest) {
       .where(
         statuses.length === 1 ? eq(members.status, statuses[0]!) : inArray(members.status, statuses)
       );
+
+    // Get blogs for listed members
+    const memberIds = membersList.map((m) => m.id);
+    const blogRows =
+      memberIds.length > 0
+        ? await database
+            .select({
+              memberId: memberBlogs.memberId,
+              id: memberBlogs.id,
+              label: memberBlogs.label,
+              blogUrl: memberBlogs.blogUrl,
+              sortOrder: memberBlogs.sortOrder,
+            })
+            .from(memberBlogs)
+            .where(inArray(memberBlogs.memberId, memberIds))
+            .orderBy(asc(memberBlogs.sortOrder))
+        : [];
+    const blogMap = new Map<string, { id: string; label: string | null; blogUrl: string }[]>();
+    for (const b of blogRows) {
+      const list = blogMap.get(b.memberId) ?? [];
+      list.push({ id: b.id, label: b.label, blogUrl: b.blogUrl });
+      blogMap.set(b.memberId, list);
+    }
 
     // Get post counts for all members (soft deleted 제외)
     const postCounts = await database
@@ -87,7 +110,7 @@ export async function GET(request: NextRequest) {
         name: member.name,
         nickname: member.nickname,
         part: member.part,
-        blogUrl: member.blogUrl,
+        blogs: blogMap.get(member.id) ?? [],
         profileImageUrl: member.profileImageUrl,
         bio: member.bio,
         status: member.status,

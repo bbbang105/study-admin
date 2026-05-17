@@ -38,6 +38,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:run": "tsx src/db/migrate.ts",
+    "migrate:member-blogs": "tsx src/db/backfill-member-blogs.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

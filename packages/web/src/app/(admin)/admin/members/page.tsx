@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Users,
+  Clock,
+  Edit,
+  ExternalLink,
+  GraduationCap,
+  Moon,
   Plus,
   Search,
-  Edit,
   Trash2,
-  ExternalLink,
-  Moon,
-  UserX,
-  Clock,
   UserCheck,
-  GraduationCap,
+  Users,
+  UserX,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,15 @@ interface AttendanceStats {
   absent: number;
 }
 
+interface MemberBlog {
+  id: string;
+  label: string | null;
+  blogUrl: string;
+  rssUrl: string | null;
+  rssConsent: boolean;
+  sortOrder: number;
+}
+
 interface Member {
   id: string;
   discordId: string;
@@ -49,9 +58,7 @@ interface Member {
   name: string;
   nickname: string;
   part: string;
-  blogUrl: string;
-  rssUrl: string | null;
-  rssConsent: boolean;
+  blogs: MemberBlog[];
   profileImageUrl: string | null;
   bio: string | null;
   interests: string[] | null;
@@ -82,7 +89,6 @@ interface MembersData {
   grouped: Record<string, Member[]>;
   counts: MemberCounts;
 }
-
 
 export default function AdminMembersPage() {
   const [data, setData] = useState<MembersData | null>(null);
@@ -176,23 +182,28 @@ export default function AdminMembersPage() {
   };
 
   // Filter members
-  const filteredMembers = data?.members.filter((member) => {
-    // Status filter
-    if (statusFilter !== 'all' && member.status !== statusFilter) {
-      return false;
-    }
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        member.name.toLowerCase().includes(query) ||
-        member.discordUsername.toLowerCase().includes(query) ||
-        member.part.toLowerCase().includes(query) ||
-        member.blogUrl.toLowerCase().includes(query)
-      );
-    }
-    return true;
-  }) || [];
+  const filteredMembers =
+    data?.members.filter((member) => {
+      // Status filter
+      if (statusFilter !== 'all' && member.status !== statusFilter) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          member.name.toLowerCase().includes(query) ||
+          member.discordUsername.toLowerCase().includes(query) ||
+          member.part.toLowerCase().includes(query) ||
+          member.blogs.some(
+            (b) =>
+              b.blogUrl.toLowerCase().includes(query) ||
+              (b.label ?? '').toLowerCase().includes(query)
+          )
+        );
+      }
+      return true;
+    }) || [];
 
   if (loading) return <AdminMembersSkeleton />;
   if (error) return <PageError message={error} />;
@@ -202,9 +213,7 @@ export default function AdminMembersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">멤버 관리</h1>
-          <p className="text-muted-foreground">
-            스터디 참가자를 관리하세요.
-          </p>
+          <p className="text-muted-foreground">스터디 참가자를 관리하세요.</p>
         </div>
         <Button onClick={handleAddMember} className="self-start sm:self-auto">
           <Plus className="h-4 w-4 mr-2" />
@@ -216,7 +225,12 @@ export default function AdminMembersPage() {
       <div className="flex flex-wrap gap-2">
         {[
           { key: 'all', label: '전체', count: data?.counts.total, icon: Users },
-          { key: 'pending_approval', label: '승인대기', count: data?.counts.pending_approval, icon: Clock },
+          {
+            key: 'pending_approval',
+            label: '승인대기',
+            count: data?.counts.pending_approval,
+            icon: Clock,
+          },
           { key: 'active', label: '활성', count: data?.counts.active, icon: UserCheck },
           { key: 'ob', label: 'OB', count: data?.counts.ob, icon: GraduationCap },
           { key: 'dormant', label: '휴면', count: data?.counts.dormant, icon: Moon },
@@ -234,12 +248,14 @@ export default function AdminMembersPage() {
           >
             <tab.icon className="h-3.5 w-3.5" />
             {tab.label}
-            <span className={cn(
-              'ml-0.5 rounded-full px-1.5 py-0.5 text-xs',
-              statusFilter === tab.key
-                ? 'bg-primary-foreground/20 text-primary-foreground'
-                : 'bg-background text-foreground'
-            )}>
+            <span
+              className={cn(
+                'ml-0.5 rounded-full px-1.5 py-0.5 text-xs',
+                statusFilter === tab.key
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-background text-foreground'
+              )}
+            >
               {tab.count ?? 0}
             </span>
           </button>
@@ -253,12 +269,16 @@ export default function AdminMembersPage() {
             <div>
               <CardTitle>멤버 목록</CardTitle>
               <CardDescription>
-                {statusFilter === 'all' ? '전체' : MEMBER_STATUS_CONFIG[statusFilter]?.label} 멤버 {filteredMembers.length}명
+                {statusFilter === 'all' ? '전체' : MEMBER_STATUS_CONFIG[statusFilter]?.label} 멤버{' '}
+                {filteredMembers.length}명
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Search
+                  className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Label htmlFor="members-search" className="sr-only">
                   멤버 검색
                 </Label>
@@ -298,29 +318,48 @@ export default function AdminMembersPage() {
                           <p className="text-xs text-muted-foreground">{member.discordUsername}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                            RSS {member.rssConsent ? 'ON' : 'OFF'}
-                          </Badge>
-                          <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                          {(() => {
+                            const anyRss = member.blogs.some((b) => b.rssConsent);
+                            return (
+                              <Badge
+                                variant={anyRss ? 'outline' : 'secondary'}
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                RSS {anyRss ? 'ON' : 'OFF'}
+                              </Badge>
+                            );
+                          })()}
+                          <Badge
+                            variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}
+                          >
                             {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
                           </Badge>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <PartBadge part={member.part} />
-                        <span className="text-xs text-muted-foreground">포스트 {member.postCount}개</span>
-                        <span className="text-xs text-muted-foreground">출석률 {member.attendanceRate}%</span>
+                        <span className="text-xs text-muted-foreground">
+                          포스트 {member.postCount}개
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          출석률 {member.attendanceRate}%
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <a
-                          href={member.blogUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          블로그
-                        </a>
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          {member.blogs.map((b) => (
+                            <a
+                              key={b.id}
+                              href={b.blogUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              {b.label || '블로그'}
+                            </a>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -345,7 +384,11 @@ export default function AdminMembersPage() {
                   ))
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? '검색 결과가 없습니다.' : statusFilter === 'pending_approval' ? '승인 대기 중인 멤버가 없습니다.' : '등록된 멤버가 없습니다.'}
+                    {searchQuery
+                      ? '검색 결과가 없습니다.'
+                      : statusFilter === 'pending_approval'
+                        ? '승인 대기 중인 멤버가 없습니다.'
+                        : '등록된 멤버가 없습니다.'}
                   </div>
                 )}
               </div>
@@ -369,7 +412,9 @@ export default function AdminMembersPage() {
                     {filteredMembers.length > 0 ? (
                       filteredMembers.map((member) => (
                         <TableRow key={member.id}>
-                          <TableCell className="font-medium whitespace-nowrap">{member.name}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            {member.name}
+                          </TableCell>
                           <TableCell className="whitespace-nowrap">
                             <PartBadge part={member.part} />
                           </TableCell>
@@ -377,28 +422,47 @@ export default function AdminMembersPage() {
                             {member.discordUsername}
                           </TableCell>
                           <TableCell>
-                            <a
-                              href={member.blogUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-sm text-primary hover:underline"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              블로그
-                            </a>
+                            <div className="flex flex-col gap-1">
+                              {member.blogs.map((b) => (
+                                <a
+                                  key={b.id}
+                                  href={b.blogUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-sm text-primary hover:underline"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  {b.label || '블로그'}
+                                </a>
+                              ))}
+                            </div>
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
-                              <Badge variant={member.rssConsent ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                                RSS {member.rssConsent ? 'ON' : 'OFF'}
-                              </Badge>
-                              <Badge variant={MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'}>
+                              {(() => {
+                                const anyRss = member.blogs.some((b) => b.rssConsent);
+                                return (
+                                  <Badge
+                                    variant={anyRss ? 'outline' : 'secondary'}
+                                    className="text-[10px] px-1.5 py-0"
+                                  >
+                                    RSS {anyRss ? 'ON' : 'OFF'}
+                                  </Badge>
+                                );
+                              })()}
+                              <Badge
+                                variant={
+                                  MEMBER_STATUS_CONFIG[member.status]?.variant || 'secondary'
+                                }
+                              >
                                 {MEMBER_STATUS_CONFIG[member.status]?.label || member.status}
                               </Badge>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">{member.postCount}</TableCell>
-                          <TableCell className="text-right whitespace-nowrap">{member.attendanceRate}%</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {member.attendanceRate}%
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -425,7 +489,11 @@ export default function AdminMembersPage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          {searchQuery ? '검색 결과가 없습니다.' : statusFilter === 'pending_approval' ? '승인 대기 중인 멤버가 없습니다.' : '등록된 멤버가 없습니다.'}
+                          {searchQuery
+                            ? '검색 결과가 없습니다.'
+                            : statusFilter === 'pending_approval'
+                              ? '승인 대기 중인 멤버가 없습니다.'
+                              : '등록된 멤버가 없습니다.'}
                         </TableCell>
                       </TableRow>
                     )}

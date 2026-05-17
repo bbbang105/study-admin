@@ -7,8 +7,8 @@
  */
 
 import { loadBotEnv } from '@blog-study/shared';
-import { getDb, members } from '@blog-study/shared/db';
-import { eq } from 'drizzle-orm';
+import { getDb, memberBlogs, members } from '@blog-study/shared/db';
+import { and, eq } from 'drizzle-orm';
 import { getRssPoller } from '../schedulers/rss-poller';
 import { getRssService } from '../services/rss.service';
 import { getPostService } from '../services/post.service';
@@ -52,10 +52,26 @@ async function main() {
     process.exit(1);
   }
 
-  await db
-    .update(members)
-    .set({ rssUrl: RSS_URL })
-    .where(eq(members.id, member.id));
+  const [existingBlog] = await db
+    .select()
+    .from(memberBlogs)
+    .where(and(eq(memberBlogs.memberId, member.id), eq(memberBlogs.blogUrl, RSS_URL)))
+    .limit(1);
+
+  if (existingBlog) {
+    await db
+      .update(memberBlogs)
+      .set({ rssUrl: RSS_URL, rssConsent: true })
+      .where(eq(memberBlogs.id, existingBlog.id));
+  } else {
+    await db.insert(memberBlogs).values({
+      memberId: member.id,
+      blogUrl: RSS_URL,
+      rssUrl: RSS_URL,
+      rssConsent: true,
+      sortOrder: 0,
+    });
+  }
   console.log(`✅ ${member.discordUsername}에 RSS URL 설정: ${RSS_URL}\n`);
 
   // 4. 현재 라운드 확인

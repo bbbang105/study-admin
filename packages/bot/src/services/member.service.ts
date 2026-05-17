@@ -4,14 +4,15 @@
  * Requirements: 1.1, 2.1, 3.2, 3.6
  */
 
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import {
   getDb,
+  type Member,
+  memberBlogs,
   members,
   MemberStatus,
-  type Member,
-  type NewMember,
   type MemberStatusType,
+  type NewMember,
 } from '@blog-study/shared/db';
 import { validateBlogUrl } from '@blog-study/shared/utils';
 
@@ -81,7 +82,7 @@ export class MemberService {
     if (existing) {
       throw new MemberError(
         MemberErrorCodes.ALREADY_REGISTERED,
-        `이미 등록된 사용자입니다. 현재 블로그: ${existing.blogUrl}`,
+        '이미 등록된 사용자입니다.',
         `User ${input.discordId} is already registered`
       );
     }
@@ -93,14 +94,21 @@ export class MemberService {
       name: input.name,
       nickname: input.name,
       part: input.part,
-      blogUrl: urlValidation.normalizedUrl || input.blogUrl,
-      rssUrl: input.rssUrl || null,
       status: MemberStatus.ACTIVE,
       dormantUsed: false,
       onboardingCompleted: false,
     };
 
     const [created] = await this.db.insert(members).values(newMember).returning();
+
+    // Register the member's first blog
+    await this.db.insert(memberBlogs).values({
+      memberId: created!.id,
+      blogUrl: urlValidation.normalizedUrl || input.blogUrl,
+      rssUrl: input.rssUrl || null,
+      sortOrder: 0,
+    });
+
     return created!;
   }
 
@@ -267,7 +275,7 @@ export class MemberService {
   }
 
   /**
-   * Update member's RSS URL
+   * Update the RSS URL of the member's primary (lowest sortOrder) blog
    */
   async updateRssUrl(discordId: string, rssUrl: string): Promise<Member> {
     const member = await this.getByDiscordId(discordId);
@@ -279,16 +287,27 @@ export class MemberService {
       );
     }
 
-    const [updated] = await this.db
-      .update(members)
-      .set({
-        rssUrl,
-        updatedAt: new Date(),
-      })
-      .where(eq(members.discordId, discordId))
-      .returning();
+    const [primaryBlog] = await this.db
+      .select()
+      .from(memberBlogs)
+      .where(eq(memberBlogs.memberId, member.id))
+      .orderBy(asc(memberBlogs.sortOrder))
+      .limit(1);
 
-    return updated!;
+    if (!primaryBlog) {
+      throw new MemberError(
+        MemberErrorCodes.USER_NOT_FOUND,
+        '등록된 블로그가 없습니다.',
+        `Member ${member.id} has no blog`
+      );
+    }
+
+    await this.db
+      .update(memberBlogs)
+      .set({ rssUrl, updatedAt: new Date() })
+      .where(eq(memberBlogs.id, primaryBlog.id));
+
+    return member;
   }
 
   /**

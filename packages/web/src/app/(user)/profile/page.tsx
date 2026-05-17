@@ -53,8 +53,13 @@ interface MemberInfo {
   name: string;
   nickname: string;
   part: string;
-  blogUrl: string;
-  rssUrl: string | null;
+  blogs: {
+    id: string;
+    label: string | null;
+    blogUrl: string;
+    rssUrl: string | null;
+    rssConsent: boolean;
+  }[];
   profileImageUrl: string | null;
   bio: string | null;
   interests: string[] | null;
@@ -290,17 +295,27 @@ export default function ProfilePage() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">파트</p>
                   <PartBadge part={data.member.part} />
                 </div>
-                <div className="space-y-0.5 min-w-0">
+                <div className="space-y-1 min-w-0 md:col-span-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">블로그</p>
-                  <a
-                    href={data.member.blogUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline max-w-full"
-                  >
-                    <span className="truncate">{data.member.blogUrl}</span>
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                  </a>
+                  <div className="space-y-1">
+                    {data.member.blogs.map((blog) => (
+                      <a
+                        key={blog.id}
+                        href={blog.blogUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline max-w-full"
+                      >
+                        {blog.label && (
+                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            {blog.label}
+                          </span>
+                        )}
+                        <span className="truncate">{blog.blogUrl}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">가입일</p>
@@ -515,9 +530,7 @@ export default function ProfilePage() {
 
               <AlertDialogContent className="max-w-sm">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-base">
-                    정말 탈퇴하시겠습니까?
-                  </AlertDialogTitle>
+                  <AlertDialogTitle className="text-base">정말 탈퇴하시겠습니까?</AlertDialogTitle>
                   <AlertDialogDescription className="text-sm text-muted-foreground">
                     탈퇴하면 스터디 활동이 중단되며, 다시 참가하려면 관리자 승인이 필요합니다.
                   </AlertDialogDescription>

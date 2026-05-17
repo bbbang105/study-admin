@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
-import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse, withCache } from '@/lib/api-error';
 
-const { members, posts, attendance, AttendanceStatus } = sharedDb;
+const { members, memberBlogs, posts, attendance, AttendanceStatus } = sharedDb;
 
 /**
  * GET /api/members/[id]
@@ -57,6 +57,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     const attStats = attendanceStats[0] || { total: 0, submitted: 0, late: 0, absent: 0 };
 
+    const blogs = await database
+      .select({
+        id: memberBlogs.id,
+        label: memberBlogs.label,
+        blogUrl: memberBlogs.blogUrl,
+        sortOrder: memberBlogs.sortOrder,
+      })
+      .from(memberBlogs)
+      .where(eq(memberBlogs.memberId, member.id))
+      .orderBy(asc(memberBlogs.sortOrder));
+
     // Get recent posts (soft deleted 제외)
     const recentPosts = await database
       .select({
@@ -78,7 +89,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           name: member.name,
           nickname: member.nickname,
           part: member.part,
-          blogUrl: member.blogUrl,
+          blogs: blogs.map((b) => ({ id: b.id, label: b.label, blogUrl: b.blogUrl })),
           profileImageUrl: member.profileImageUrl,
           bio: member.bio,
           interests: member.interests,

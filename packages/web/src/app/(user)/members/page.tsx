@@ -19,7 +19,7 @@ interface Member {
   nickname: string;
   discordUsername: string;
   part: string;
-  blogUrl: string;
+  blogs: { id: string; label: string | null; blogUrl: string }[];
   profileImageUrl: string | null;
   bio: string | null;
   status: string;
@@ -130,7 +130,11 @@ export default function MembersPage() {
             .filter((m) => !filterPart || m.part === filterPart)
             .map((member) => {
               const socialLinks = [
-                { url: member.blogUrl, icon: ExternalLink, label: '블로그' },
+                ...member.blogs.map((b) => ({
+                  url: b.blogUrl,
+                  icon: ExternalLink,
+                  label: b.label || '블로그',
+                })),
                 { url: member.githubUrl, icon: Github, label: 'GitHub' },
                 { url: member.linkedinUrl, icon: Linkedin, label: 'LinkedIn' },
                 { url: member.instagramUrl, icon: Instagram, label: 'Instagram' },
@@ -199,11 +203,11 @@ export default function MembersPage() {
                     {/* Social link chips */}
                     {socialLinks.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {socialLinks.map((link) => {
+                        {socialLinks.map((link, i) => {
                           const Icon = link.icon;
                           return (
                             <a
-                              key={link.label}
+                              key={`${link.label}-${i}`}
                               href={link.url!}
                               target="_blank"
                               rel="noopener noreferrer"

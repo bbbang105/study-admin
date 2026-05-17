@@ -7,7 +7,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseFeed } from 'feedsmith';
-import { detectBlogPlatform, type BlogPlatform } from '@blog-study/shared/utils';
+import { type BlogPlatform, detectBlogPlatform } from '@blog-study/shared/utils';
 
 /**
  * Error codes for RSS operations
@@ -57,6 +57,7 @@ export interface RssDetectionResult {
  */
 export interface PollResult {
   memberId: string;
+  blogId?: string;
   success: boolean;
   newItems: RssFeedItem[];
   error?: string;

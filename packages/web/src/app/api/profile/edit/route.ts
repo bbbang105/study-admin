@@ -1,10 +1,11 @@
-import { after, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
-import { detectRssUrl, isSafeUrl } from '@/lib/rss-detect';
+import { isSafeUrl } from '@/lib/rss-detect';
+import { syncMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
 
 const { members } = sharedDb;
 
@@ -46,7 +47,7 @@ export async function PUT(request: NextRequest) {
       name,
       nickname,
       part,
-      blogUrl,
+      blogs,
       profileImageUrl,
       bio,
       interests,
@@ -54,7 +55,6 @@ export async function PUT(request: NextRequest) {
       githubUrl,
       linkedinUrl,
       instagramUrl,
-      rssConsent,
     } = body;
 
     // --- 검증 ---
@@ -71,21 +71,10 @@ export async function PUT(request: NextRequest) {
       return Errors.badRequest('파트는 50자 이내의 문자열이어야 합니다.').toResponse();
     }
 
-    // 블로그 URL 검증
-    const trimmedBlogUrl = typeof blogUrl === 'string' ? blogUrl.trim() : null;
-    const blogUrlChanged =
-      typeof blogUrl === 'string' &&
-      trimmedBlogUrl !== null &&
-      trimmedBlogUrl.length > 0 &&
-      trimmedBlogUrl !== memberData.blogUrl;
-
-    if (blogUrlChanged) {
-      if (trimmedBlogUrl!.length > 500) {
-        return Errors.badRequest('블로그 URL은 500자 이내여야 합니다.').toResponse();
-      }
-      if (!isSafeUrl(trimmedBlogUrl!)) {
-        return Errors.badRequest('유효하지 않은 블로그 URL입니다.').toResponse();
-      }
+    // 블로그 목록 검증 (1~MAX개, 각 SSRF 체크, 이름 길이)
+    const blogValidation = validateBlogInputs(blogs, true);
+    if (!blogValidation.ok) {
+      return Errors.badRequest(blogValidation.message).toResponse();
     }
 
     // 프로필 이미지 URL 검증 (SSRF 방지)
@@ -129,13 +118,6 @@ export async function PUT(request: NextRequest) {
 
     // --- DB 업데이트 ---
 
-    // 블로그 URL 변경 시: 즉시 blogUrl 저장 + rssUrl null 초기화, RSS 감지는 after()로 비동기 처리
-    const blogFields: { blogUrl?: string; rssUrl?: string | null } = {};
-    if (blogUrlChanged) {
-      blogFields.blogUrl = trimmedBlogUrl!;
-      blogFields.rssUrl = null;
-    }
-
     await database
       .update(members)
       .set({
@@ -146,7 +128,6 @@ export async function PUT(request: NextRequest) {
           ? { nickname: nickname.trim() }
           : {}),
         ...(part ? { part } : {}),
-        ...blogFields,
         profileImageUrl: profileImageUrl || null,
         bio: bio || null,
         interests: interests || null,
@@ -154,27 +135,12 @@ export async function PUT(request: NextRequest) {
         githubUrl: githubUrl || null,
         linkedinUrl: linkedinUrl || null,
         instagramUrl: instagramUrl || null,
-        ...(typeof rssConsent === 'boolean' ? { rssConsent } : {}),
         updatedAt: new Date(),
       })
       .where(eq(members.id, memberData.id));
 
-    // RSS URL 비동기 감지 (fire-and-forget)
-    if (blogUrlChanged) {
-      after(async () => {
-        try {
-          const newRssUrl = await detectRssUrl(trimmedBlogUrl!);
-          if (newRssUrl) {
-            await db()
-              .update(members)
-              .set({ rssUrl: newRssUrl, updatedAt: new Date() })
-              .where(eq(members.id, memberData.id));
-          }
-        } catch (err) {
-          console.error('[profile-edit] RSS 재감지 실패:', err);
-        }
-      });
-    }
+    // 블로그 동기화 (추가/수정/삭제 + 변경분 RSS 비동기 재감지)
+    await syncMemberBlogs(memberData.id, blogValidation.value);
 
     return successResponse(null, '프로필이 수정되었습니다.');
   } catch (error) {
