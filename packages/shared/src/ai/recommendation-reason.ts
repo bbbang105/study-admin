@@ -1,4 +1,8 @@
-import { calculateFreshnessScore, normalizeRelevanceScore } from './recommendation-score';
+import {
+  calculateFreshnessScore,
+  normalizeRelevanceScore,
+  toFiniteNumber,
+} from './recommendation-score';
 
 export interface RecommendationReason {
   summary: string;
@@ -83,14 +87,15 @@ export function buildRecommendationReason(input: {
   description?: string | null;
   sourceName?: string | null;
   publishedAt?: Date | string | null;
-  semanticScore?: number | null;
-  freshnessScore?: number | null;
-  relevanceScore?: number | null;
+  semanticScore?: number | string | null;
+  freshnessScore?: number | string | null;
+  relevanceScore?: number | string | null;
 }): RecommendationReason | null {
   const matchedKeywords = findMatchedKeywords(input);
-  const freshnessScore = input.freshnessScore ?? calculateFreshnessScore(input.publishedAt ?? null);
+  const freshnessScore =
+    toFiniteNumber(input.freshnessScore) ?? calculateFreshnessScore(input.publishedAt ?? null);
   const relevanceScore = normalizeRelevanceScore(input.relevanceScore);
-  const semanticScore = input.semanticScore ?? null;
+  const semanticScore = toFiniteNumber(input.semanticScore);
   const reasons: string[] = [];
 
   if (matchedKeywords.length > 0) {
@@ -131,16 +136,17 @@ export function buildPostRecommendationReason(input: {
   authorPart?: string | null;
   currentMemberPart?: string | null;
   publishedAt?: Date | string | null;
-  semanticScore?: number | null;
-  freshnessScore?: number | null;
-  popularityScore?: number | null;
-  authorAffinityScore?: number | null;
+  semanticScore?: number | string | null;
+  freshnessScore?: number | string | null;
+  popularityScore?: number | string | null;
+  authorAffinityScore?: number | string | null;
 }): PostRecommendationReason | null {
   const matchedKeywords = findMatchedKeywords(input);
-  const freshnessScore = input.freshnessScore ?? calculateFreshnessScore(input.publishedAt ?? null);
-  const semanticScore = input.semanticScore ?? null;
-  const popularityScore = input.popularityScore ?? null;
-  const authorAffinityScore = input.authorAffinityScore ?? null;
+  const freshnessScore =
+    toFiniteNumber(input.freshnessScore) ?? calculateFreshnessScore(input.publishedAt ?? null);
+  const semanticScore = toFiniteNumber(input.semanticScore);
+  const popularityScore = toFiniteNumber(input.popularityScore);
+  const authorAffinityScore = toFiniteNumber(input.authorAffinityScore);
   const reasons: string[] = [];
 
   if (matchedKeywords.length > 0) {

@@ -274,8 +274,10 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 function toPercent(score: number | null): number | null {
-  if (score === null || !Number.isFinite(score)) return null;
-  return Math.round(Math.min(1, Math.max(0, score)) * 100);
+  if (score === null) return null;
+  const numeric = Number(score);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(Math.min(1, Math.max(0, numeric)) * 100);
 }
 
 function PostRecommendationBadges({ post }: { post: Post }) {

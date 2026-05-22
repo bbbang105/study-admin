@@ -4,13 +4,20 @@ export const RECOMMENDATION_SCORE_WEIGHTS = {
   relevance: 0.15,
 } as const;
 
-export function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(1, Math.max(0, value));
+export function toFiniteNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
-export function normalizeRelevanceScore(score: number | null | undefined): number {
-  return clamp01((score ?? 0) / 100);
+export function clamp01(value: number | string | null | undefined): number {
+  const numeric = toFiniteNumber(value);
+  if (numeric === null) return 0;
+  return Math.min(1, Math.max(0, numeric));
+}
+
+export function normalizeRelevanceScore(score: number | string | null | undefined): number {
+  return clamp01((toFiniteNumber(score) ?? 0) / 100);
 }
 
 export function calculateFreshnessScore(
