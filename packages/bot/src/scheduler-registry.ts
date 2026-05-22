@@ -226,7 +226,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     if (!result) return [];
 
     // P1 #8: 공유 유틸리티 사용
-    const { extractFeedItems, sanitizeDescription, extractOgImage } =
+    const { extractFeedItems, inferCurationTags, sanitizeDescription, extractOgImage } =
       await import('@blog-study/shared/utils');
     const feedItems = extractFeedItems(result);
 
@@ -251,7 +251,11 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         url: item.link!,
         publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
         category: '',
-        tags: item.categories ?? [],
+        tags: inferCurationTags({
+          title: item.title!,
+          description: item.description,
+          rawTags: item.categories ?? [],
+        }),
         description: item.description,
         thumbnailUrl:
           (result?.status === 'fulfilled' ? result.value : null) ??

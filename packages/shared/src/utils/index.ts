@@ -5,6 +5,7 @@ export * from './url-validator';
 export * from './date-utils';
 export * from './keyword-extractor';
 export * from './feed-parser';
+export * from './curation-tags';
 
 // 유틸리티 함수들을 namespace로 export (import { utils } 패턴 지원)
 import * as serializationUtils from './serialization';
@@ -12,6 +13,7 @@ import * as urlValidatorUtils from './url-validator';
 import * as dateUtils from './date-utils';
 import * as keywordExtractorUtils from './keyword-extractor';
 import * as feedParserUtils from './feed-parser';
+import * as curationTagsUtils from './curation-tags';
 
 export const utils = {
   ...serializationUtils,
@@ -19,4 +21,5 @@ export const utils = {
   ...dateUtils,
   ...keywordExtractorUtils,
   ...feedParserUtils,
+  ...curationTagsUtils,
 };

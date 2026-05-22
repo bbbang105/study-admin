@@ -11,7 +11,8 @@ import {
 import { scheduleCurationItemEmbeddingRefresh } from '@/lib/embedding-refresh';
 import { utils } from '@blog-study/shared/utils';
 
-const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
+const { extractFeedItems, sanitizeDescription, extractOgImage, inferCurationTags, isSafeUrl } =
+  utils;
 
 interface CrawlSourceResult {
   sourceId: string;
@@ -173,14 +174,17 @@ export async function POST(request: NextRequest) {
 
             if (existing) continue;
 
-            // Merge source tags + item tags
-            const mergedTags = [...new Set([...(source.tags || []), ...(item.categories || [])])];
-
             // Parse published date
             let publishedAt: Date | null = null;
             if (item.pubDate) {
               publishedAt = new Date(item.pubDate);
             }
+
+            const inferredTags = inferCurationTags({
+              title: item.title!,
+              description,
+              rawTags: [...(source.tags || []), ...(item.categories || [])],
+            });
 
             const [created] = await database
               .insert(curationItems)
@@ -192,7 +196,7 @@ export async function POST(request: NextRequest) {
                 thumbnailUrl,
                 publishedAt,
                 category: source.category,
-                tags: mergedTags.length > 0 ? mergedTags : null,
+                tags: inferredTags.length > 0 ? inferredTags : null,
                 relevanceScore: 0,
                 isShared: false,
               })
