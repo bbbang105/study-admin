@@ -10,6 +10,7 @@ import {
   FileText,
   Home,
   MessageSquare,
+  Newspaper,
   Star,
   Trophy,
   Users,
@@ -27,8 +28,7 @@ const userNavItems: NavItem[] = [
   { title: '랭킹', href: '/ranking', icon: Trophy },
   { title: '포스트', href: '/posts', icon: FileText },
   { title: '홈', href: '/dashboard', icon: Home },
-  // TODO: 큐레이션 기능 나중에 활성화 예정
-  // { title: '큐레이션', href: '/curation', icon: Newspaper },
+  { title: '큐레이션', href: '/curation', icon: Newspaper },
   { title: '게시판', href: '/board', icon: MessageSquare },
   { title: '스터디원', href: '/members', icon: UsersRound },
 ];
@@ -40,8 +40,7 @@ const adminNavItems: NavItem[] = [
   { title: '벌금', href: '/admin/fines', icon: Banknote },
   { title: '점수', href: '/admin/scores', icon: Star },
   { title: '봇', href: '/admin/bot-operations', icon: Bot },
-  // TODO: 큐레이션 기능 나중에 활성화 예정
-  // { title: '큐레이션', href: '/admin/curation', icon: Newspaper },
+  { title: '큐레이션', href: '/admin/curation', icon: Newspaper },
 ];
 
 interface BottomNavProps {

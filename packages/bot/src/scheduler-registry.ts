@@ -44,8 +44,8 @@ const JOB_DEFINITIONS = [
   { name: 'fine-reminder', cron: '0 0 * * *' }, // KST 매일 09:00 (UTC 00:00)
   { name: 'round-report', cron: '0 23 * * 1' }, // KST 화 08:00 (UTC 월 23:00)
   { name: 'round-start', cron: '0 23 * * 0' }, // KST 월 08:00 (UTC 일 23:00)
-  { name: 'curation-crawl', cron: '0 23 * * *' }, // 4기 미사용
-  { name: 'curation-share', cron: '5 10 * * *' }, // 4기 미사용
+  { name: 'curation-crawl', cron: '0 23 * * *' }, // KST 매일 08:00 (UTC 23:00)
+  { name: 'curation-share', cron: '5 10 * * *' }, // KST 매일 19:05 (UTC 10:05)
   { name: 'weekly-ranking', cron: '0 1 * * 0' }, // KST 일 10:00 (UTC 일 01:00)
   { name: 'deadline-reminder', cron: '0 23 * * *' }, // KST 매일 08:00 (UTC 23:00)
   { name: 'popular-posts', cron: '5 23 * * 1' }, // KST 화 08:05 (UTC 월 23:05)
