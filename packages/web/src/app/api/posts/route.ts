@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     let finalScoreExpr: ReturnType<typeof sql<number>> | null = null;
 
     if (useRecommendedSort && currentMemberId) {
-      semanticScoreExpr = sql<number>`1 - (${postEmbeddings.embedding} <=> ${memberPreferenceEmbeddings.embedding})`;
+      semanticScoreExpr = sql<number>`coalesce(1 - (${postEmbeddings.embedding} <=> ${memberPreferenceEmbeddings.embedding}), 0)`;
       const ageDaysExpr = sql<number>`greatest(extract(epoch from (now() - coalesce(${posts.publishedAt}, ${posts.collectedAt}, now()))) / 86400.0, 0)`;
       freshnessScoreExpr = sql<number>`exp(-(${ageDaysExpr}) / 14.0)`;
       popularityScoreExpr = sql<number>`least(greatest((${popularScore}) / 20.0, 0), 1)`;
@@ -160,9 +160,6 @@ export async function GET(request: NextRequest) {
 
     // Get paginated posts with member and round info
     const queryConditions = [...conditions];
-    if (useRecommendedSort) {
-      queryConditions.push(sql`${postEmbeddings.postId} IS NOT NULL`);
-    }
     const postsWhereCondition = and(...queryConditions);
 
     const postsQuery = database

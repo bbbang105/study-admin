@@ -167,13 +167,13 @@ export async function GET(request: NextRequest) {
 
     // ── Recommended sort with vector scoring ──
     if (useVectorRecommendedSort && memberId) {
-      const semanticScoreExpr = sql<number>`1 - (${curationItems.embedding} <=> ${memberPreferenceEmbeddings.embedding})`;
+      const semanticScoreExpr = sql<number>`coalesce(1 - (${curationItems.embedding} <=> ${memberPreferenceEmbeddings.embedding}), 0)`;
       const ageDaysExpr = sql<number>`greatest(extract(epoch from (now() - coalesce(${curationItems.publishedAt}, ${curationItems.collectedAt}, now()))) / 86400.0, 0)`;
       const freshnessScoreExpr = sql<number>`exp(-(${ageDaysExpr}) / 14.0)`;
       const normalizedRelevanceExpr = sql<number>`least(greatest(coalesce(${curationItems.relevanceScore}, 0), 0), 100) / 100.0`;
       const finalScoreExpr = sql<number>`((${semanticScoreExpr}) * 0.65 + (${freshnessScoreExpr}) * 0.20 + (${normalizedRelevanceExpr}) * 0.15)`;
 
-      const queryConditions = [...filterConditions, sql`${curationItems.embedding} IS NOT NULL`];
+      const queryConditions = [...filterConditions];
       if (cursor) {
         const parts = cursor.split('|');
         if (parts.length === 3) {
