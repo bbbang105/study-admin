@@ -36,12 +36,10 @@ export function scheduleCurationItemEmbeddingRefresh(itemIds: string[]): void {
   if (uniqueItemIds.length === 0) return;
 
   after(async () => {
-    for (const itemId of uniqueItemIds) {
-      try {
-        await postToBot('/api/internal/embedding/curation-item', { itemId });
-      } catch (error) {
-        console.error('[embedding-refresh] 큐레이션 아이템 임베딩 갱신 실패:', itemId, error);
-      }
+    try {
+      await postToBot('/api/internal/embedding/batch', { curationItemIds: uniqueItemIds });
+    } catch (error) {
+      console.error('[embedding-refresh] 큐레이션 아이템 임베딩 일괄 갱신 실패:', error);
     }
   });
 }
@@ -51,12 +49,10 @@ export function schedulePostEmbeddingRefresh(postIds: string[]): void {
   if (uniquePostIds.length === 0) return;
 
   after(async () => {
-    for (const postId of uniquePostIds) {
-      try {
-        await postToBot('/api/internal/embedding/post', { postId });
-      } catch (error) {
-        console.error('[embedding-refresh] 포스트 임베딩 갱신 실패:', postId, error);
-      }
+    try {
+      await postToBot('/api/internal/embedding/batch', { postIds: uniquePostIds });
+    } catch (error) {
+      console.error('[embedding-refresh] 포스트 임베딩 일괄 갱신 실패:', error);
     }
   });
 }

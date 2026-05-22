@@ -24,6 +24,7 @@ import { AttendanceStatus } from '@blog-study/shared/db';
 
 const BOT_API_SECRET = process.env.BOT_API_SECRET;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_EMBEDDING_BATCH_SIZE = 100;
 
 /**
  * Bearer token authentication middleware for trigger endpoints
@@ -62,6 +63,66 @@ export function createBotApiServer(): Express {
   // Health check
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.post('/api/internal/embedding/batch', authMiddleware, triggerLimiter, async (req, res) => {
+    try {
+      const { memberIds = [], curationItemIds = [], postIds = [] } = req.body || {};
+
+      if (
+        !Array.isArray(memberIds) ||
+        !Array.isArray(curationItemIds) ||
+        !Array.isArray(postIds)
+      ) {
+        return res.status(400).json({ error: '임베딩 갱신 ID 목록이 필요합니다' });
+      }
+
+      const uniqueMemberIds = [...new Set(memberIds)].slice(0, MAX_EMBEDDING_BATCH_SIZE);
+      const uniqueCurationItemIds = [...new Set(curationItemIds)].slice(0, MAX_EMBEDDING_BATCH_SIZE);
+      const uniquePostIds = [...new Set(postIds)].slice(0, MAX_EMBEDDING_BATCH_SIZE);
+      const allIds = [...uniqueMemberIds, ...uniqueCurationItemIds, ...uniquePostIds];
+
+      if (
+        allIds.length === 0 ||
+        allIds.some((id) => typeof id !== 'string' || !UUID_RE.test(id))
+      ) {
+        return res.status(400).json({ error: '유효한 임베딩 갱신 ID가 필요합니다' });
+      }
+
+      const embeddingService = getEmbeddingService();
+      let memberPreferencesUpdated = 0;
+      let curationItemsUpdated = 0;
+      let postsUpdated = 0;
+
+      for (const memberId of uniqueMemberIds) {
+        if (await embeddingService.refreshMemberPreference(memberId as string)) {
+          memberPreferencesUpdated++;
+        }
+      }
+      for (const itemId of uniqueCurationItemIds) {
+        if (await embeddingService.refreshCurationItem(itemId as string)) {
+          curationItemsUpdated++;
+        }
+      }
+      for (const postId of uniquePostIds) {
+        if (await embeddingService.refreshPost(postId as string)) {
+          postsUpdated++;
+        }
+      }
+
+      res.json({
+        success: true,
+        updated: {
+          memberPreferences: memberPreferencesUpdated,
+          curationItems: curationItemsUpdated,
+          posts: postsUpdated,
+        },
+      });
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '🌐 [API] 임베딩 일괄 갱신 에러');
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
+    }
   });
 
   app.post(
