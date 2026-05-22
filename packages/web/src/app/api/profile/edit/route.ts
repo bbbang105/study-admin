@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isSafeUrl } from '@/lib/rss-detect';
 import { syncMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
+import { scheduleMemberPreferenceEmbeddingRefresh } from '@/lib/embedding-refresh';
 
 const { members } = sharedDb;
 
@@ -141,6 +142,7 @@ export async function PUT(request: NextRequest) {
 
     // 블로그 동기화 (추가/수정/삭제 + 변경분 RSS 비동기 재감지)
     await syncMemberBlogs(memberData.id, blogValidation.value);
+    scheduleMemberPreferenceEmbeddingRefresh(memberData.id);
 
     return successResponse(null, '프로필이 수정되었습니다.');
   } catch (error) {

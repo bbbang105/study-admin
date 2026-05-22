@@ -2,10 +2,11 @@ import { NextRequest } from 'next/server';
 import { desc, count, eq, and, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { buildRecommendationReason, type RecommendationReason } from '@blog-study/shared';
 import { successResponse, errorResponse, Errors } from '@/lib/api-error';
 import { createClient } from '@/lib/supabase/server';
 
-const { curationItems, curationSources, members } = sharedDb;
+const { curationItems, curationSources, members, memberPreferenceEmbeddings } = sharedDb;
 
 // ── Helpers ──
 
@@ -46,6 +47,7 @@ function serializeItem(item: {
   isShared: boolean | null;
   sharedAt: Date | null;
   sourceName: string | null;
+  recommendationReason?: RecommendationReason | null;
 }) {
   return {
     id: item.id,
@@ -57,8 +59,9 @@ function serializeItem(item: {
     category: item.category,
     tags: item.tags,
     relevanceScore: item.relevanceScore,
-    sharedAt: item.isShared ? item.sharedAt?.toISOString() ?? null : null,
+    sharedAt: item.isShared ? (item.sharedAt?.toISOString() ?? null) : null,
     sourceName: item.sourceName ?? null,
+    recommendationReason: item.recommendationReason ?? null,
   };
 }
 
@@ -70,7 +73,10 @@ function serializeItem(item: {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return Errors.unauthorized().toResponse();
     }
@@ -121,22 +127,32 @@ export async function GET(request: NextRequest) {
 
     // ── Recommended sort: get user interests ──
     let userInterests: string[] = [];
+    let memberId: string | null = null;
+    let hasPreferenceEmbedding = false;
     const isRecommended = sortMode === 'recommended';
     if (isRecommended) {
-      const discordIdentity = user.identities?.find(i => i.provider === 'discord');
+      const discordIdentity = user.identities?.find((i) => i.provider === 'discord');
       const discordId = discordIdentity?.id;
       if (discordId) {
         const [member] = await database
-          .select({ interests: members.interests })
+          .select({
+            id: members.id,
+            interests: members.interests,
+            preferenceMemberId: memberPreferenceEmbeddings.memberId,
+          })
           .from(members)
+          .leftJoin(memberPreferenceEmbeddings, eq(memberPreferenceEmbeddings.memberId, members.id))
           .where(eq(members.discordId, discordId))
           .limit(1);
         userInterests = member?.interests ?? [];
+        memberId = member?.id ?? null;
+        hasPreferenceEmbedding = Boolean(member?.preferenceMemberId);
       }
     }
 
-    // Effective sort: fall back to latest if no interests
-    const useRecommendedSort = isRecommended && userInterests.length > 0;
+    const useVectorRecommendedSort = isRecommended && Boolean(memberId && hasPreferenceEmbedding);
+    const useOverlapRecommendedSort =
+      isRecommended && !useVectorRecommendedSort && userInterests.length > 0;
 
     // Total count — skip on paginated requests (client already has it)
     const countWhere = filterConditions.length > 0 ? and(...filterConditions) : undefined;
@@ -149,9 +165,101 @@ export async function GET(request: NextRequest) {
       totalCount = totalCountResult[0]?.count ?? 0;
     }
 
-    // ── Recommended sort with overlap scoring ──
-    if (useRecommendedSort) {
-      const interestsArray = sql`ARRAY[${sql.join(userInterests.map(i => sql`${i}`), sql`,`)}]::text[]`;
+    // ── Recommended sort with vector scoring ──
+    if (useVectorRecommendedSort && memberId) {
+      const semanticScoreExpr = sql<number>`1 - (${curationItems.embedding} <=> ${memberPreferenceEmbeddings.embedding})`;
+      const ageDaysExpr = sql<number>`greatest(extract(epoch from (now() - coalesce(${curationItems.publishedAt}, ${curationItems.collectedAt}, now()))) / 86400.0, 0)`;
+      const freshnessScoreExpr = sql<number>`exp(-(${ageDaysExpr}) / 14.0)`;
+      const normalizedRelevanceExpr = sql<number>`least(greatest(coalesce(${curationItems.relevanceScore}, 0), 0), 100) / 100.0`;
+      const finalScoreExpr = sql<number>`((${semanticScoreExpr}) * 0.65 + (${freshnessScoreExpr}) * 0.20 + (${normalizedRelevanceExpr}) * 0.15)`;
+
+      const queryConditions = [...filterConditions, sql`${curationItems.embedding} IS NOT NULL`];
+      if (cursor) {
+        const parts = cursor.split('|');
+        if (parts.length === 3) {
+          const cursorScore = parseFloat(parts[0]!);
+          const cursorDateStr = parts[1]!;
+          const cursorId = parts[2]!;
+
+          if (!Number.isFinite(cursorScore)) {
+            return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+          }
+          if (cursorId && !UUID_RE.test(cursorId)) {
+            return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+          }
+
+          const cursorDate = cursorDateStr ? new Date(cursorDateStr) : null;
+          if (cursorDate && !isNaN(cursorDate.getTime()) && cursorId) {
+            const cursorIso = cursorDate.toISOString();
+            queryConditions.push(
+              sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} < ${cursorIso}::timestamptz) OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} = ${cursorIso}::timestamptz AND ${curationItems.id} < ${cursorId}))`
+            );
+          } else if (cursorId) {
+            queryConditions.push(
+              sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} IS NULL AND ${curationItems.id} < ${cursorId}))`
+            );
+          }
+        }
+      }
+
+      const whereClause = queryConditions.length > 0 ? and(...queryConditions) : undefined;
+
+      const itemsResult = await database
+        .select({
+          ...BASE_SELECT,
+          finalScore: finalScoreExpr.as('final_score'),
+          semanticScore: semanticScoreExpr.as('semantic_score'),
+          freshnessScore: freshnessScoreExpr.as('freshness_score'),
+          normalizedRelevanceScore: normalizedRelevanceExpr.as('normalized_relevance_score'),
+        })
+        .from(curationItems)
+        .leftJoin(curationSources, eq(curationItems.sourceId, curationSources.id))
+        .leftJoin(memberPreferenceEmbeddings, eq(memberPreferenceEmbeddings.memberId, memberId))
+        .where(whereClause)
+        .orderBy(
+          sql`final_score DESC`,
+          sql`${curationItems.publishedAt} DESC NULLS LAST`,
+          desc(curationItems.id)
+        )
+        .limit(limit + 1);
+
+      const hasMore = itemsResult.length > limit;
+      const items = hasMore ? itemsResult.slice(0, limit) : itemsResult;
+      const lastItem = items[items.length - 1];
+      const nextCursor =
+        hasMore && lastItem
+          ? `${lastItem.finalScore}|${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
+          : null;
+
+      return successResponse({
+        items: items.map((item) =>
+          serializeItem({
+            ...item,
+            recommendationReason: buildRecommendationReason({
+              interests: userInterests,
+              tags: item.tags,
+              title: item.title,
+              description: item.description,
+              sourceName: item.sourceName,
+              publishedAt: item.publishedAt,
+              semanticScore: item.semanticScore,
+              freshnessScore: item.freshnessScore,
+              relevanceScore: item.relevanceScore,
+            }),
+          })
+        ),
+        nextCursor,
+        hasMore,
+        totalCount,
+      });
+    }
+
+    // ── Recommended sort with overlap scoring fallback ──
+    if (useOverlapRecommendedSort) {
+      const interestsArray = sql`ARRAY[${sql.join(
+        userInterests.map((i) => sql`${i}`),
+        sql`,`
+      )}]::text[]`;
       const overlapExpr = sql`COALESCE(array_length(ARRAY(SELECT unnest(${curationItems.tags}) INTERSECT SELECT unnest(${interestsArray})), 1), 0)`;
 
       const queryConditions = [...filterConditions];
@@ -191,18 +299,37 @@ export async function GET(request: NextRequest) {
         .from(curationItems)
         .leftJoin(curationSources, eq(curationItems.sourceId, curationSources.id))
         .where(whereClause)
-        .orderBy(sql`overlap_count DESC`, sql`${curationItems.publishedAt} DESC NULLS LAST`, desc(curationItems.id))
+        .orderBy(
+          sql`overlap_count DESC`,
+          sql`${curationItems.publishedAt} DESC NULLS LAST`,
+          desc(curationItems.id)
+        )
         .limit(limit + 1);
 
       const hasMore = itemsResult.length > limit;
       const items = hasMore ? itemsResult.slice(0, limit) : itemsResult;
       const lastItem = items[items.length - 1];
-      const nextCursor = hasMore && lastItem
-        ? `${lastItem.overlapCount}|${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
-        : null;
+      const nextCursor =
+        hasMore && lastItem
+          ? `${lastItem.overlapCount}|${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
+          : null;
 
       return successResponse({
-        items: items.map(serializeItem),
+        items: items.map((item) =>
+          serializeItem({
+            ...item,
+            recommendationReason: buildRecommendationReason({
+              interests: userInterests,
+              tags: item.tags,
+              title: item.title,
+              description: item.description,
+              sourceName: item.sourceName,
+              publishedAt: item.publishedAt,
+              semanticScore: null,
+              relevanceScore: item.relevanceScore,
+            }),
+          })
+        ),
         nextCursor,
         hasMore,
         totalCount,
@@ -249,9 +376,8 @@ export async function GET(request: NextRequest) {
     const hasMore = itemsResult.length > limit;
     const items = hasMore ? itemsResult.slice(0, limit) : itemsResult;
     const lastItem = items[items.length - 1];
-    const nextCursor = hasMore && lastItem
-      ? `${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
-      : null;
+    const nextCursor =
+      hasMore && lastItem ? `${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}` : null;
 
     return successResponse({
       items: items.map(serializeItem),
