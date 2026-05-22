@@ -18,11 +18,12 @@ import {
   getWeeklyRanking,
 } from './schedulers';
 import { getAttendanceService } from './services/attendance.service';
-import { getFineService } from './services';
+import { getEmbeddingService, getFineService } from './services';
 import { getCurrentRound, getRoundByNumber, isGracePeriodEnded } from './services/round.service';
 import { AttendanceStatus } from '@blog-study/shared/db';
 
 const BOT_API_SECRET = process.env.BOT_API_SECRET;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Bearer token authentication middleware for trigger endpoints
@@ -63,6 +64,64 @@ export function createBotApiServer(): Express {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  app.post(
+    '/api/internal/embedding/member-preference',
+    authMiddleware,
+    triggerLimiter,
+    async (req, res) => {
+      try {
+        const { memberId } = req.body || {};
+        if (typeof memberId !== 'string' || !UUID_RE.test(memberId)) {
+          return res.status(400).json({ error: '유효한 memberId가 필요합니다' });
+        }
+
+        const updated = await getEmbeddingService().refreshMemberPreference(memberId);
+        res.json({ success: true, updated });
+      } catch (error) {
+        Sentry.captureException(error);
+        logger.error({ error }, '🌐 [API] 멤버 취향 임베딩 갱신 에러');
+        res.status(500).json({ error: '내부 오류가 발생했습니다' });
+      }
+    }
+  );
+
+  app.post(
+    '/api/internal/embedding/curation-item',
+    authMiddleware,
+    triggerLimiter,
+    async (req, res) => {
+      try {
+        const { itemId } = req.body || {};
+        if (typeof itemId !== 'string' || !UUID_RE.test(itemId)) {
+          return res.status(400).json({ error: '유효한 itemId가 필요합니다' });
+        }
+
+        const updated = await getEmbeddingService().refreshCurationItem(itemId);
+        res.json({ success: true, updated });
+      } catch (error) {
+        Sentry.captureException(error);
+        logger.error({ error }, '🌐 [API] 큐레이션 아이템 임베딩 갱신 에러');
+        res.status(500).json({ error: '내부 오류가 발생했습니다' });
+      }
+    }
+  );
+
+  app.post('/api/internal/embedding/post', authMiddleware, triggerLimiter, async (req, res) => {
+    try {
+      const { postId } = req.body || {};
+      if (typeof postId !== 'string' || !UUID_RE.test(postId)) {
+        return res.status(400).json({ error: '유효한 postId가 필요합니다' });
+      }
+
+      const updated = await getEmbeddingService().refreshPost(postId);
+      res.json({ success: true, updated });
+    } catch (error) {
+      Sentry.captureException(error);
+      logger.error({ error }, '🌐 [API] 포스트 임베딩 갱신 에러');
+      res.status(500).json({ error: '내부 오류가 발생했습니다' });
+    }
+  });
+
   // Operation trigger endpoints (auth + rate limiting)
   app.post('/api/trigger/rss-poll', authMiddleware, triggerLimiter, async (_req, res) => {
     try {
@@ -99,18 +158,24 @@ export function createBotApiServer(): Express {
 
       // 이전 회차 PENDING → ABSENT 처리
       const processedRecords = await attendanceService.processGracePeriodEnd(prevRound.id);
-      const absentRecords = processedRecords.filter(r => r.status === AttendanceStatus.ABSENT);
+      const absentRecords = processedRecords.filter((r) => r.status === AttendanceStatus.ABSENT);
 
       // 결석 벌금 부과
       for (const record of absentRecords) {
         try {
           await fineService.create(record.memberId, prevRound.id, 'absent');
         } catch (fineError) {
-          logger.error({ memberId: record.memberId, error: fineError }, '🌐 [API] 결석 벌금 부과 실패');
+          logger.error(
+            { memberId: record.memberId, error: fineError },
+            '🌐 [API] 결석 벌금 부과 실패'
+          );
         }
       }
 
-      res.json({ success: true, result: { roundNumber: prevRound.roundNumber, processedCount: absentRecords.length } });
+      res.json({
+        success: true,
+        result: { roundNumber: prevRound.roundNumber, processedCount: absentRecords.length },
+      });
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '🌐 [API] 출석 체크 에러');
@@ -216,9 +281,8 @@ export function createBotApiServer(): Express {
       // Convert Date objects to strings for JSON serialization
       const serializedResult = {
         ...result,
-        timestamp: result.timestamp instanceof Date
-          ? result.timestamp.toISOString()
-          : result.timestamp,
+        timestamp:
+          result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp,
       };
 
       res.json({ success: true, result: serializedResult });
@@ -247,9 +311,8 @@ export function createBotApiServer(): Express {
 
       const serializedResult = {
         ...result,
-        timestamp: result.timestamp instanceof Date
-          ? result.timestamp.toISOString()
-          : result.timestamp,
+        timestamp:
+          result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp,
       };
 
       res.json({ success: true, result: serializedResult });
@@ -277,9 +340,8 @@ export function createBotApiServer(): Express {
 
       const serializedResult = {
         ...result,
-        timestamp: result.timestamp instanceof Date
-          ? result.timestamp.toISOString()
-          : result.timestamp,
+        timestamp:
+          result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp,
       };
 
       res.json({ success: true, result: serializedResult });
@@ -301,15 +363,15 @@ export function createBotApiServer(): Express {
       const { dDay } = req.body || {};
 
       // dDay가 지정되면 수동 발송, 아니면 자동(오늘 날짜 기준)
-      const result = typeof dDay === 'number'
-        ? await deadlineReminder.sendManual(dDay)
-        : await deadlineReminder.sendReminders();
+      const result =
+        typeof dDay === 'number'
+          ? await deadlineReminder.sendManual(dDay)
+          : await deadlineReminder.sendReminders();
 
       const serializedResult = {
         ...result,
-        timestamp: result.timestamp instanceof Date
-          ? result.timestamp.toISOString()
-          : result.timestamp,
+        timestamp:
+          result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp,
       };
 
       res.json({ success: true, result: serializedResult });
