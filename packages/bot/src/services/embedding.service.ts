@@ -1,4 +1,4 @@
-import { eq, isNull, or } from 'drizzle-orm';
+import { eq, inArray, isNull, or } from 'drizzle-orm';
 import {
   buildCurationItemEmbeddingText,
   buildMemberPreferenceText,
@@ -272,7 +272,7 @@ export class EmbeddingService {
     const rows = await this.db
       .select({ id: members.id })
       .from(members)
-      .where(eq(members.status, MemberStatus.ACTIVE));
+      .where(inArray(members.status, [MemberStatus.ACTIVE, MemberStatus.OB, MemberStatus.DORMANT]));
 
     let updated = 0;
     for (const row of rows) {
