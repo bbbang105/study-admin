@@ -9,6 +9,7 @@ import { sendDiscordChannelMessage } from '@/lib/discord-notify';
 import { logNotification } from '@/lib/notification-log';
 import { sendPushToMembers } from '@/lib/push';
 import { decodeHtmlEntities } from '@/lib/sanitize';
+import { schedulePostEmbeddingRefresh } from '@/lib/embedding-refresh';
 
 const {
   posts,
@@ -330,6 +331,10 @@ export async function POST(request: NextRequest) {
         WHERE daily.total < ${BLOG_POST_DAILY_CAP}
         RETURNING points
       `);
+    }
+
+    if (newPost) {
+      schedulePostEmbeddingRefresh([newPost.id]);
     }
 
     // Discord 새 글 알림 (fire-and-forget)

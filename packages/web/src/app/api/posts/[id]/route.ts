@@ -4,8 +4,17 @@ import { db as sharedDb } from '@blog-study/shared';
 import { createClient } from '@/lib/supabase/server';
 import { errorResponse, Errors, successResponse } from '@/lib/api-error';
 import { isAdminDiscordId } from '@/lib/admin';
+import { schedulePostEmbeddingRefresh } from '@/lib/embedding-refresh';
 
-const { posts, members, postComments, postViews, postReactions, activityScores, ActivityScoreType } = sharedDb;
+const {
+  posts,
+  members,
+  postComments,
+  postViews,
+  postReactions,
+  activityScores,
+  ActivityScoreType,
+} = sharedDb;
 
 /**
  * PATCH /api/posts/[id]
@@ -77,6 +86,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .set(updates)
       .where(eq(posts.id, postId))
       .returning();
+
+    schedulePostEmbeddingRefresh([postId]);
 
     return successResponse({ post: updated });
   } catch (error) {

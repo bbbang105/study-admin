@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { db as sharedDb } from '@blog-study/shared';
+import { buildPostRecommendationReason } from '@blog-study/shared';
 import {
   createPaginationMeta,
   errorResponse,
@@ -12,7 +13,15 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { isAdminDiscordId } from '@/lib/admin';
 
-const { posts, members, rounds, postViews, postReactions } = sharedDb;
+const {
+  posts,
+  members,
+  rounds,
+  postViews,
+  postReactions,
+  postEmbeddings,
+  memberPreferenceEmbeddings,
+} = sharedDb;
 
 /**
  * GET /api/posts
@@ -36,10 +45,35 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const { page, pageSize, offset } = parsePagination(searchParams);
-    const sort = searchParams.get('sort') || 'latest'; // latest | popular
+    const sort = searchParams.get('sort') || 'latest'; // latest | popular | recommended
     const roundId = searchParams.get('roundId'); // 회차별 필터
 
     const database = db();
+
+    // 현재 유저의 memberId + 관리자 여부 + 추천 프로필 조회
+    let currentMemberId: string | null = null;
+    let currentMemberPart: string | null = null;
+    let currentMemberInterests: string[] = [];
+    let hasPreferenceEmbedding = false;
+    let isAdmin = false;
+    if (currentDiscordId) {
+      const [currentMember] = await database
+        .select({
+          id: members.id,
+          part: members.part,
+          interests: members.interests,
+          preferenceMemberId: memberPreferenceEmbeddings.memberId,
+        })
+        .from(members)
+        .leftJoin(memberPreferenceEmbeddings, eq(memberPreferenceEmbeddings.memberId, members.id))
+        .where(eq(members.discordId, currentDiscordId))
+        .limit(1);
+      currentMemberId = currentMember?.id ?? null;
+      currentMemberPart = currentMember?.part ?? null;
+      currentMemberInterests = currentMember?.interests ?? [];
+      hasPreferenceEmbedding = Boolean(currentMember?.preferenceMemberId);
+      isAdmin = await isAdminDiscordId(currentDiscordId);
+    }
 
     // 검색어 (LIKE 메타문자 이스케이프)
     const rawSearch = searchParams.get('search')?.trim() || null;
@@ -69,6 +103,9 @@ export async function GET(request: NextRequest) {
     // WHERE 조건 조합 (soft deleted 제외)
     const conditions = [isNull(posts.deletedAt)];
     if (roundIdNum !== null) conditions.push(eq(posts.roundId, roundIdNum));
+    if (sort === 'recommended' && currentMemberId) {
+      conditions.push(sql`${posts.memberId} <> ${currentMemberId}`);
+    }
     if (search) {
       const searchCondition = or(
         ilike(posts.title, `%${search}%`),
@@ -94,9 +131,40 @@ export async function GET(request: NextRequest) {
 
     // 정렬 기준: 인기순은 score desc → 동점 시 댓글 많은 순 → 최신순
     // 가중치: 댓글 3, 조회수 2, 리액션 1
-    const popularScore = sql`COALESCE(${posts.commentCount}, 0) * 3 + (SELECT COUNT(*) FROM post_views pv WHERE pv.post_id = ${posts.id}) * 2 + (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = ${posts.id})`;
+    const popularScore = sql<number>`COALESCE(${posts.commentCount}, 0) * 3 + (SELECT COUNT(*) FROM post_views pv WHERE pv.post_id = ${posts.id}) * 2 + (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = ${posts.id})`;
+
+    const useRecommendedSort =
+      sort === 'recommended' && Boolean(currentMemberId && hasPreferenceEmbedding);
+    let semanticScoreExpr: ReturnType<typeof sql<number>> | null = null;
+    let freshnessScoreExpr: ReturnType<typeof sql<number>> | null = null;
+    let popularityScoreExpr: ReturnType<typeof sql<number>> | null = null;
+    let authorAffinityScoreExpr: ReturnType<typeof sql<number>> | null = null;
+    let finalScoreExpr: ReturnType<typeof sql<number>> | null = null;
+
+    if (useRecommendedSort && currentMemberId) {
+      semanticScoreExpr = sql<number>`1 - (${postEmbeddings.embedding} <=> ${memberPreferenceEmbeddings.embedding})`;
+      const ageDaysExpr = sql<number>`greatest(extract(epoch from (now() - coalesce(${posts.publishedAt}, ${posts.collectedAt}, now()))) / 86400.0, 0)`;
+      freshnessScoreExpr = sql<number>`exp(-(${ageDaysExpr}) / 14.0)`;
+      popularityScoreExpr = sql<number>`least(greatest((${popularScore}) / 20.0, 0), 1)`;
+      const interestsArray = sql`ARRAY[${sql.join(
+        currentMemberInterests.map((interest) => sql`${interest}`),
+        sql`,`
+      )}]::text[]`;
+      authorAffinityScoreExpr = sql<number>`case
+        when ${members.part} = ${currentMemberPart} then 1.0
+        when coalesce(array_length(ARRAY(SELECT unnest(coalesce(${members.interests}, ARRAY[]::text[])) INTERSECT SELECT unnest(${interestsArray})), 1), 0) > 0 then 0.5
+        else 0.0
+      end`;
+      finalScoreExpr = sql<number>`((${semanticScoreExpr}) * 0.70 + (${freshnessScoreExpr}) * 0.15 + (${popularityScoreExpr}) * 0.10 + (${authorAffinityScoreExpr}) * 0.05)`;
+    }
 
     // Get paginated posts with member and round info
+    const queryConditions = [...conditions];
+    if (useRecommendedSort) {
+      queryConditions.push(sql`${postEmbeddings.postId} IS NOT NULL`);
+    }
+    const postsWhereCondition = and(...queryConditions);
+
     const postsQuery = database
       .select({
         id: posts.id,
@@ -111,17 +179,39 @@ export async function GET(request: NextRequest) {
         memberDiscordUsername: members.discordUsername,
         memberProfileImageUrl: members.profileImageUrl,
         memberPart: members.part,
+        memberInterests: members.interests,
         roundNumber: rounds.roundNumber,
         roundId: posts.roundId,
+        semanticScore: semanticScoreExpr ? semanticScoreExpr.as('semantic_score') : sql<null>`NULL`,
+        freshnessScore: freshnessScoreExpr
+          ? freshnessScoreExpr.as('freshness_score')
+          : sql<null>`NULL`,
+        popularityScore: popularityScoreExpr
+          ? popularityScoreExpr.as('popularity_score')
+          : sql<null>`NULL`,
+        authorAffinityScore: authorAffinityScoreExpr
+          ? authorAffinityScoreExpr.as('author_affinity_score')
+          : sql<null>`NULL`,
+        finalScore: finalScoreExpr ? finalScoreExpr.as('final_score') : sql<null>`NULL`,
       })
       .from(posts)
       .leftJoin(members, eq(posts.memberId, members.id))
       .leftJoin(rounds, eq(posts.roundId, rounds.id))
-      .where(whereCondition)
+      .leftJoin(postEmbeddings, eq(postEmbeddings.postId, posts.id))
+      .leftJoin(
+        memberPreferenceEmbeddings,
+        eq(
+          memberPreferenceEmbeddings.memberId,
+          currentMemberId ?? '00000000-0000-0000-0000-000000000000'
+        )
+      )
+      .where(postsWhereCondition)
       .orderBy(
-        ...(sort === 'popular'
-          ? [desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt)]
-          : [desc(posts.publishedAt)])
+        ...(useRecommendedSort && finalScoreExpr
+          ? [sql`semantic_score DESC`, sql`final_score DESC`, desc(posts.publishedAt)]
+          : sort === 'popular'
+            ? [desc(popularScore), desc(posts.commentCount), desc(posts.publishedAt)]
+            : [desc(posts.publishedAt)])
       )
       .limit(pageSize)
       .offset(offset);
@@ -197,19 +287,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 현재 유저의 memberId + 관리자 여부 조회
-    let currentMemberId: string | null = null;
-    let isAdmin = false;
-    if (currentDiscordId) {
-      const [currentMember] = await database
-        .select({ id: members.id })
-        .from(members)
-        .where(eq(members.discordId, currentDiscordId))
-        .limit(1);
-      currentMemberId = currentMember?.id ?? null;
-      isAdmin = await isAdminDiscordId(currentDiscordId);
-    }
-
     return successResponse({
       posts: postsResult.map((post) => ({
         id: post.id,
@@ -230,6 +307,18 @@ export async function GET(request: NextRequest) {
         viewers: (viewersMap.get(post.id) ?? []).slice(0, 3),
         totalViewers: viewCountMap.get(post.id) ?? 0,
         reactionCount: reactionCountMap.get(post.id) ?? 0,
+        recommendationReason: buildPostRecommendationReason({
+          interests: currentMemberInterests,
+          title: post.title,
+          description: post.description,
+          authorPart: post.memberPart,
+          currentMemberPart,
+          publishedAt: post.publishedAt,
+          semanticScore: post.semanticScore,
+          freshnessScore: post.freshnessScore,
+          popularityScore: post.popularityScore,
+          authorAffinityScore: post.authorAffinityScore,
+        }),
       })),
       currentMemberId,
       isAdmin,

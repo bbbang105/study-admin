@@ -22,6 +22,7 @@ import {
   Reply,
   Search,
   SmilePlus,
+  Sparkles,
   Trash2,
   TrendingUp,
   X,
@@ -127,6 +128,15 @@ interface Post {
   viewers: Viewer[];
   totalViewers: number;
   reactionCount: number;
+  recommendationReason: {
+    summary: string;
+    reasons: string[];
+    matchedKeywords: string[];
+    semanticScore: number | null;
+    freshnessScore: number | null;
+    popularityScore: number | null;
+    authorAffinityScore: number | null;
+  } | null;
 }
 
 interface PostsData {
@@ -141,7 +151,7 @@ interface PostsData {
   };
 }
 
-type TabType = 'latest' | 'popular';
+type TabType = 'recommended' | 'latest' | 'popular';
 
 interface RoundOption {
   id: number;
@@ -261,6 +271,52 @@ function formatRelativeTime(dateStr: string): string {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+function toPercent(score: number | null): number | null {
+  if (score === null || !Number.isFinite(score)) return null;
+  return Math.round(Math.min(1, Math.max(0, score)) * 100);
+}
+
+function PostRecommendationBadges({ post }: { post: Post }) {
+  const reason = post.recommendationReason;
+  if (!reason) return null;
+
+  const scores = [
+    { label: '관심도', value: toPercent(reason.semanticScore) },
+    { label: '최신성', value: toPercent(reason.freshnessScore), hideWhenZero: true },
+    { label: '인기', value: toPercent(reason.popularityScore), hideWhenZero: true },
+  ].filter(
+    (score): score is { label: string; value: number; hideWhenZero?: boolean } =>
+      score.value !== null && (!score.hideWhenZero || score.value > 0)
+  );
+
+  if (scores.length === 0 && !reason.summary) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {reason.summary && (
+        <p className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 dark:text-sky-400">
+          <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span className="line-clamp-1">{reason.summary}</span>
+        </p>
+      )}
+      {scores.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {scores.map((score) => (
+            <span
+              key={score.label}
+              className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border/50"
+              title={`${score.label} ${score.value}%`}
+            >
+              <span>{score.label}</span>
+              <span className="tabular-nums text-foreground">{score.value}%</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -908,6 +964,7 @@ function PostCard({
   onEdit,
   canDelete,
   canEdit,
+  showRecommendation,
   rank,
 }: {
   post: Post;
@@ -917,6 +974,7 @@ function PostCard({
   onEdit: (postId: string, title: string, description: string | null) => void;
   canDelete: boolean;
   canEdit: boolean;
+  showRecommendation: boolean;
   rank?: number; // 1, 2, 3 for medal styling
 }) {
   const authorName = post.memberNickname || post.memberDiscordUsername;
@@ -1077,11 +1135,11 @@ function PostCard({
   return (
     <Card
       className={cn(
-        'border-border shadow-sm hover:border-border/80 transition-all duration-200 overflow-hidden',
+        'h-full border-border shadow-sm hover:border-border/80 transition-all duration-200 overflow-hidden',
         rank && rank <= 5 && MEDAL_STYLES[rank - 1]
       )}
     >
-      <CardContent className="p-0 relative">
+      <CardContent className="relative flex h-full flex-col p-0">
         {/* 메달 뱃지 */}
         {rank && rank <= 5 && (
           <div
@@ -1129,6 +1187,7 @@ function PostCard({
                   {formatDescription(post.description)}
                 </p>
               )}
+              {showRecommendation && <PostRecommendationBadges post={post} />}
               <div className="flex items-center gap-1.5 mt-auto">
                 <Avatar className="h-5 w-5">
                   <AvatarImage src={authorAvatar} alt={authorName} />
@@ -1157,7 +1216,7 @@ function PostCard({
           })()}
 
         {/* Footer: viewers + comments toggle */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-3 pt-1">
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-3 pt-1">
           <div className="flex items-center gap-1.5">
             {post.viewers.length > 0 ? (
               <div className="flex -space-x-1.5">
@@ -1530,6 +1589,7 @@ function PostsContent() {
           page: String(pageNum),
           pageSize: String(PAGE_SIZE),
         });
+        if (tab === 'recommended') params.set('sort', 'recommended');
         if (tab === 'popular') params.set('sort', 'popular');
         if (searchQuery) params.set('search', searchQuery);
         if (selectedParts.length > 0) params.set('parts', selectedParts.join(','));
@@ -1729,13 +1789,22 @@ function PostsContent() {
                 <TrendingUp className="h-3 w-3" />
                 인기순
               </button>
+              <button
+                onClick={() => handleTabChange('recommended')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  tab === 'recommended'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Sparkles className="h-3 w-3" />
+                맞춤
+              </button>
             </div>
 
             {rounds.length > 0 && (
-              <Select
-                value={selectedRoundId}
-                onValueChange={setSelectedRoundId}
-              >
+              <Select value={selectedRoundId} onValueChange={setSelectedRoundId}>
                 <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs gap-1 ml-1 border-l border-border pl-2">
                   <CalendarDays className="h-3 w-3 text-muted-foreground" />
                   <SelectValue />
@@ -2010,6 +2079,12 @@ function PostsContent() {
               댓글 × 3 + 조회 × 2 + 리액션 × 1
             </span>
           )}
+          {tab === 'recommended' && (
+            <span className="flex items-center gap-1 text-sky-500">
+              <Sparkles className="h-3 w-3" />
+              관심도순 · 최신성/인기 보정
+            </span>
+          )}
         </div>
       </div>
 
@@ -2035,6 +2110,7 @@ function PostsContent() {
                 }}
                 canDelete={isAdmin || post.memberId === currentMemberId}
                 canEdit={isAdmin || post.memberId === currentMemberId}
+                showRecommendation={tab === 'recommended'}
                 rank={tab === 'popular' ? index + 1 : undefined}
               />
             ))}
