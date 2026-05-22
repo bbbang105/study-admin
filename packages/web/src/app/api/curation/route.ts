@@ -167,38 +167,54 @@ export async function GET(request: NextRequest) {
 
     // ── Recommended sort with vector scoring ──
     if (useVectorRecommendedSort && memberId) {
+      let rankingAsOfIso = new Date().toISOString();
+      let cursorScore: number | null = null;
+      let cursorDateStr = '';
+      let cursorId = '';
+
+      if (cursor) {
+        const parts = cursor.split('|');
+        if (parts.length !== 3 && parts.length !== 4) {
+          return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+        }
+
+        cursorScore = parseFloat(parts[0]!);
+        cursorDateStr = parts[1]!;
+        cursorId = parts[2]!;
+
+        if (!Number.isFinite(cursorScore)) {
+          return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+        }
+        if (cursorId && !UUID_RE.test(cursorId)) {
+          return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+        }
+        if (parts[3]) {
+          const parsedAsOf = new Date(parts[3]);
+          if (isNaN(parsedAsOf.getTime())) {
+            return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
+          }
+          rankingAsOfIso = parsedAsOf.toISOString();
+        }
+      }
+
       const semanticScoreExpr = sql<number>`coalesce(1 - (${curationItems.embedding} <=> ${memberPreferenceEmbeddings.embedding}), 0)`;
-      const ageDaysExpr = sql<number>`greatest(extract(epoch from (now() - coalesce(${curationItems.publishedAt}, ${curationItems.collectedAt}, now()))) / 86400.0, 0)`;
+      const ageDaysExpr = sql<number>`greatest(extract(epoch from (${rankingAsOfIso}::timestamptz - coalesce(${curationItems.publishedAt}, ${curationItems.collectedAt}, ${rankingAsOfIso}::timestamptz))) / 86400.0, 0)`;
       const freshnessScoreExpr = sql<number>`exp(-(${ageDaysExpr}) / 14.0)`;
       const normalizedRelevanceExpr = sql<number>`least(greatest(coalesce(${curationItems.relevanceScore}, 0), 0), 100) / 100.0`;
       const finalScoreExpr = sql<number>`((${semanticScoreExpr}) * 0.65 + (${freshnessScoreExpr}) * 0.20 + (${normalizedRelevanceExpr}) * 0.15)`;
 
       const queryConditions = [...filterConditions];
-      if (cursor) {
-        const parts = cursor.split('|');
-        if (parts.length === 3) {
-          const cursorScore = parseFloat(parts[0]!);
-          const cursorDateStr = parts[1]!;
-          const cursorId = parts[2]!;
-
-          if (!Number.isFinite(cursorScore)) {
-            return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
-          }
-          if (cursorId && !UUID_RE.test(cursorId)) {
-            return Errors.badRequest('유효하지 않은 cursor 형식입니다.').toResponse();
-          }
-
-          const cursorDate = cursorDateStr ? new Date(cursorDateStr) : null;
-          if (cursorDate && !isNaN(cursorDate.getTime()) && cursorId) {
-            const cursorIso = cursorDate.toISOString();
-            queryConditions.push(
-              sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} < ${cursorIso}::timestamptz) OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} = ${cursorIso}::timestamptz AND ${curationItems.id} < ${cursorId}))`
-            );
-          } else if (cursorId) {
-            queryConditions.push(
-              sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} IS NULL AND ${curationItems.id} < ${cursorId}))`
-            );
-          }
+      if (cursorScore !== null) {
+        const cursorDate = cursorDateStr ? new Date(cursorDateStr) : null;
+        if (cursorDate && !isNaN(cursorDate.getTime()) && cursorId) {
+          const cursorIso = cursorDate.toISOString();
+          queryConditions.push(
+            sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} < ${cursorIso}::timestamptz) OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} = ${cursorIso}::timestamptz AND ${curationItems.id} < ${cursorId}))`
+          );
+        } else if (cursorId) {
+          queryConditions.push(
+            sql`((${finalScoreExpr}) < ${cursorScore} OR ((${finalScoreExpr}) = ${cursorScore} AND ${curationItems.publishedAt} IS NULL AND ${curationItems.id} < ${cursorId}))`
+          );
         }
       }
 
@@ -228,7 +244,7 @@ export async function GET(request: NextRequest) {
       const lastItem = items[items.length - 1];
       const nextCursor =
         hasMore && lastItem
-          ? `${lastItem.finalScore}|${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}`
+          ? `${lastItem.finalScore}|${lastItem.publishedAt?.toISOString() ?? ''}|${lastItem.id}|${rankingAsOfIso}`
           : null;
 
       return successResponse({
