@@ -40,6 +40,8 @@
     "db:migrate:run": "tsx src/db/migrate.ts",
     "migrate:member-blogs:expand": "tsx src/db/migrate-member-blogs-expand.ts",
     "migrate:member-blogs:contract": "tsx src/db/migrate-member-blogs-contract.ts",
+    "migrate:curation-embeddings": "tsx src/db/migrate-curation-embeddings.ts",
+    "migrate:post-embeddings": "tsx src/db/migrate-post-embeddings.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

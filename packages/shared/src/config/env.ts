@@ -43,12 +43,24 @@ const studyEnvSchema = z.object({
   STUDY_ROLE_ID: z.string().optional(),
 });
 
+// Embedding provider configuration (server-side only)
+const embeddingEnvSchema = z.object({
+  EMBEDDING_PROVIDER: z.enum(['ollama', 'openai-compatible']).default('ollama'),
+  EMBEDDING_BASE_URL: z.string().url().default('http://localhost:11434'),
+  EMBEDDING_MODEL: z.string().min(1).default('nomic-embed-text'),
+  EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(768),
+  EMBEDDING_API_KEY: z.string().min(1).optional(),
+  EMBEDDING_ACCESS_CLIENT_ID: z.string().min(1).optional(),
+  EMBEDDING_ACCESS_CLIENT_SECRET: z.string().min(1).optional(),
+});
+
 // Combined environment schema
 const envSchema = z.object({
   ...discordEnvSchema.shape,
   ...supabaseEnvSchema.shape,
   ...appEnvSchema.shape,
   ...studyEnvSchema.shape,
+  ...embeddingEnvSchema.shape,
 });
 
 // Partial schema for bot-only usage
@@ -57,6 +69,7 @@ const botEnvSchema = z.object({
   ...supabaseEnvSchema.shape,
   ...appEnvSchema.shape,
   ...studyEnvSchema.shape,
+  ...embeddingEnvSchema.shape,
   DATABASE_URL_DIRECT: z.string().min(1, 'DATABASE_URL_DIRECT is required'),
   SENTRY_DSN: z.string().url().optional(), // Sentry DSN for error monitoring (optional)
 });
@@ -154,4 +167,3 @@ export function isDevelopment(): boolean {
 export function isTest(): boolean {
   return process.env.NODE_ENV === 'test';
 }
-

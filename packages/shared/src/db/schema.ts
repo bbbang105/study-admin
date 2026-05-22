@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -16,6 +17,22 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+const vector768 = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'extensions.vector(768)';
+  },
+  toDriver(value: number[]) {
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value: string) {
+    return value
+      .replace(/^\[|\]$/g, '')
+      .split(',')
+      .filter(Boolean)
+      .map(Number);
+  },
+});
 
 // ============================================
 // Enums (as string literals for PostgreSQL)
@@ -115,6 +132,27 @@ export const members = pgTable(
 );
 
 /**
+ * 멤버 취향 임베딩
+ * interests + bio + part를 취향 문장으로 만든 뒤 임베딩 저장
+ */
+export const memberPreferenceEmbeddings = pgTable(
+  'member_preference_embeddings',
+  {
+    memberId: uuid('member_id')
+      .primaryKey()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    preferenceText: text('preference_text').notNull(),
+    preferenceTextHash: varchar('preference_text_hash', { length: 64 }).notNull(),
+    embedding: vector768('embedding').notNull(),
+    embeddingModel: varchar('embedding_model', { length: 100 }).notNull(),
+    refreshedAt: timestamp('refreshed_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    refreshedAtIdx: index('idx_member_preference_embeddings_refreshed_at').on(table.refreshedAt),
+  })
+);
+
+/**
  * 멤버당 등록 가능한 블로그 최대 개수
  */
 export const MAX_BLOGS_PER_MEMBER = 3;
@@ -186,6 +224,27 @@ export const posts = pgTable(
   (table) => ({
     memberIdIdx: index('idx_posts_member_id').on(table.memberId),
     roundIdIdx: index('idx_posts_round_id').on(table.roundId),
+  })
+);
+
+/**
+ * 스터디 글 임베딩
+ * posts 본 테이블을 추천 메타데이터로 오염시키지 않기 위해 분리
+ */
+export const postEmbeddings = pgTable(
+  'post_embeddings',
+  {
+    postId: uuid('post_id')
+      .primaryKey()
+      .references(() => posts.id, { onDelete: 'cascade' }),
+    embedding: vector768('embedding').notNull(),
+    embeddingText: text('embedding_text').notNull(),
+    embeddingTextHash: varchar('embedding_text_hash', { length: 64 }).notNull(),
+    embeddingModel: varchar('embedding_model', { length: 100 }).notNull(),
+    embeddedAt: timestamp('embedded_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    embeddedAtIdx: index('idx_post_embeddings_embedded_at').on(table.embeddedAt),
   })
 );
 
@@ -290,6 +349,10 @@ export const curationItems = pgTable(
     category: varchar('category', { length: 50 }).notNull(),
     tags: text('tags').array(),
     relevanceScore: real('relevance_score').default(0),
+    embedding: vector768('embedding'),
+    embeddingTextHash: varchar('embedding_text_hash', { length: 64 }),
+    embeddingModel: varchar('embedding_model', { length: 100 }),
+    embeddedAt: timestamp('embedded_at', { withTimezone: true }),
     isShared: boolean('is_shared').default(false),
     sharedAt: timestamp('shared_at', { withTimezone: true }),
     collectedAt: timestamp('collected_at', { withTimezone: true }).defaultNow(),
@@ -297,6 +360,7 @@ export const curationItems = pgTable(
   (table) => ({
     isSharedIdx: index('idx_curation_items_is_shared').on(table.isShared),
     publishedAtIdx: index('idx_curation_items_published_at').on(table.publishedAt),
+    embeddedAtIdx: index('idx_curation_items_embedded_at').on(table.embeddedAt),
   })
 );
 
@@ -668,8 +732,12 @@ export const discordNotificationLogs = pgTable(
 // Relations
 // ============================================
 
-export const membersRelations = relations(members, ({ many }) => ({
+export const membersRelations = relations(members, ({ many, one }) => ({
   blogs: many(memberBlogs),
+  preferenceEmbedding: one(memberPreferenceEmbeddings, {
+    fields: [members.id],
+    references: [memberPreferenceEmbeddings.memberId],
+  }),
   posts: many(posts),
   attendance: many(attendance),
   fines: many(fines),
@@ -683,6 +751,16 @@ export const membersRelations = relations(members, ({ many }) => ({
   boardPostReactions: many(boardPostReactions),
   postReactions: many(postReactions),
 }));
+
+export const memberPreferenceEmbeddingsRelations = relations(
+  memberPreferenceEmbeddings,
+  ({ one }) => ({
+    member: one(members, {
+      fields: [memberPreferenceEmbeddings.memberId],
+      references: [members.id],
+    }),
+  })
+);
 
 export const memberBlogsRelations = relations(memberBlogs, ({ one }) => ({
   member: one(members, {
@@ -723,6 +801,17 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   views: many(postViews),
   comments: many(postComments),
   reactions: many(postReactions),
+  embedding: one(postEmbeddings, {
+    fields: [posts.id],
+    references: [postEmbeddings.postId],
+  }),
+}));
+
+export const postEmbeddingsRelations = relations(postEmbeddings, ({ one }) => ({
+  post: one(posts, {
+    fields: [postEmbeddings.postId],
+    references: [posts.id],
+  }),
 }));
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
@@ -875,6 +964,9 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
 export type Member = typeof members.$inferSelect;
 export type NewMember = typeof members.$inferInsert;
 
+export type MemberPreferenceEmbedding = typeof memberPreferenceEmbeddings.$inferSelect;
+export type NewMemberPreferenceEmbedding = typeof memberPreferenceEmbeddings.$inferInsert;
+
 export type MemberBlog = typeof memberBlogs.$inferSelect;
 export type NewMemberBlog = typeof memberBlogs.$inferInsert;
 
@@ -883,6 +975,9 @@ export type NewRound = typeof rounds.$inferInsert;
 
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
+
+export type PostEmbedding = typeof postEmbeddings.$inferSelect;
+export type NewPostEmbedding = typeof postEmbeddings.$inferInsert;
 
 export type Attendance = typeof attendance.$inferSelect;
 export type NewAttendance = typeof attendance.$inferInsert;
