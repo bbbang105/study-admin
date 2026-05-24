@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notifyNewMemberPendingApproval } from '@/lib/discord-notify';
 import { isSafeUrl } from '@/lib/rss-detect';
 import { createMemberBlogs, syncMemberBlogs, validateBlogInputs } from '@/lib/member-blogs';
+import { scheduleMemberPreferenceEmbeddingRefresh } from '@/lib/embedding-refresh';
 
 const { members } = sharedDb;
 
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
 
       // 블로그 동기화 (재온보딩 케이스)
       await syncMemberBlogs(existingMember.id, blogList);
+      scheduleMemberPreferenceEmbeddingRefresh(existingMember.id);
     } else {
       // 신규 유저: INSERT
       const [newMember] = await database
@@ -163,6 +165,7 @@ export async function POST(request: NextRequest) {
 
       if (newMember) {
         await createMemberBlogs(newMember.id, blogList);
+        scheduleMemberPreferenceEmbeddingRefresh(newMember.id);
       }
 
       // 관리자 채널에 승인대기 알림 (fire-and-forget)

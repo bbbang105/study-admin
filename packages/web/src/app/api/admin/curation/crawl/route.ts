@@ -8,9 +8,11 @@ import {
   createUnauthorizedResponse,
   verifyAdminAccess,
 } from '@/lib/admin';
+import { scheduleCurationItemEmbeddingRefresh } from '@/lib/embedding-refresh';
 import { utils } from '@blog-study/shared/utils';
 
-const { extractFeedItems, sanitizeDescription, extractOgImage, isSafeUrl } = utils;
+const { extractFeedItems, sanitizeDescription, extractOgImage, inferCurationTags, isSafeUrl } =
+  utils;
 
 interface CrawlSourceResult {
   sourceId: string;
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
       }
 
       const results: CrawlSourceResult[] = [];
+      const insertedItemIds: string[] = [];
 
       for (let i = 0; i < rssEnabledSources.length; i++) {
         const source = rssEnabledSources[i]!;
@@ -160,8 +163,7 @@ export async function POST(request: NextRequest) {
           for (let i = 0; i < itemsWithMetadata.length; i++) {
             const { item, description } = itemsWithMetadata[i]!;
             const result = thumbnailResults[i];
-            const thumbnailUrl =
-              result?.status === 'fulfilled' ? result.value : null;
+            const thumbnailUrl = result?.status === 'fulfilled' ? result.value : null;
 
             // URL 중복 체크
             const [existing] = await database
@@ -172,28 +174,35 @@ export async function POST(request: NextRequest) {
 
             if (existing) continue;
 
-            // Merge source tags + item tags
-            const mergedTags = [...new Set([...(source.tags || []), ...(item.categories || [])])];
-
             // Parse published date
             let publishedAt: Date | null = null;
             if (item.pubDate) {
               publishedAt = new Date(item.pubDate);
             }
 
-            await database.insert(curationItems).values({
-              sourceId: source.id,
+            const inferredTags = inferCurationTags({
               title: item.title!,
-              url: item.link!,
               description,
-              thumbnailUrl,
-              publishedAt,
-              category: source.category,
-              tags: mergedTags.length > 0 ? mergedTags : null,
-              relevanceScore: 0,
-              isShared: false,
+              rawTags: [...(source.tags || []), ...(item.categories || [])],
             });
 
+            const [created] = await database
+              .insert(curationItems)
+              .values({
+                sourceId: source.id,
+                title: item.title!,
+                url: item.link!,
+                description,
+                thumbnailUrl,
+                publishedAt,
+                category: source.category,
+                tags: inferredTags.length > 0 ? inferredTags : null,
+                relevanceScore: 0,
+                isShared: false,
+              })
+              .returning({ id: curationItems.id });
+
+            if (created) insertedItemIds.push(created.id);
             newItemsAdded++;
           }
 
@@ -221,6 +230,7 @@ export async function POST(request: NextRequest) {
       }
 
       const totalNewItems = results.reduce((sum, r) => sum + r.newItemsAdded, 0);
+      scheduleCurationItemEmbeddingRefresh(insertedItemIds);
 
       send('complete', {
         results,

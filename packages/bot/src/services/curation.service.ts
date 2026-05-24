@@ -17,6 +17,7 @@ import {
 } from '@blog-study/shared/db';
 import logger, { serializeError } from '../lib/logger';
 import { getKeywordService } from './keyword.service';
+import { getEmbeddingService } from './embedding.service';
 
 /**
  * Curation source with item count
@@ -65,15 +66,17 @@ export class CurationService {
    * @param category Category (conference or article)
    * @returns Created curation source
    */
-  async addSource(
-    url: string,
-    name: string,
-    category: string
-  ): Promise<CurationSource> {
+  async addSource(url: string, name: string, category: string): Promise<CurationSource> {
     // Validate category
     const validCategories = Object.values(CurationCategory);
-    if (!validCategories.includes(category as typeof CurationCategory[keyof typeof CurationCategory])) {
-      throw new Error(`Invalid category: ${category}. Must be one of: ${validCategories.join(', ')}`);
+    if (
+      !validCategories.includes(
+        category as (typeof CurationCategory)[keyof typeof CurationCategory]
+      )
+    ) {
+      throw new Error(
+        `Invalid category: ${category}. Must be one of: ${validCategories.join(', ')}`
+      );
     }
 
     // Check for duplicate URL
@@ -89,10 +92,7 @@ export class CurationService {
       isActive: true,
     };
 
-    const [created] = await this.db
-      .insert(curationSources)
-      .values(newSource)
-      .returning();
+    const [created] = await this.db.insert(curationSources).values(newSource).returning();
 
     return created!;
   }
@@ -103,14 +103,10 @@ export class CurationService {
    */
   async removeSource(sourceId: string): Promise<void> {
     // First delete all items from this source
-    await this.db
-      .delete(curationItems)
-      .where(eq(curationItems.sourceId, sourceId));
+    await this.db.delete(curationItems).where(eq(curationItems.sourceId, sourceId));
 
     // Then delete the source
-    await this.db
-      .delete(curationSources)
-      .where(eq(curationSources.id, sourceId));
+    await this.db.delete(curationSources).where(eq(curationSources.id, sourceId));
   }
 
   /**
@@ -148,10 +144,7 @@ export class CurationService {
    * @returns Array of active sources
    */
   async getAllActiveSources(): Promise<CurationSource[]> {
-    return this.db
-      .select()
-      .from(curationSources)
-      .where(eq(curationSources.isActive, true));
+    return this.db.select().from(curationSources).where(eq(curationSources.isActive, true));
   }
 
   /**
@@ -168,12 +161,8 @@ export class CurationService {
    * @param isActive New active status
    */
   async setSourceActive(sourceId: string, isActive: boolean): Promise<void> {
-    await this.db
-      .update(curationSources)
-      .set({ isActive })
-      .where(eq(curationSources.id, sourceId));
+    await this.db.update(curationSources).set({ isActive }).where(eq(curationSources.id, sourceId));
   }
-
 
   /**
    * Add a curation item
@@ -188,10 +177,18 @@ export class CurationService {
       return existing;
     }
 
-    const [created] = await this.db
-      .insert(curationItems)
-      .values(item)
-      .returning();
+    const [created] = await this.db.insert(curationItems).values(item).returning();
+
+    if (created) {
+      void getEmbeddingService()
+        .refreshCurationItem(created.id)
+        .catch((error) => {
+          logger.warn(
+            { itemId: created.id, error: serializeError(error) },
+            '[CurationService] Failed to refresh curation item embedding'
+          );
+        });
+    }
 
     return created!;
   }
@@ -264,10 +261,10 @@ export class CurationService {
    */
   async calculateRelevanceScore(title: string, tags: string[]): Promise<number> {
     const keywordService = getKeywordService();
-    
+
     // Combine title and tags for analysis
     const content = [title, ...tags].join(' ');
-    
+
     return keywordService.calculateRelevanceScore(content);
   }
 
@@ -299,7 +296,7 @@ export class CurationService {
     for (const source of sources) {
       try {
         let crawledItems: CrawledContent[] = [];
-        
+
         if (crawlFunction) {
           crawledItems = await crawlFunction(source.url);
         }
@@ -312,10 +309,7 @@ export class CurationService {
           if (existing) continue;
 
           // Calculate relevance score
-          const relevanceScore = await this.calculateRelevanceScore(
-            crawled.title,
-            crawled.tags
-          );
+          const relevanceScore = await this.calculateRelevanceScore(crawled.title, crawled.tags);
 
           // Add new item
           await this.addItem({
@@ -343,8 +337,11 @@ export class CurationService {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error({ source: source.name, error: serializeError(error) }, '[CurationService] Error crawling source');
-        
+        logger.error(
+          { source: source.name, error: serializeError(error) },
+          '[CurationService] Error crawling source'
+        );
+
         results.push({
           sourceId: source.id,
           sourceName: source.name,
@@ -367,7 +364,7 @@ export class CurationService {
   async selectDailyContent(): Promise<CurationItem | null> {
     // Get unshared items sorted by relevance score (highest first)
     const items = await this.getUnsharedItems(1);
-    
+
     if (items.length === 0) {
       return null;
     }
@@ -430,11 +427,11 @@ export class CurationService {
     unsharedItems: number;
   }> {
     const allSources = await this.getAllSources();
-    const activeSources = allSources.filter(s => s.isActive);
-    
+    const activeSources = allSources.filter((s) => s.isActive);
+
     const allItems = await this.db.select().from(curationItems);
-    const sharedItems = allItems.filter(i => i.isShared);
-    
+    const sharedItems = allItems.filter((i) => i.isShared);
+
     return {
       totalSources: allSources.length,
       activeSources: activeSources.length,

@@ -23,7 +23,10 @@
     "seed-test-data": "tsx src/scripts/seed-test-data.ts",
     "check-keywords": "tsx src/scripts/check-keywords.ts",
     "seed-keywords": "tsx src/scripts/seed-keywords.ts",
-    "recalculate-relevance": "tsx src/scripts/recalculate-relevance.ts"
+    "recalculate-relevance": "tsx src/scripts/recalculate-relevance.ts",
+    "backfill-curation-embeddings": "tsx src/scripts/backfill-curation-embeddings.ts",
+    "backfill-post-embeddings": "tsx src/scripts/backfill-post-embeddings.ts",
+    "backfill-member-preference-embeddings": "tsx src/scripts/backfill-member-preference-embeddings.ts"
   },
   "dependencies": {
     "@blog-study/shared": "workspace:*",

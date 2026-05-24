@@ -35,6 +35,14 @@ interface CurationItemResponse {
   relevanceScore: number;
   sharedAt: string | null;
   sourceName: string | null;
+  recommendationReason: {
+    summary: string;
+    reasons: string[];
+    matchedKeywords: string[];
+    semanticScore: number | null;
+    freshnessScore: number | null;
+    relevanceScore: number | null;
+  } | null;
 }
 
 interface CurationData {
@@ -67,6 +75,44 @@ function isSafeUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+function toPercent(score: number | null): number | null {
+  if (score === null) return null;
+  const numeric = Number(score);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(Math.min(1, Math.max(0, numeric)) * 100);
+}
+
+function RecommendationScoreBadges({ item }: { item: CurationItemResponse }) {
+  const reason = item.recommendationReason;
+  if (!reason) return null;
+
+  const scores = [
+    { label: '관심도', value: toPercent(reason.semanticScore) },
+    { label: '최신성', value: toPercent(reason.freshnessScore) },
+    { label: '관련도', value: toPercent(reason.relevanceScore), hideWhenZero: true },
+  ].filter(
+    (score): score is { label: string; value: number; hideWhenZero?: boolean } =>
+      score.value !== null && (!score.hideWhenZero || score.value > 0)
+  );
+
+  if (scores.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {scores.map((score) => (
+        <span
+          key={score.label}
+          className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border/50"
+          title={`${score.label} ${score.value}%`}
+        >
+          <span>{score.label}</span>
+          <span className="tabular-nums text-foreground">{score.value}%</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -141,9 +187,10 @@ function TagFilterList({
             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold
               transition-colors cursor-pointer shrink-0
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
-              ${isSelected
-                ? 'border-transparent bg-primary text-primary-foreground'
-                : 'border-border text-foreground hover:bg-accent hover:text-accent-foreground'
+              ${
+                isSelected
+                  ? 'border-transparent bg-primary text-primary-foreground'
+                  : 'border-border text-foreground hover:bg-accent hover:text-accent-foreground'
               }`}
           >
             #{tag}
@@ -204,9 +251,11 @@ function CurationCard({ item }: { item: CurationItemResponse }) {
             {catStyle.label}
           </span>
           {item.sharedAt && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium
               bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200
-              dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-500/30">
+              dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-500/30"
+            >
               <Sparkles className="h-3 w-3" aria-hidden="true" />
               공유됨
             </span>
@@ -223,10 +272,20 @@ function CurationCard({ item }: { item: CurationItemResponse }) {
         </div>
 
         {/* Title */}
-        <h3 className="text-sm font-medium text-foreground line-clamp-2 leading-snug
-          group-hover:text-primary transition-colors">
+        <h3
+          className="text-sm font-medium text-foreground line-clamp-2 leading-snug
+          group-hover:text-primary transition-colors"
+        >
           {item.title}
         </h3>
+
+        {item.recommendationReason?.summary && (
+          <p className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 dark:text-primary line-clamp-1">
+            <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {item.recommendationReason.summary}
+          </p>
+        )}
+        <RecommendationScoreBadges item={item} />
 
         {/* Description */}
         {item.description && (
@@ -239,7 +298,10 @@ function CurationCard({ item }: { item: CurationItemResponse }) {
         <div className="flex items-center justify-between mt-auto pt-1">
           <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 flex-1">
             {item.sourceName && (
-              <span className="font-medium truncate max-w-[120px] sm:max-w-[160px]" title={item.sourceName}>
+              <span
+                className="font-medium truncate max-w-[120px] sm:max-w-[160px]"
+                title={item.sourceName}
+              >
                 {item.sourceName}
               </span>
             )}
@@ -247,7 +309,10 @@ function CurationCard({ item }: { item: CurationItemResponse }) {
             {relativeDate && <span className="shrink-0 tabular-nums">{relativeDate}</span>}
           </div>
           <span className="sr-only">(새 탭에서 열기)</span>
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 group-hover:text-primary transition-colors ml-2" aria-hidden="true" />
+          <ExternalLink
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 group-hover:text-primary transition-colors ml-2"
+            aria-hidden="true"
+          />
         </div>
       </div>
     </a>
@@ -285,8 +350,10 @@ function CurationListRow({ item }: { item: CurationItemResponse }) {
       {/* Content */}
       <div className="flex flex-col flex-1 min-w-0 gap-1.5">
         {/* Title */}
-        <h3 className="text-sm font-medium text-foreground line-clamp-2 leading-snug
-          group-hover:text-primary transition-colors">
+        <h3
+          className="text-sm font-medium text-foreground line-clamp-2 leading-snug
+          group-hover:text-primary transition-colors"
+        >
           {item.title}
         </h3>
 
@@ -297,6 +364,14 @@ function CurationListRow({ item }: { item: CurationItemResponse }) {
           </p>
         )}
 
+        {item.recommendationReason?.summary && (
+          <p className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 dark:text-primary line-clamp-1">
+            <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {item.recommendationReason.summary}
+          </p>
+        )}
+        <RecommendationScoreBadges item={item} />
+
         {/* Footer meta */}
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           <span
@@ -306,9 +381,11 @@ function CurationListRow({ item }: { item: CurationItemResponse }) {
             {catStyle.label}
           </span>
           {item.sharedAt && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium
               bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200
-              dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-500/30">
+              dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-500/30"
+            >
               <Sparkles className="h-3 w-3" aria-hidden="true" />
               공유됨
             </span>
@@ -323,22 +400,32 @@ function CurationListRow({ item }: { item: CurationItemResponse }) {
             </span>
           ))}
           {item.sourceName && (
-            <span className="text-xs text-muted-foreground font-medium truncate max-w-[160px]" title={item.sourceName}>
+            <span
+              className="text-xs text-muted-foreground font-medium truncate max-w-[160px]"
+              title={item.sourceName}
+            >
               {item.sourceName}
             </span>
           )}
           {item.sourceName && relativeDate && (
-            <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
+            <span className="text-xs text-muted-foreground" aria-hidden="true">
+              ·
+            </span>
           )}
           {relativeDate && (
-            <span className="text-xs text-muted-foreground tabular-nums shrink-0">{relativeDate}</span>
+            <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+              {relativeDate}
+            </span>
           )}
         </div>
       </div>
 
       {/* External link icon */}
       <span className="sr-only">(새 탭에서 열기)</span>
-      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground/40 group-hover:text-primary transition-colors mt-0.5" aria-hidden="true" />
+      <ExternalLink
+        className="h-4 w-4 shrink-0 text-muted-foreground/40 group-hover:text-primary transition-colors mt-0.5"
+        aria-hidden="true"
+      />
     </a>
   );
 }
@@ -405,12 +492,11 @@ export default function CurationPage() {
   const categoryParam = searchParams.get('category');
   const tagsParam = searchParams.get('tags');
   const searchParam = searchParams.get('search') || '';
-  const category: FilterValue = categoryParam && VALID_CATEGORIES.has(categoryParam)
-    ? (categoryParam as FilterValue)
-    : 'recommended';
-  const selectedTags: string[] = tagsParam
-    ? tagsParam.split(',').filter(Boolean)
-    : [];
+  const category: FilterValue =
+    categoryParam && VALID_CATEGORIES.has(categoryParam)
+      ? (categoryParam as FilterValue)
+      : 'recommended';
+  const selectedTags: string[] = tagsParam ? tagsParam.split(',').filter(Boolean) : [];
 
   // Local state
   const [items, setItems] = useState<CurationItemResponse[]>([]);
@@ -446,56 +532,59 @@ export default function CurationPage() {
   }, []);
 
   // ── Fetch ──
-  const fetchItems = useCallback(async (
-    cat: FilterValue,
-    tags: string[],
-    search: string,
-    cursorArg: string | null,
-    append: boolean
-  ) => {
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-      setError(null);
-    }
-
-    try {
-      const params = new URLSearchParams({
-        limit: String(PAGE_SIZE),
-      });
-      if (cat === 'recommended') {
-        params.set('sort', 'recommended');
-        params.set('category', 'all');
-      } else {
-        params.set('category', cat);
-      }
-      if (tags.length > 0) params.set('tags', tags.join(','));
-      if (search) params.set('search', search);
-      if (cursorArg) params.set('cursor', cursorArg);
-
-      const response = await fetch(`/api/curation?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch curation data');
-      const result = await response.json();
-      const data: CurationData = result.data;
-
+  const fetchItems = useCallback(
+    async (
+      cat: FilterValue,
+      tags: string[],
+      search: string,
+      cursorArg: string | null,
+      append: boolean
+    ) => {
       if (append) {
-        setItems((prev) => [...prev, ...data.items]);
+        setLoadingMore(true);
       } else {
-        setItems(data.items);
+        setLoading(true);
+        setError(null);
       }
-      // Always update totalCount (non-zero only on first page)
-      if (data.totalCount > 0) setTotalCount(data.totalCount);
-      setHasMore(data.hasMore);
-      setCursor(data.nextCursor);
-    } catch (err) {
-      setError('큐레이션 데이터를 불러오는데 실패했습니다.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
+
+      try {
+        const params = new URLSearchParams({
+          limit: String(PAGE_SIZE),
+        });
+        if (cat === 'recommended') {
+          params.set('sort', 'recommended');
+          params.set('category', 'all');
+        } else {
+          params.set('category', cat);
+        }
+        if (tags.length > 0) params.set('tags', tags.join(','));
+        if (search) params.set('search', search);
+        if (cursorArg) params.set('cursor', cursorArg);
+
+        const response = await fetch(`/api/curation?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch curation data');
+        const result = await response.json();
+        const data: CurationData = result.data;
+
+        if (append) {
+          setItems((prev) => [...prev, ...data.items]);
+        } else {
+          setItems(data.items);
+        }
+        // Always update totalCount (non-zero only on first page)
+        if (data.totalCount > 0) setTotalCount(data.totalCount);
+        setHasMore(data.hasMore);
+        setCursor(data.nextCursor);
+      } catch (err) {
+        setError('큐레이션 데이터를 불러오는데 실패했습니다.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
 
   // ── Initial / filter-change fetch ──
   useEffect(() => {
@@ -614,7 +703,10 @@ export default function CurationPage() {
           <label htmlFor="curation-search" className="sr-only">
             큐레이션 콘텐츠 검색
           </label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+            aria-hidden="true"
+          />
           <input
             id="curation-search"
             type="search"
@@ -639,7 +731,11 @@ export default function CurationPage() {
         </div>
 
         {/* Category pills + tags (desktop) */}
-        <div role="group" aria-label="콘텐츠 필터" className="hidden lg:flex items-center gap-2 flex-wrap">
+        <div
+          role="group"
+          aria-label="콘텐츠 필터"
+          className="hidden lg:flex items-center gap-2 flex-wrap"
+        >
           {/* Category pills */}
           {FILTERS.map(({ value, label, emoji }) => (
             <button
@@ -649,9 +745,10 @@ export default function CurationPage() {
               className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium
                 transition-all duration-200
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
-                ${category === value
-                  ? 'bg-foreground text-background shadow-sm motion-safe:scale-105'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80 motion-safe:hover:scale-[1.02]'
+                ${
+                  category === value
+                    ? 'bg-foreground text-background shadow-sm motion-safe:scale-105'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80 motion-safe:hover:scale-[1.02]'
                 }`}
             >
               <span aria-hidden="true">{emoji}</span>
@@ -663,7 +760,11 @@ export default function CurationPage() {
 
           {/* Desktop tags — inline after categories */}
           <div className="flex">
-            <TagFilterList selectedTags={selectedTags} onToggle={handleTagToggle} onClear={clearTags} />
+            <TagFilterList
+              selectedTags={selectedTags}
+              onToggle={handleTagToggle}
+              onClear={clearTags}
+            />
           </div>
         </div>
 
@@ -711,9 +812,10 @@ export default function CurationPage() {
                       className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium
                         transition-all duration-200 focus-visible:outline-none focus-visible:ring-2
                         focus-visible:ring-primary focus-visible:ring-offset-2
-                        ${category === value
-                          ? 'bg-foreground text-background shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        ${
+                          category === value
+                            ? 'bg-foreground text-background shadow-sm'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
                     >
                       <span aria-hidden="true">{emoji}</span>
@@ -735,7 +837,11 @@ export default function CurationPage() {
                     </button>
                   )}
                 </div>
-                <TagFilterList selectedTags={selectedTags} onToggle={handleTagToggle} onClear={clearTags} />
+                <TagFilterList
+                  selectedTags={selectedTags}
+                  onToggle={handleTagToggle}
+                  onClear={clearTags}
+                />
               </section>
             </div>
 
@@ -835,12 +941,8 @@ export default function CurationPage() {
         {/* End indicator */}
         {!hasMore && !loading && items.length > 0 && (
           <div className="flex flex-col items-center gap-1.5 py-10 text-center">
-            <p className="text-sm font-medium text-foreground">
-              {totalCount}개 모두 확인했어요
-            </p>
-            <p className="text-xs text-muted-foreground">
-              새 콘텐츠는 매일 업데이트됩니다
-            </p>
+            <p className="text-sm font-medium text-foreground">{totalCount}개 모두 확인했어요</p>
+            <p className="text-xs text-muted-foreground">새 콘텐츠는 매일 업데이트됩니다</p>
           </div>
         )}
       </div>

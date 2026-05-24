@@ -16,13 +16,19 @@ import { getDeadlineReminder } from './schedulers/deadline-reminder';
 import { getPopularPosts } from './schedulers/popular-posts';
 import type { CrawledContent } from './services/curation.service';
 import { getPostService } from './services/post.service';
+import { getEmbeddingService } from './services/embedding.service';
 import { getNotificationService } from './services/notification.service';
 import { getScoreService } from './services/score.service';
 import { getAttendanceService, getFineService } from './services';
 
 import { ActivityScoreType, AttendanceStatus, curationSources, getDb } from '@blog-study/shared/db';
 import { extractFirstImage, extractOgImage, formatKSTDate } from '@blog-study/shared/utils';
-import { getCurrentRound, getRoundByNumber, isGracePeriodEnded, setCurrentRound } from './services/round.service';
+import {
+  getCurrentRound,
+  getRoundByNumber,
+  isGracePeriodEnded,
+  setCurrentRound,
+} from './services/round.service';
 import { Sentry } from './lib/sentry';
 import { eq } from 'drizzle-orm';
 import logger from './lib/logger';
@@ -32,17 +38,17 @@ import logger from './lib/logger';
  */
 // pg-boss cron은 UTC 기준. KST = UTC+9
 const JOB_DEFINITIONS = [
-  { name: 'rss-poll', cron: '*/5 * * * *' },           // 5분마다
-  { name: 'attendance-init', cron: '2 15 * * 0' },     // KST 월 00:02 (UTC 일 15:02) — 회차 시작일 출석 PENDING 생성
-  { name: 'attendance-absent', cron: '2 15 * * 1' },   // KST 화 00:02 (UTC 월 15:02) — PENDING → ABSENT + 벌금
-  { name: 'fine-reminder', cron: '0 0 * * *' },        // KST 매일 09:00 (UTC 00:00)
-  { name: 'round-report', cron: '0 23 * * 1' },        // KST 화 08:00 (UTC 월 23:00)
-  { name: 'round-start', cron: '0 23 * * 0' },         // KST 월 08:00 (UTC 일 23:00)
-  { name: 'curation-crawl', cron: '0 23 * * *' },      // 4기 미사용
-  { name: 'curation-share', cron: '5 10 * * *' },      // 4기 미사용
-  { name: 'weekly-ranking', cron: '0 1 * * 0' },       // KST 일 10:00 (UTC 일 01:00)
-  { name: 'deadline-reminder', cron: '0 23 * * *' },   // KST 매일 08:00 (UTC 23:00)
-  { name: 'popular-posts', cron: '5 23 * * 1' },      // KST 화 08:05 (UTC 월 23:05)
+  { name: 'rss-poll', cron: '*/5 * * * *' }, // 5분마다
+  { name: 'attendance-init', cron: '2 15 * * 0' }, // KST 월 00:02 (UTC 일 15:02) — 회차 시작일 출석 PENDING 생성
+  { name: 'attendance-absent', cron: '2 15 * * 1' }, // KST 화 00:02 (UTC 월 15:02) — PENDING → ABSENT + 벌금
+  { name: 'fine-reminder', cron: '0 0 * * *' }, // KST 매일 09:00 (UTC 00:00)
+  { name: 'round-report', cron: '0 23 * * 1' }, // KST 화 08:00 (UTC 월 23:00)
+  { name: 'round-start', cron: '0 23 * * 0' }, // KST 월 08:00 (UTC 일 23:00)
+  { name: 'curation-crawl', cron: '0 23 * * *' }, // KST 매일 08:00 (UTC 23:00)
+  { name: 'curation-share', cron: '5 10 * * *' }, // KST 매일 19:05 (UTC 10:05)
+  { name: 'weekly-ranking', cron: '0 1 * * 0' }, // KST 일 10:00 (UTC 일 01:00)
+  { name: 'deadline-reminder', cron: '0 23 * * *' }, // KST 매일 08:00 (UTC 23:00)
+  { name: 'popular-posts', cron: '5 23 * * 1' }, // KST 화 08:05 (UTC 월 23:05)
 ] as const;
 
 /**
@@ -69,6 +75,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
 
   // Set up RSS poller callback: new post → save to DB + send notification + grant score + update attendance
   const postService = getPostService();
+  const embeddingService = getEmbeddingService();
   const notificationService = getNotificationService();
   const scoreService = getScoreService();
   const attendanceService = getAttendanceService();
@@ -84,8 +91,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       if (item.pubDate < POST_CUTOFF_DATE) continue;
 
       // OG 이미지 추출 (실패 시 RSS content 첫 이미지 fallback)
-      const thumbnailUrl = await extractOgImage(item.link).catch(() => null)
-        ?? extractFirstImage(item.description);
+      const thumbnailUrl =
+        (await extractOgImage(item.link).catch(() => null)) ?? extractFirstImage(item.description);
 
       const result = await postService.create({
         memberId: member.id,
@@ -98,7 +105,14 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       });
 
       if (result.isNew) {
-        logger.info({ member: member.name, title: item.title.slice(0, 80) }, '📡 [RSS] 새 글 DB 저장 완료');
+        logger.info(
+          { member: member.name, title: item.title.slice(0, 80) },
+          '📡 [RSS] 새 글 DB 저장 완료'
+        );
+
+        embeddingService.refreshPost(result.post.id).catch((error) => {
+          logger.warn({ postId: result.post.id, error }, '📡 [RSS] 포스트 임베딩 갱신 실패');
+        });
 
         // P0 #3: 출석 상태 업데이트 (제출 또는 지각) — active 유저만
         if (currentRound && member.status === 'active') {
@@ -114,10 +128,13 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             // - markLate(): PENDING 상태일 때만 LATE로 변경 (기존 LATE/ABSENT 유지)
             // - fineService.create(): 동일 회차 벌금이 이미 있으면 기존 벌금 반환
             await attendanceService.markLate(member.id, currentRound.id);
-            logger.info({
-              member: member.name,
-              round: currentRound.roundNumber,
-            }, '📡 [RSS] 지각 제출 처리 완료');
+            logger.info(
+              {
+                member: member.name,
+                round: currentRound.roundNumber,
+              },
+              '📡 [RSS] 지각 제출 처리 완료'
+            );
 
             // 지각 벌금 생성 (이미 존재하면 기존 벌금 반환)
             // DM 알림은 보내지 않음 — fine-reminder에서 화요일부터 리마인더로 발송
@@ -126,10 +143,13 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
             // 정상 제출
             // markSubmitted()는 내부에서 PENDING 상태일 때만 SUBMITTED로 변경 (기존 LATE/ABSENT 유지)
             await attendanceService.markSubmitted(member.id, currentRound.id);
-            logger.info({
-              member: member.name,
-              round: currentRound.roundNumber,
-            }, '📡 [RSS] 정상 제출 처리 완료');
+            logger.info(
+              {
+                member: member.name,
+                round: currentRound.roundNumber,
+              },
+              '📡 [RSS] 정상 제출 처리 완료'
+            );
           }
         }
 
@@ -139,7 +159,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
           await scoreService.grantScore(
             member.id,
             ActivityScoreType.BLOG_POST,
-            `블로그 포스트: ${safeTitle}`,
+            `블로그 포스트: ${safeTitle}`
           );
           logger.info({ member: member.name, points: 30 }, '🏆 [점수] 블로그 포스트 점수 부여');
         }
@@ -206,7 +226,8 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     if (!result) return [];
 
     // P1 #8: 공유 유틸리티 사용
-    const { extractFeedItems, sanitizeDescription, extractOgImage } = await import('@blog-study/shared/utils');
+    const { extractFeedItems, inferCurationTags, sanitizeDescription, extractOgImage } =
+      await import('@blog-study/shared/utils');
     const feedItems = extractFeedItems(result);
 
     // P1 #8: 성능 개선 - OG 이미지 추출 병렬 처리
@@ -230,10 +251,15 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
         url: item.link!,
         publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
         category: '',
-        tags: item.categories ?? [],
+        tags: inferCurationTags({
+          title: item.title!,
+          description: item.description,
+          rawTags: item.categories ?? [],
+        }),
         description: item.description,
-        thumbnailUrl: (result?.status === 'fulfilled' ? result.value : null)
-          ?? extractFirstImage(item.description),
+        thumbnailUrl:
+          (result?.status === 'fulfilled' ? result.value : null) ??
+          extractFirstImage(item.description),
       };
     });
 
@@ -267,7 +293,9 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
 
       // 출석 PENDING 레코드 생성
       const created = await attendanceService.createForRound(nextRound.id);
-      logger.info(`✅ [출석 초기화] ${nextRound.roundNumber}회차 ${created.length}명 PENDING 레코드 생성`);
+      logger.info(
+        `✅ [출석 초기화] ${nextRound.roundNumber}회차 ${created.length}명 PENDING 레코드 생성`
+      );
     } catch (error) {
       Sentry.captureException(error);
       logger.error({ error }, '✅ [출석 초기화] 에러');
@@ -291,15 +319,20 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
       }
 
       const processedRecords = await attendanceService.processGracePeriodEnd(prevRound.id);
-      const absentRecords = processedRecords.filter(r => r.status === AttendanceStatus.ABSENT);
-      logger.info(`✅ [결석 처리] ${prevRound.roundNumber}회차 ${absentRecords.length}명 결석 처리`);
+      const absentRecords = processedRecords.filter((r) => r.status === AttendanceStatus.ABSENT);
+      logger.info(
+        `✅ [결석 처리] ${prevRound.roundNumber}회차 ${absentRecords.length}명 결석 처리`
+      );
 
       for (const record of absentRecords) {
         try {
           await fineService.create(record.memberId, prevRound.id, 'absent');
         } catch (fineError) {
           Sentry.captureException(fineError);
-          logger.error({ memberId: record.memberId, error: fineError }, '✅ [결석 처리] 벌금 부과 실패');
+          logger.error(
+            { memberId: record.memberId, error: fineError },
+            '✅ [결석 처리] 벌금 부과 실패'
+          );
         }
       }
     } catch (error) {
@@ -335,7 +368,6 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
     await weeklyRanking.sendWeeklyRanking();
   });
 
-
   await boss.createQueue('deadline-reminder');
 
   await boss.work('deadline-reminder', { batchSize: 1 }, async () => {
@@ -349,7 +381,7 @@ export async function registerAllJobs(boss: PgBoss, client: Client): Promise<voi
   });
 
   // Wait for queues to be created in the database
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   // THEN schedule all cron jobs (after queues are created)
   for (const job of JOB_DEFINITIONS) {

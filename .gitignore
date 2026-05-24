@@ -44,6 +44,12 @@ firebase-service-account.json
 packages/shared/drizzle/*.sql
 .vercel
 scripts
+!packages/bot/src/scripts/
+!packages/bot/src/scripts/*.ts
 
 # Superpowers brainstorming artifacts (local only)
 .superpowers
+
+# Local agent artifacts
+.agents/
+skills-lock.json
